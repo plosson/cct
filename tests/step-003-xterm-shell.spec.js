@@ -13,7 +13,10 @@ let electronApp;
 let window;
 
 test.beforeAll(async () => {
-  electronApp = await electron.launch({ args: [appPath] });
+  electronApp = await electron.launch({
+    args: [appPath],
+    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+  });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
@@ -81,21 +84,21 @@ test('xterm buffer text contains HELLO_CCT', async () => {
   expect(text).toContain('HELLO_CCT');
 });
 
-test('exit closes the PTY and sets exited attribute', async () => {
+test('exit closes the PTY and removes the tab', async () => {
   const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
   await window.waitForTimeout(500);
   await textarea.pressSequentially('exit', { delay: 30 });
   await window.keyboard.press('Enter');
-  // Wait for the terminal-exited attribute
-  await window.waitForSelector('.terminal-panel[data-terminal-exited="true"]', {
-    timeout: 10000
-  });
+  // Tab should be removed when PTY exits
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(0, { timeout: 10000 });
 });
 
 test('no orphan PTY after exit', async () => {
-  const count = await window.evaluate(() => window.electron_api.terminal.count());
-  expect(count).toBe(0);
+  await expect(async () => {
+    const count = await window.evaluate(() => window.electron_api.terminal.count());
+    expect(count).toBe(0);
+  }).toPass({ timeout: 5000 });
 });
 
 test('electron_api bridge is still exposed (regression)', async () => {
