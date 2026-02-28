@@ -37,6 +37,10 @@ contextBridge.exposeInMainWorld('electron_api', {
     getConfigPath: () => ipcRenderer.invoke('get-window-state-path'),
   },
 
+  contextMenu: {
+    show: (items) => ipcRenderer.invoke('show-context-menu', { items }),
+  },
+
   projects: {
     list: () => ipcRenderer.invoke('project-list'),
     add: () => ipcRenderer.invoke('project-add'),

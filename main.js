@@ -54,10 +54,30 @@ if (!gotTheLock) {
     registerProjectIPC(projectStore, projectConfigService);
 
     // IPC for window state
-    const { ipcMain } = require('electron');
+    const { ipcMain, BrowserWindow } = require('electron');
     ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
     ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
     ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
+
+    // Generic context menu IPC
+    ipcMain.handle('show-context-menu', (event, { items }) => {
+      return new Promise((resolve) => {
+        const menu = Menu.buildFromTemplate(
+          items.map(item => {
+            if (item.type === 'separator') return { type: 'separator' };
+            return {
+              label: item.label,
+              enabled: item.enabled !== false,
+              click: () => resolve(item.action),
+            };
+          })
+        );
+        menu.popup({
+          window: BrowserWindow.fromWebContents(event.sender),
+          callback: () => resolve(null),
+        });
+      });
+    });
 
     installHooks();
 

@@ -236,6 +236,11 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
     if (!e.target.closest('.tab-close')) activateTab(id);
   });
 
+  tabEl.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showTabContextMenu(id);
+  });
+
   tabEl.querySelector('.tab-close').addEventListener('click', () => closeTab(id));
 
   const onDataDisposable = terminal.onData((data) => api.terminal.input({ id, data }));
@@ -479,6 +484,50 @@ function renderPickerList(listEl, filter) {
   });
 }
 
+// ── Tab context menu ─────────────────────────────────────────
+
+async function showTabContextMenu(tabId) {
+  const session = sessions.get(tabId);
+  if (!session) return;
+
+  const projectPath = session.projectPath;
+  const projectSessions = sessionsForProject(projectPath);
+  const hasOthers = projectSessions.length > 1;
+
+  const action = await api.contextMenu.show([
+    { label: 'Close', action: 'close' },
+    { label: 'Close Others', action: 'closeOthers', enabled: hasOthers },
+    { label: 'Close All', action: 'closeAll' },
+  ]);
+
+  switch (action) {
+    case 'close':
+      closeTab(tabId);
+      break;
+    case 'closeOthers':
+      closeOtherTabs(tabId);
+      break;
+    case 'closeAll':
+      closeAllTabs(projectPath);
+      break;
+  }
+}
+
+function closeOtherTabs(keepId) {
+  const session = sessions.get(keepId);
+  if (!session) return;
+  const toClose = sessionsForProject(session.projectPath)
+    .filter(([id]) => id !== keepId)
+    .map(([id]) => id);
+  for (const id of toClose) closeTab(id);
+  activateTab(keepId);
+}
+
+function closeAllTabs(projectPath) {
+  const toClose = sessionsForProject(projectPath).map(([id]) => id);
+  for (const id of toClose) closeTab(id);
+}
+
 // ── Terminal search (Cmd+F) ──────────────────────────────────
 
 let searchBarEl = null;
@@ -672,6 +721,18 @@ window._cctGetBufferText = (targetId) => {
 window._cctActiveTabId = () => activeId;
 window._cctSelectedProject = () => selectedProjectPath;
 window._cctProjectMRU = () => [...projectMRU];
+window._cctCloseOtherTabs = (keepId) => closeOtherTabs(keepId);
+window._cctCloseAllTabs = (projectPath) => closeAllTabs(projectPath || selectedProjectPath);
+window._cctGetTabContextMenuItems = (tabId) => {
+  const session = sessions.get(tabId);
+  if (!session) return null;
+  const projectSessions = sessionsForProject(session.projectPath);
+  return [
+    { label: 'Close', action: 'close' },
+    { label: 'Close Others', action: 'closeOthers', enabled: projectSessions.length > 1 },
+    { label: 'Close All', action: 'closeAll' },
+  ];
+};
 
 // Reload projects from store and re-render sidebar (used by tests)
 window._cctReloadProjects = (projectList) => {
