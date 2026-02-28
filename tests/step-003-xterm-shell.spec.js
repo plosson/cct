@@ -1,6 +1,8 @@
 // @ts-check
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const appPath = path.join(__dirname, '..');
 
@@ -13,12 +15,34 @@ let window;
 test.beforeAll(async () => {
   electronApp = await electron.launch({ args: [appPath] });
   window = await electronApp.firstWindow();
-  // Wait for xterm to initialize
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
+
+  // Create a temp project so we can spawn a session
+  const tmpDir = path.join(os.tmpdir(), `cct-test-003-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  await window.evaluate(async (dir) => {
+    await window.electron_api.projects.addPath(dir);
+    const saved = await window.electron_api.projects.list();
+    window._cctReloadProjects(saved);
+    window._cctSelectProject(dir);
+  }, tmpDir);
+
+  // Create a session in the project
+  await window.click('[data-testid="new-tab-btn"]');
   await window.waitForSelector('.xterm', { timeout: 10000 });
 });
 
 test.afterAll(async () => {
-  await electronApp.close();
+  if (electronApp) {
+    try {
+      const win = await electronApp.firstWindow();
+      const existing = await win.evaluate(() => window.electron_api.projects.list());
+      for (const p of existing) {
+        await win.evaluate((path) => window.electron_api.projects.remove(path), p.path);
+      }
+    } catch { /* app may already be closed */ }
+    await electronApp.close();
+  }
 });
 
 test('.xterm is visible in DOM', async () => {
@@ -39,7 +63,7 @@ test('screenshot shows terminal content', async () => {
 });
 
 test('can type and see echo output', async () => {
-  const textarea = window.locator('.xterm-helper-textarea');
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
   // Type a command
   await textarea.pressSequentially('echo HELLO_CCT', { delay: 30 });
@@ -58,7 +82,7 @@ test('xterm buffer text contains HELLO_CCT', async () => {
 });
 
 test('exit closes the PTY and sets exited attribute', async () => {
-  const textarea = window.locator('.xterm-helper-textarea');
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
   await window.waitForTimeout(500);
   await textarea.pressSequentially('exit', { delay: 30 });

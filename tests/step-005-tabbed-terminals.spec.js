@@ -1,6 +1,8 @@
 // @ts-check
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const appPath = path.join(__dirname, '..');
 
@@ -13,14 +15,37 @@ let window;
 test.beforeAll(async () => {
   electronApp = await electron.launch({ args: [appPath] });
   window = await electronApp.firstWindow();
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
+
+  // Create a temp project and select it
+  const tmpDir = path.join(os.tmpdir(), `cct-test-005-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  await window.evaluate(async (dir) => {
+    await window.electron_api.projects.addPath(dir);
+    const saved = await window.electron_api.projects.list();
+    window._cctReloadProjects(saved);
+    window._cctSelectProject(dir);
+  }, tmpDir);
+
+  // Create initial session
+  await window.click('[data-testid="new-tab-btn"]');
   await window.waitForSelector('.xterm', { timeout: 10000 });
 });
 
 test.afterAll(async () => {
-  await electronApp.close();
+  if (electronApp) {
+    try {
+      const win = await electronApp.firstWindow();
+      const existing = await win.evaluate(() => window.electron_api.projects.list());
+      for (const p of existing) {
+        await win.evaluate((path) => window.electron_api.projects.remove(path), p.path);
+      }
+    } catch { /* app may already be closed */ }
+    await electronApp.close();
+  }
 });
 
-test('1. on launch, one tab exists', async () => {
+test('1. on launch with project, one tab exists', async () => {
   const tabs = window.locator('[data-testid="tab"]');
   await expect(tabs).toHaveCount(1);
 });
@@ -112,15 +137,16 @@ test('8. closed tab PTY is cleaned up', async () => {
   }).toPass({ timeout: 5000 });
 });
 
-test('9. close last tab — app handles gracefully (auto-creates new tab)', async () => {
+test('9. close last tab — shows empty state (no auto-create)', async () => {
   const closeBtn = window.locator('[data-testid="tab"]').first().locator('[data-testid="tab-close"]');
   await closeBtn.click();
 
-  // Should still have 1 tab (auto-created)
-  await expect(window.locator('[data-testid="tab"]')).toHaveCount(1, { timeout: 5000 });
+  // Should have 0 tabs now
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(0, { timeout: 5000 });
 
-  // The new tab's terminal panel should be active and contain an xterm
-  await expect(window.locator('.terminal-panel.active .xterm')).toBeVisible({ timeout: 10000 });
+  // Empty state should be visible
+  const emptyState = window.locator('[data-testid="empty-state"]');
+  await expect(emptyState).toBeVisible({ timeout: 5000 });
 });
 
 test('10. step 004 regression — terminal-create IPC still works', async () => {

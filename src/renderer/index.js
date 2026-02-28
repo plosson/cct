@@ -1,6 +1,6 @@
 /**
  * Renderer — tabbed terminal manager with project sidebar
- * Creates and manages multiple xterm.js sessions connected to PTYs via IPC
+ * Sessions are always project-scoped. Switching projects switches visible tabs.
  */
 
 import { Terminal } from '@xterm/xterm';
@@ -10,12 +10,14 @@ const api = window.electron_api;
 
 const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath }
 let activeId = null;
+let selectedProjectPath = null;
 let sessionCounter = 0;
 
 // Static DOM elements (populated in init)
 let terminalsContainer;
 let tabBarTabs;
 let sidebarProjectsEl;
+let emptyStateEl;
 
 // Project list (synced with ProjectStore via IPC)
 const projects = [];
@@ -32,6 +34,23 @@ const TERMINAL_OPTIONS = {
   }
 };
 
+// ── Empty state ─────────────────────────────────────────────
+
+function updateEmptyState() {
+  if (projects.length === 0) {
+    emptyStateEl.textContent = 'Add a project to get started';
+    emptyStateEl.style.display = 'flex';
+  } else if (selectedProjectPath && countSessionsForProject(selectedProjectPath) === 0) {
+    emptyStateEl.textContent = 'No sessions — click + to create one';
+    emptyStateEl.style.display = 'flex';
+  } else if (!selectedProjectPath) {
+    emptyStateEl.textContent = 'Select a project from the sidebar';
+    emptyStateEl.style.display = 'flex';
+  } else {
+    emptyStateEl.style.display = 'none';
+  }
+}
+
 // ── Sidebar ──────────────────────────────────────────────────
 
 function renderSidebar() {
@@ -39,6 +58,7 @@ function renderSidebar() {
   for (const project of projects) {
     const el = document.createElement('div');
     el.className = 'sidebar-project';
+    if (project.path === selectedProjectPath) el.classList.add('selected');
     el.dataset.testid = 'project-item';
     el.dataset.projectPath = project.path;
 
@@ -52,7 +72,7 @@ function renderSidebar() {
 
     el.addEventListener('click', (e) => {
       if (!e.target.closest('.sidebar-project-remove')) {
-        createSession({ cwd: project.path, projectPath: project.path, label: project.name });
+        selectProject(project.path);
       }
     });
 
@@ -62,6 +82,35 @@ function renderSidebar() {
 
     sidebarProjectsEl.appendChild(el);
   }
+  updateEmptyState();
+}
+
+function selectProject(projectPath) {
+  selectedProjectPath = projectPath;
+
+  // Show/hide tabs and panels for the selected project
+  for (const [id, s] of sessions.entries()) {
+    const belongsToProject = s.projectPath === projectPath;
+    s.tabEl.style.display = belongsToProject ? '' : 'none';
+    // Hide panels for non-selected projects
+    if (!belongsToProject) {
+      s.panelEl.classList.remove('active');
+      s.tabEl.classList.remove('active');
+    }
+  }
+
+  // Activate the last active tab for this project, or the first one
+  const projectSessionIds = [...sessions.entries()]
+    .filter(([, s]) => s.projectPath === projectPath)
+    .map(([id]) => id);
+
+  if (projectSessionIds.length > 0) {
+    activateTab(projectSessionIds[projectSessionIds.length - 1]);
+  } else {
+    activeId = null;
+  }
+
+  renderSidebar();
 }
 
 function countSessionsForProject(projectPath) {
@@ -78,7 +127,7 @@ async function addProject() {
   if (!projects.some(p => p.path === project.path)) {
     projects.push(project);
   }
-  renderSidebar();
+  selectProject(project.path);
 }
 
 async function removeProject(projectPath) {
@@ -95,16 +144,28 @@ async function removeProject(projectPath) {
   const idx = projects.findIndex(p => p.path === projectPath);
   if (idx !== -1) projects.splice(idx, 1);
 
+  // If we removed the selected project, select another or clear
+  if (selectedProjectPath === projectPath) {
+    selectedProjectPath = projects.length > 0 ? projects[0].path : null;
+    if (selectedProjectPath) {
+      selectProject(selectedProjectPath);
+      return;
+    }
+  }
+
   renderSidebar();
 }
 
 // ── Sessions / Tabs ──────────────────────────────────────────
 
-async function createSession({ cwd, projectPath, label } = {}) {
+async function createSession() {
+  if (!selectedProjectPath) return;
+
+  const project = projects.find(p => p.path === selectedProjectPath);
+  if (!project) return;
+
   sessionCounter++;
-  const displayLabel = label
-    ? `${label} ${countSessionsForProject(projectPath) + 1}`
-    : `Session ${sessionCounter}`;
+  const displayLabel = `${project.name} ${countSessionsForProject(project.path) + 1}`;
 
   const panelEl = document.createElement('div');
   panelEl.className = 'terminal-panel';
@@ -119,7 +180,7 @@ async function createSession({ cwd, projectPath, label } = {}) {
     command: api.config?.spawnCommand,
     cols: terminal.cols,
     rows: terminal.rows,
-    cwd
+    cwd: project.path
   });
 
   const tabEl = document.createElement('div');
@@ -161,7 +222,7 @@ async function createSession({ cwd, projectPath, label } = {}) {
     terminal.dispose();
   };
 
-  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath });
+  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path });
   activateTab(id);
   renderSidebar();
 }
@@ -171,9 +232,12 @@ function activateTab(id) {
   const session = sessions.get(id);
   if (!session) return;
 
+  // Only deactivate panels/tabs for the same project
   for (const s of sessions.values()) {
-    s.panelEl.classList.remove('active');
-    s.tabEl.classList.remove('active');
+    if (s.projectPath === session.projectPath) {
+      s.panelEl.classList.remove('active');
+      s.tabEl.classList.remove('active');
+    }
   }
 
   session.panelEl.classList.add('active');
@@ -185,10 +249,12 @@ function activateTab(id) {
   session.terminal.focus();
 }
 
-/** Close a tab, activating a neighbor or creating a fresh session if none remain */
+/** Close a tab, activating a neighbor within the same project */
 function closeTab(id) {
   const session = sessions.get(id);
   if (!session) return;
+
+  const projectPath = session.projectPath;
 
   api.terminal.kill({ id });
   session.cleanup();
@@ -198,22 +264,24 @@ function closeTab(id) {
 
   if (activeId === id) {
     activeId = null;
-    const remaining = [...sessions.keys()];
+    // Find remaining sessions for the same project
+    const remaining = [...sessions.entries()]
+      .filter(([, s]) => s.projectPath === projectPath)
+      .map(([sid]) => sid);
     if (remaining.length > 0) {
       activateTab(remaining[remaining.length - 1]);
     }
   }
 
-  if (sessions.size === 0) {
-    createSession();
-  }
-
   renderSidebar();
 }
 
-/** Cycle to next or previous tab */
+/** Cycle to next or previous tab (within current project) */
 function cycleTab(direction) {
-  const ids = [...sessions.keys()];
+  if (!selectedProjectPath) return;
+  const ids = [...sessions.entries()]
+    .filter(([, s]) => s.projectPath === selectedProjectPath)
+    .map(([id]) => id);
   if (ids.length < 2) return;
   const idx = ids.indexOf(activeId);
   const offset = direction === 'next' ? 1 : ids.length - 1;
@@ -235,6 +303,7 @@ window._cctGetBufferText = (targetId) => {
 };
 
 window._cctActiveTabId = () => activeId;
+window._cctSelectedProject = () => selectedProjectPath;
 
 // Reload projects from store and re-render sidebar (used by tests)
 window._cctReloadProjects = (projectList) => {
@@ -243,12 +312,18 @@ window._cctReloadProjects = (projectList) => {
   renderSidebar();
 };
 
+// Select a project programmatically (used by tests)
+window._cctSelectProject = (projectPath) => {
+  selectProject(projectPath);
+};
+
 // ── Init ─────────────────────────────────────────────────────
 
 async function init() {
   terminalsContainer = document.getElementById('terminals');
   tabBarTabs = document.querySelector('.tab-bar-tabs');
   sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
+  emptyStateEl = document.querySelector('[data-testid="empty-state"]');
 
   // Sidebar: add project button
   document.querySelector('[data-testid="add-project-btn"]')
@@ -259,7 +334,13 @@ async function init() {
   for (const p of savedProjects) {
     projects.push(p);
   }
-  renderSidebar();
+
+  // If there are projects, select the first one
+  if (projects.length > 0) {
+    selectProject(projects[0].path);
+  } else {
+    renderSidebar();
+  }
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -286,8 +367,6 @@ async function init() {
   });
 
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession());
-
-  await createSession();
 }
 
 if (document.readyState === 'loading') {

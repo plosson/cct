@@ -1,6 +1,6 @@
 /**
  * Step 006 — Sidebar with Projects & Sessions
- * Validates sidebar UI, project CRUD, session scoping, and persistence.
+ * Sessions are project-scoped. Switching projects switches visible tabs.
  */
 
 const { test, expect, _electron: electron } = require('@playwright/test');
@@ -13,15 +13,15 @@ const appPath = path.resolve(__dirname, '..');
 let electronApp;
 let window;
 
-// Temp dirs created during tests (cleaned up in afterAll)
 const tmpDirs = [];
 
 test.beforeAll(async () => {
   electronApp = await electron.launch({ args: [appPath] });
   window = await electronApp.firstWindow();
-  await window.waitForSelector('.xterm', { timeout: 10000 });
+  // No .xterm on launch anymore — wait for sidebar instead
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
-  // Clean any leftover projects via IPC so we start with a clean slate
+  // Clean any leftover projects via IPC
   const existing = await window.evaluate(() => window.electron_api.projects.list());
   for (const p of existing) {
     await window.evaluate((path) => window.electron_api.projects.remove(path), p.path);
@@ -34,7 +34,6 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   if (electronApp) {
-    // Clean up projects via IPC
     try {
       const win = await electronApp.firstWindow();
       const existing = await win.evaluate(() => window.electron_api.projects.list());
@@ -52,7 +51,6 @@ async function addTempProject(suffix = '') {
   fs.mkdirSync(tmpDir, { recursive: true });
   tmpDirs.push(tmpDir);
 
-  // Add via IPC (bypasses native dialog) and refresh sidebar
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
@@ -67,9 +65,13 @@ test('1 - sidebar is visible', async () => {
   await expect(sidebar).toBeVisible({ timeout: 5000 });
 });
 
-test('2 - sidebar initially shows empty project list', async () => {
+test('2 - sidebar initially shows empty project list with empty state', async () => {
   const items = window.locator('[data-testid="project-item"]');
   await expect(items).toHaveCount(0);
+
+  // Empty state message visible
+  const emptyState = window.locator('[data-testid="empty-state"]');
+  await expect(emptyState).toBeVisible();
 });
 
 test('3 - add a project and it appears in sidebar', async () => {
@@ -79,17 +81,28 @@ test('3 - add a project and it appears in sidebar', async () => {
   await expect(items).toHaveCount(1, { timeout: 5000 });
 });
 
-test('4 - click project creates a new session tab in that folder', async () => {
+test('4 - click project selects it, then + creates session in that folder', async () => {
   const projectItem = window.locator('[data-testid="project-item"]').first();
   const projectPath = await projectItem.getAttribute('data-project-path');
 
+  // Click to select
   await projectItem.click();
-  await window.waitForTimeout(1000);
+  await window.waitForTimeout(300);
 
-  // A new tab should exist (initial session + this one)
+  // Project should be selected (highlighted)
+  await expect(projectItem).toHaveClass(/selected/, { timeout: 5000 });
+
+  // No sessions yet — empty state visible
+  const emptyState = window.locator('[data-testid="empty-state"]');
+  await expect(emptyState).toBeVisible();
+
+  // Click "+" to create a session
+  await window.click('[data-testid="new-tab-btn"]');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+
+  // A tab should exist
   const tabs = window.locator('[data-testid="tab"]');
-  const tabCount = await tabs.count();
-  expect(tabCount).toBeGreaterThanOrEqual(2);
+  await expect(tabs).toHaveCount(1, { timeout: 5000 });
 
   // Verify terminal working directory
   const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
@@ -115,24 +128,55 @@ test('6 - add a second project, sidebar shows both', async () => {
   await expect(items).toHaveCount(2, { timeout: 5000 });
 });
 
-test('7 - second project shows 0 sessions', async () => {
-  const count = window.locator('[data-testid="project-item"]').nth(1)
+test('7 - second project shows 0 sessions, first still shows 1', async () => {
+  const count2 = window.locator('[data-testid="project-item"]').nth(1)
     .locator('[data-testid="session-count"]');
-  await expect(count).toHaveText('0', { timeout: 5000 });
+  await expect(count2).toHaveText('0', { timeout: 5000 });
+
+  const count1 = window.locator('[data-testid="project-item"]').first()
+    .locator('[data-testid="session-count"]');
+  await expect(count1).toHaveText('1', { timeout: 5000 });
 });
 
-test('8 - create second session under first project updates count to 2', async () => {
-  const projectItem = window.locator('[data-testid="project-item"]').first();
-  await projectItem.click();
+test('8 - create second session under first project, count updates to 2', async () => {
+  // First project should still be selected
+  await window.click('[data-testid="new-tab-btn"]');
   await window.waitForTimeout(1000);
 
-  const count = projectItem.locator('[data-testid="session-count"]');
+  const count = window.locator('[data-testid="project-item"]').first()
+    .locator('[data-testid="session-count"]');
   await expect(count).toHaveText('2', { timeout: 5000 });
+
+  // Two tabs visible
+  const tabs = window.locator('[data-testid="tab"]');
+  await expect(tabs).toHaveCount(2, { timeout: 5000 });
 });
 
-test('9 - remove project closes its sessions and removes from sidebar', async () => {
-  const tabsBefore = await window.locator('[data-testid="tab"]').count();
+test('9 - switching projects switches visible tabs', async () => {
+  // Select second project
+  const project2 = window.locator('[data-testid="project-item"]').nth(1);
+  await project2.click();
+  await window.waitForTimeout(300);
 
+  // Second project selected
+  await expect(project2).toHaveClass(/selected/);
+
+  // No visible tabs (project 2 has no sessions)
+  // Tabs from project 1 should be hidden
+  const visibleTabs = window.locator('[data-testid="tab"]:visible');
+  await expect(visibleTabs).toHaveCount(0, { timeout: 5000 });
+
+  // Switch back to first project
+  const project1 = window.locator('[data-testid="project-item"]').first();
+  await project1.click();
+  await window.waitForTimeout(300);
+
+  // Project 1's tabs visible again
+  const tabs = window.locator('[data-testid="tab"]:visible');
+  await expect(tabs).toHaveCount(2, { timeout: 5000 });
+});
+
+test('10 - remove project closes its sessions and removes from sidebar', async () => {
   // Remove the first project (which has 2 sessions)
   const removeBtn = window.locator('[data-testid="project-item"]').first()
     .locator('[data-testid="remove-project-btn"]');
@@ -143,15 +187,12 @@ test('9 - remove project closes its sessions and removes from sidebar', async ()
   const items = window.locator('[data-testid="project-item"]');
   await expect(items).toHaveCount(1, { timeout: 5000 });
 
-  // Tabs decreased (2 project sessions closed)
-  await expect(async () => {
-    const tabsAfter = await window.locator('[data-testid="tab"]').count();
-    expect(tabsAfter).toBe(tabsBefore - 2);
-  }).toPass({ timeout: 5000 });
+  // No visible tabs (remaining project has 0 sessions)
+  const tabs = window.locator('[data-testid="tab"]');
+  await expect(tabs).toHaveCount(0, { timeout: 5000 });
 });
 
-test('10 - projects persist across app restart', async () => {
-  // We still have 1 project from test 6
+test('11 - projects persist across app restart', async () => {
   const projectsBefore = await window.evaluate(async () => {
     return await window.electron_api.projects.list();
   });
@@ -161,14 +202,14 @@ test('10 - projects persist across app restart', async () => {
   await electronApp.close();
   electronApp = await electron.launch({ args: [appPath] });
   window = await electronApp.firstWindow();
-  await window.waitForSelector('.xterm', { timeout: 10000 });
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Projects should still be there
   const items = window.locator('[data-testid="project-item"]');
   await expect(items).toHaveCount(1, { timeout: 5000 });
 });
 
-test('11 - config file contains expected JSON entries', async () => {
+test('12 - config file contains expected JSON entries', async () => {
   const configPath = await window.evaluate(() => window.electron_api.projects.configPath());
   const configContent = fs.readFileSync(configPath, 'utf8');
 
@@ -178,20 +219,4 @@ test('11 - config file contains expected JSON entries', async () => {
   expect(config.projects.length).toBe(1);
   expect(config.projects[0]).toHaveProperty('path');
   expect(config.projects[0]).toHaveProperty('name');
-});
-
-test('12 - all step 005 tab behaviors still work', async () => {
-  // New tab via button
-  await window.click('[data-testid="new-tab-btn"]');
-  await window.waitForTimeout(500);
-  const tabs = window.locator('[data-testid="tab"]');
-  const countBefore = await tabs.count();
-  expect(countBefore).toBeGreaterThanOrEqual(2);
-
-  // Close via close button
-  const closeBtn = tabs.last().locator('[data-testid="tab-close"]');
-  await closeBtn.click();
-  await window.waitForTimeout(500);
-  const countAfter = await tabs.count();
-  expect(countAfter).toBe(countBefore - 1);
 });
