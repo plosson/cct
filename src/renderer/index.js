@@ -5,6 +5,7 @@
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { SearchAddon } from '@xterm/addon-search';
 
 const api = window.electron_api;
 
@@ -26,6 +27,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+ArrowRight': 'nextTab',
   'Meta+ArrowUp': 'prevProject',
   'Meta+ArrowDown': 'nextProject',
+  'Meta+f': 'openSearchBar',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -202,7 +204,9 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
 
   const terminal = new Terminal(TERMINAL_OPTIONS);
   const fitAddon = new FitAddon();
+  const searchAddon = new SearchAddon();
   terminal.loadAddon(fitAddon);
+  terminal.loadAddon(searchAddon);
   terminal.open(panelEl);
 
   const createParams = {
@@ -274,7 +278,7 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
     terminal.dispose();
   };
 
-  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path, sessionId, type, createdAt: Date.now() });
+  sessions.set(id, { terminal, fitAddon, searchAddon, panelEl, tabEl, cleanup, projectPath: project.path, sessionId, type, createdAt: Date.now() });
   activateTab(id);
   renderSidebar();
 }
@@ -475,6 +479,105 @@ function renderPickerList(listEl, filter) {
   });
 }
 
+// ── Terminal search (Cmd+F) ──────────────────────────────────
+
+let searchBarEl = null;
+
+function openSearchBar() {
+  if (!activeId) return;
+  if (searchBarEl) { focusSearchBar(); return; }
+
+  const session = sessions.get(activeId);
+  if (!session) return;
+
+  searchBarEl = document.createElement('div');
+  searchBarEl.className = 'search-bar';
+  searchBarEl.dataset.testid = 'search-bar';
+
+  const input = document.createElement('input');
+  input.className = 'search-bar-input';
+  input.dataset.testid = 'search-bar-input';
+  input.placeholder = 'Search…';
+
+  const count = document.createElement('span');
+  count.className = 'search-bar-count';
+  count.dataset.testid = 'search-bar-count';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'search-bar-btn';
+  prevBtn.dataset.testid = 'search-bar-prev';
+  prevBtn.textContent = '\u2191';
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'search-bar-btn';
+  nextBtn.dataset.testid = 'search-bar-next';
+  nextBtn.textContent = '\u2193';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'search-bar-btn search-bar-close';
+  closeBtn.dataset.testid = 'search-bar-close';
+  closeBtn.textContent = '\u00d7';
+
+  searchBarEl.appendChild(input);
+  searchBarEl.appendChild(count);
+  searchBarEl.appendChild(prevBtn);
+  searchBarEl.appendChild(nextBtn);
+  searchBarEl.appendChild(closeBtn);
+
+  // Insert into the active panel's parent (main area)
+  const mainArea = document.querySelector('.main-area');
+  mainArea.insertBefore(searchBarEl, terminalsContainer);
+
+  const doSearch = (direction = 'next') => {
+    const s = sessions.get(activeId);
+    if (!s || !input.value) { count.textContent = ''; return; }
+    const found = direction === 'next'
+      ? s.searchAddon.findNext(input.value)
+      : s.searchAddon.findPrevious(input.value);
+    count.textContent = found ? '' : 'No results';
+  };
+
+  input.addEventListener('input', () => doSearch('next'));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeSearchBar();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch(e.shiftKey ? 'prev' : 'next');
+    }
+  });
+
+  prevBtn.addEventListener('click', () => doSearch('prev'));
+  nextBtn.addEventListener('click', () => doSearch('next'));
+  closeBtn.addEventListener('click', () => closeSearchBar());
+
+  input.focus();
+}
+
+function focusSearchBar() {
+  if (!searchBarEl) return;
+  const input = searchBarEl.querySelector('.search-bar-input');
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
+function closeSearchBar() {
+  if (!searchBarEl) return;
+  // Clear search decoration
+  const session = activeId ? sessions.get(activeId) : null;
+  if (session) session.searchAddon.clearDecorations();
+  searchBarEl.remove();
+  searchBarEl = null;
+  // Refocus terminal
+  if (activeId) {
+    const s = sessions.get(activeId);
+    if (s) s.terminal.focus();
+  }
+}
+
 // ── Status bar ───────────────────────────────────────────────
 
 let statusProjectEl;
@@ -651,6 +754,7 @@ async function init() {
   actions.set('nextTab', () => cycleTab('next'));
   actions.set('prevProject', () => cycleProject('prev'));
   actions.set('nextProject', () => cycleProject('next'));
+  actions.set('openSearchBar', () => openSearchBar());
 
   // Data-driven keyboard dispatch
   document.addEventListener('keydown', (e) => {
