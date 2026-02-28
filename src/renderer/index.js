@@ -40,8 +40,10 @@ async function init() {
     return text;
   };
 
-  // Spawn PTY
+  // Spawn PTY — command comes from config (env CCT_COMMAND), defaults to shell
+  const spawnCommand = api.config?.spawnCommand || undefined;
   const { id } = await api.terminal.create({
+    command: spawnCommand,
     cols: terminal.cols,
     rows: terminal.rows
   });

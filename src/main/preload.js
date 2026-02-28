@@ -18,6 +18,11 @@ function createListener(channel) {
 contextBridge.exposeInMainWorld('electron_api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
 
+  // Config from environment — allows tests to control spawn behavior
+  config: {
+    spawnCommand: process.env.CCT_COMMAND || undefined
+  },
+
   terminal: {
     // Request/response — returns { success, id }
     create: (params) => ipcRenderer.invoke('terminal-create', params),
