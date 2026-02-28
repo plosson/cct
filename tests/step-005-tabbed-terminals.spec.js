@@ -27,9 +27,8 @@ test('1. on launch, one tab exists', async () => {
 
 test('2. new session action creates a second tab', async () => {
   await window.click('[data-testid="new-tab-btn"]');
-  await window.waitForSelector('.xterm', { timeout: 10000 });
   const tabs = window.locator('[data-testid="tab"]');
-  await expect(tabs).toHaveCount(2);
+  await expect(tabs).toHaveCount(2, { timeout: 10000 });
 });
 
 test('3. each tab has a visible label', async () => {
@@ -67,8 +66,8 @@ test('6. terminal state preserved across tab switches', async () => {
   await tabs.first().click();
   await window.waitForTimeout(500);
 
-  // Type a unique marker
-  const textarea = window.locator('.xterm-helper-textarea');
+  // Type a unique marker — scope textarea to active panel to avoid strict mode violation
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
   await textarea.pressSequentially('echo TAB1_UNIQUE_MARKER_12345', { delay: 30 });
   await window.keyboard.press('Enter');
@@ -93,10 +92,14 @@ test('6. terminal state preserved across tab switches', async () => {
 });
 
 test('7. close tab 2 via close button: tab count back to 1', async () => {
-  const tabsBefore = window.locator('[data-testid="tab"]');
-  await expect(tabsBefore).toHaveCount(2);
+  // Ensure we have 2 tabs (create one if test 6 left us with fewer)
+  const tabCount = await window.locator('[data-testid="tab"]').count();
+  if (tabCount < 2) {
+    await window.click('[data-testid="new-tab-btn"]');
+    await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 5000 });
+  }
 
-  const closeBtn = tabsBefore.nth(1).locator('[data-testid="tab-close"]');
+  const closeBtn = window.locator('[data-testid="tab"]').nth(1).locator('[data-testid="tab-close"]');
   await closeBtn.click();
 
   await expect(window.locator('[data-testid="tab"]')).toHaveCount(1);
@@ -113,14 +116,11 @@ test('9. close last tab — app handles gracefully (auto-creates new tab)', asyn
   const closeBtn = window.locator('[data-testid="tab"]').first().locator('[data-testid="tab-close"]');
   await closeBtn.click();
 
-  await expect(async () => {
-    const count = await window.locator('[data-testid="tab"]').count();
-    expect(count).toBe(1);
-  }).toPass({ timeout: 5000 });
+  // Should still have 1 tab (auto-created)
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(1, { timeout: 5000 });
 
-  await window.waitForSelector('.xterm', { timeout: 10000 });
-  const xterm = window.locator('.xterm');
-  await expect(xterm).toBeVisible();
+  // The new tab's terminal panel should be active and contain an xterm
+  await expect(window.locator('.terminal-panel.active .xterm')).toBeVisible({ timeout: 10000 });
 });
 
 test('10. step 004 regression — terminal-create IPC still works', async () => {

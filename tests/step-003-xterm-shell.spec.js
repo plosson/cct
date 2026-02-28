@@ -64,7 +64,7 @@ test('exit closes the PTY and sets exited attribute', async () => {
   await textarea.pressSequentially('exit', { delay: 30 });
   await window.keyboard.press('Enter');
   // Wait for the terminal-exited attribute
-  await window.waitForSelector('#terminal-container[data-terminal-exited="true"]', {
+  await window.waitForSelector('.terminal-panel[data-terminal-exited="true"]', {
     timeout: 10000
   });
 });
