@@ -10,14 +10,7 @@ permissions:
 
 jobs:
   build-macos:
-    strategy:
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-          - runner: macos-13
-            arch: x64
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -39,13 +32,13 @@ jobs:
       - name: Test
         run: npx playwright test
 
-      - name: Build macOS DMG (${{ matrix.arch }})
+      - name: Build macOS DMG (arm64)
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 15
-          command: npx electron-builder --mac --${{ matrix.arch }} --publish always --config electron-builder.config.js
+          command: npx electron-builder --mac --arm64 --publish always --config electron-builder.config.js
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Code signing placeholders — uncomment when certificates are available
