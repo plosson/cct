@@ -1,6 +1,8 @@
 // @ts-check
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const { execSync } = require('child_process');
 
 const appPath = path.join(__dirname, '..');
@@ -18,6 +20,20 @@ test.beforeAll(async () => {
     env: { ...process.env, CCT_COMMAND: 'claude' }
   });
   window = await electronApp.firstWindow();
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
+
+  // Create a temp project and select it
+  const tmpDir = path.join(os.tmpdir(), `cct-test-004-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  await window.evaluate(async (dir) => {
+    await window.electron_api.projects.addPath(dir);
+    const saved = await window.electron_api.projects.list();
+    window._cctReloadProjects(saved);
+    window._cctSelectProject(dir);
+  }, tmpDir);
+
+  // Create a session (will spawn claude due to CCT_COMMAND)
+  await window.click('[data-testid="new-tab-btn"]');
   // Claude may take longer to start than a shell
   await window.waitForSelector('.xterm', { timeout: 15000 });
   // Wait for Claude TUI to fully render
@@ -25,7 +41,16 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await electronApp.close();
+  if (electronApp) {
+    try {
+      const win = await electronApp.firstWindow();
+      const existing = await win.evaluate(() => window.electron_api.projects.list());
+      for (const p of existing) {
+        await win.evaluate((path) => window.electron_api.projects.remove(path), p.path);
+      }
+    } catch { /* app may already be closed */ }
+    await electronApp.close();
+  }
 });
 
 test('claude is on PATH', async () => {
@@ -70,7 +95,7 @@ test('ANSI colors are rendered (colored output present)', async () => {
 });
 
 test('send /help and verify buffer updates', async () => {
-  const textarea = window.locator('.xterm-helper-textarea');
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
 
   const beforeText = await window.evaluate(() => window._cctGetBufferText());
@@ -88,7 +113,7 @@ test('send /help and verify buffer updates', async () => {
 test('close session — no zombie claude process', async () => {
   const terminalCount = await window.evaluate(() => window.electron_api.terminal.count());
   if (terminalCount > 0) {
-    const textarea = window.locator('.xterm-helper-textarea');
+    const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
     await textarea.focus();
     // Escape to clear any pending state, then /exit
     await window.keyboard.press('Escape');

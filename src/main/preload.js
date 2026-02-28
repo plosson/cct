@@ -29,5 +29,13 @@ contextBridge.exposeInMainWorld('electron_api', {
     onData: createListener('terminal-data'),
     onExit: createListener('terminal-exit'),
     count: () => ipcRenderer.invoke('terminal-count')
+  },
+
+  projects: {
+    list: () => ipcRenderer.invoke('project-list'),
+    add: () => ipcRenderer.invoke('project-add'),
+    addPath: (folderPath) => ipcRenderer.invoke('project-add-path', { folderPath }),
+    remove: (path) => ipcRenderer.invoke('project-remove', { path }),
+    configPath: () => ipcRenderer.invoke('project-config-path')
   }
 });

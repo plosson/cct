@@ -24,6 +24,125 @@ html, body {
   flex-shrink: 0;
 }
 
+/* App body — horizontal split */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  min-width: 180px;
+  flex-shrink: 0;
+  background: #16162a;
+  border-right: 1px solid #2a2a4a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 36px;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 600;
+}
+
+.sidebar-add-btn {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.sidebar-add-btn:hover {
+  color: #e0e0e0;
+}
+
+.sidebar-projects {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.sidebar-project {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #ccc;
+  user-select: none;
+}
+
+.sidebar-project:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-project.selected {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+.sidebar-project-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-project-count {
+  font-size: 11px;
+  color: #666;
+  margin: 0 8px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.sidebar-project-remove {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.sidebar-project:hover .sidebar-project-remove {
+  opacity: 1;
+}
+
+.sidebar-project-remove:hover {
+  color: #ff6b6b;
+}
+
+/* Main area — right side of sidebar */
+.main-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
 /* Tab bar */
 .tab-bar {
   display: flex;
@@ -120,4 +239,15 @@ html, body {
 
 .terminal-panel.active {
   display: flex;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  font-size: 14px;
+  user-select: none;
 }

@@ -27,6 +27,9 @@ if (!gotTheLock) {
   const { createMainWindow, getMainWindow } = require('./src/main/windows/MainWindow');
   const { TerminalService } = require('./src/main/services/TerminalService');
   const { registerTerminalIPC } = require('./src/main/ipc/terminal.ipc');
+  const { ProjectStore } = require('./src/main/services/ProjectStore');
+  const { ProjectConfigService } = require('./src/main/services/ProjectConfigService');
+  const { registerProjectIPC } = require('./src/main/ipc/project.ipc');
 
   let terminalService;
 
@@ -40,7 +43,11 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     const win = createMainWindow();
     terminalService = new TerminalService(win);
-    registerTerminalIPC(terminalService);
+    const projectConfigService = new ProjectConfigService();
+    registerTerminalIPC(terminalService, projectConfigService);
+
+    const projectStore = new ProjectStore();
+    registerProjectIPC(projectStore);
 
     // Disable Cmd+W in the native menu so the renderer handles it as tab-close
     const menu = Menu.getApplicationMenu();

@@ -1,6 +1,6 @@
 /**
- * Renderer — tabbed terminal manager
- * Creates and manages multiple xterm.js sessions connected to PTYs via IPC
+ * Renderer — tabbed terminal manager with project sidebar
+ * Sessions are always project-scoped. Switching projects switches visible tabs.
  */
 
 import { Terminal } from '@xterm/xterm';
@@ -8,13 +8,19 @@ import { FitAddon } from '@xterm/addon-fit';
 
 const api = window.electron_api;
 
-const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup }
+const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId }
 let activeId = null;
+let selectedProjectPath = null;
 let sessionCounter = 0;
 
 // Static DOM elements (populated in init)
 let terminalsContainer;
 let tabBarTabs;
+let sidebarProjectsEl;
+let emptyStateEl;
+
+// Project list (synced with ProjectStore via IPC)
+const projects = [];
 
 const TERMINAL_OPTIONS = {
   cursorBlink: true,
@@ -28,9 +34,138 @@ const TERMINAL_OPTIONS = {
   }
 };
 
+// ── Empty state ─────────────────────────────────────────────
+
+function updateEmptyState() {
+  if (projects.length === 0) {
+    emptyStateEl.textContent = 'Add a project to get started';
+    emptyStateEl.style.display = 'flex';
+  } else if (selectedProjectPath && countSessionsForProject(selectedProjectPath) === 0) {
+    emptyStateEl.textContent = 'No sessions — click + to create one';
+    emptyStateEl.style.display = 'flex';
+  } else if (!selectedProjectPath) {
+    emptyStateEl.textContent = 'Select a project from the sidebar';
+    emptyStateEl.style.display = 'flex';
+  } else {
+    emptyStateEl.style.display = 'none';
+  }
+}
+
+// ── Sidebar ──────────────────────────────────────────────────
+
+function renderSidebar() {
+  sidebarProjectsEl.innerHTML = '';
+  for (const project of projects) {
+    const el = document.createElement('div');
+    el.className = 'sidebar-project';
+    if (project.path === selectedProjectPath) el.classList.add('selected');
+    el.dataset.testid = 'project-item';
+    el.dataset.projectPath = project.path;
+
+    const sessionCount = countSessionsForProject(project.path);
+
+    el.innerHTML = `
+      <span class="sidebar-project-name">${project.name}</span>
+      <span class="sidebar-project-count" data-testid="session-count">${sessionCount}</span>
+      <button class="sidebar-project-remove" data-testid="remove-project-btn">&times;</button>
+    `;
+
+    el.addEventListener('click', (e) => {
+      if (!e.target.closest('.sidebar-project-remove')) {
+        selectProject(project.path);
+      }
+    });
+
+    el.querySelector('.sidebar-project-remove').addEventListener('click', () => {
+      removeProject(project.path);
+    });
+
+    sidebarProjectsEl.appendChild(el);
+  }
+  updateEmptyState();
+}
+
+function selectProject(projectPath) {
+  selectedProjectPath = projectPath;
+
+  // Show/hide tabs and panels for the selected project
+  for (const [id, s] of sessions.entries()) {
+    const belongsToProject = s.projectPath === projectPath;
+    s.tabEl.style.display = belongsToProject ? '' : 'none';
+    // Hide panels for non-selected projects
+    if (!belongsToProject) {
+      s.panelEl.classList.remove('active');
+      s.tabEl.classList.remove('active');
+    }
+  }
+
+  // Activate the last active tab for this project, or the first one
+  const projectSessionIds = [...sessions.entries()]
+    .filter(([, s]) => s.projectPath === projectPath)
+    .map(([id]) => id);
+
+  if (projectSessionIds.length > 0) {
+    activateTab(projectSessionIds[projectSessionIds.length - 1]);
+  } else {
+    activeId = null;
+  }
+
+  renderSidebar();
+}
+
+function countSessionsForProject(projectPath) {
+  let count = 0;
+  for (const s of sessions.values()) {
+    if (s.projectPath === projectPath) count++;
+  }
+  return count;
+}
+
+async function addProject() {
+  const project = await api.projects.add();
+  if (!project) return; // dialog canceled
+  if (!projects.some(p => p.path === project.path)) {
+    projects.push(project);
+  }
+  selectProject(project.path);
+}
+
+async function removeProject(projectPath) {
+  await api.projects.remove(projectPath);
+
+  // Close all sessions for this project
+  const toClose = [];
+  for (const [id, s] of sessions.entries()) {
+    if (s.projectPath === projectPath) toClose.push(id);
+  }
+  for (const id of toClose) closeTab(id);
+
+  // Remove from local list
+  const idx = projects.findIndex(p => p.path === projectPath);
+  if (idx !== -1) projects.splice(idx, 1);
+
+  // If we removed the selected project, select another or clear
+  if (selectedProjectPath === projectPath) {
+    selectedProjectPath = projects.length > 0 ? projects[0].path : null;
+    if (selectedProjectPath) {
+      selectProject(selectedProjectPath);
+      return;
+    }
+  }
+
+  renderSidebar();
+}
+
+// ── Sessions / Tabs ──────────────────────────────────────────
+
 async function createSession() {
+  if (!selectedProjectPath) return;
+
+  const project = projects.find(p => p.path === selectedProjectPath);
+  if (!project) return;
+
   sessionCounter++;
-  const label = `Session ${sessionCounter}`;
+  const displayLabel = `${project.name} ${countSessionsForProject(project.path) + 1}`;
 
   const panelEl = document.createElement('div');
   panelEl.className = 'terminal-panel';
@@ -41,17 +176,18 @@ async function createSession() {
   terminal.loadAddon(fitAddon);
   terminal.open(panelEl);
 
-  const { id } = await api.terminal.create({
+  const { id, sessionId } = await api.terminal.create({
     command: api.config?.spawnCommand,
     cols: terminal.cols,
-    rows: terminal.rows
+    rows: terminal.rows,
+    cwd: project.path
   });
 
   const tabEl = document.createElement('div');
   tabEl.className = 'tab-item';
   tabEl.dataset.testid = 'tab';
   tabEl.dataset.tabId = String(id);
-  tabEl.innerHTML = `<span class="tab-label">${label}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
+  tabEl.innerHTML = `<span class="tab-label">${displayLabel}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
   tabBarTabs.appendChild(tabEl);
 
   tabEl.addEventListener('click', (e) => {
@@ -86,8 +222,9 @@ async function createSession() {
     terminal.dispose();
   };
 
-  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup });
+  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path, sessionId });
   activateTab(id);
+  renderSidebar();
 }
 
 /** Switch the visible tab and focus its terminal */
@@ -95,9 +232,12 @@ function activateTab(id) {
   const session = sessions.get(id);
   if (!session) return;
 
+  // Only deactivate panels/tabs for the same project
   for (const s of sessions.values()) {
-    s.panelEl.classList.remove('active');
-    s.tabEl.classList.remove('active');
+    if (s.projectPath === session.projectPath) {
+      s.panelEl.classList.remove('active');
+      s.tabEl.classList.remove('active');
+    }
   }
 
   session.panelEl.classList.add('active');
@@ -109,10 +249,12 @@ function activateTab(id) {
   session.terminal.focus();
 }
 
-/** Close a tab, activating a neighbor or creating a fresh session if none remain */
+/** Close a tab, activating a neighbor within the same project */
 function closeTab(id) {
   const session = sessions.get(id);
   if (!session) return;
+
+  const projectPath = session.projectPath;
 
   api.terminal.kill({ id });
   session.cleanup();
@@ -122,27 +264,32 @@ function closeTab(id) {
 
   if (activeId === id) {
     activeId = null;
-    const remaining = [...sessions.keys()];
+    // Find remaining sessions for the same project
+    const remaining = [...sessions.entries()]
+      .filter(([, s]) => s.projectPath === projectPath)
+      .map(([sid]) => sid);
     if (remaining.length > 0) {
       activateTab(remaining[remaining.length - 1]);
     }
   }
 
-  if (sessions.size === 0) {
-    createSession();
-  }
+  renderSidebar();
 }
 
-/** Cycle to next or previous tab */
+/** Cycle to next or previous tab (within current project) */
 function cycleTab(direction) {
-  const ids = [...sessions.keys()];
+  if (!selectedProjectPath) return;
+  const ids = [...sessions.entries()]
+    .filter(([, s]) => s.projectPath === selectedProjectPath)
+    .map(([id]) => id);
   if (ids.length < 2) return;
   const idx = ids.indexOf(activeId);
   const offset = direction === 'next' ? 1 : ids.length - 1;
   activateTab(ids[(idx + offset) % ids.length]);
 }
 
-// Test helpers
+// ── Test helpers ─────────────────────────────────────────────
+
 window._cctGetBufferText = (targetId) => {
   const session = sessions.get(targetId || activeId);
   if (!session) return '';
@@ -156,11 +303,46 @@ window._cctGetBufferText = (targetId) => {
 };
 
 window._cctActiveTabId = () => activeId;
+window._cctSelectedProject = () => selectedProjectPath;
+
+// Reload projects from store and re-render sidebar (used by tests)
+window._cctReloadProjects = (projectList) => {
+  projects.length = 0;
+  projects.push(...projectList);
+  renderSidebar();
+};
+
+// Select a project programmatically (used by tests)
+window._cctSelectProject = (projectPath) => {
+  selectProject(projectPath);
+};
+
+// ── Init ─────────────────────────────────────────────────────
 
 async function init() {
   terminalsContainer = document.getElementById('terminals');
   tabBarTabs = document.querySelector('.tab-bar-tabs');
+  sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
+  emptyStateEl = document.querySelector('[data-testid="empty-state"]');
 
+  // Sidebar: add project button
+  document.querySelector('[data-testid="add-project-btn"]')
+    .addEventListener('click', addProject);
+
+  // Load persisted projects
+  const savedProjects = await api.projects.list();
+  for (const p of savedProjects) {
+    projects.push(p);
+  }
+
+  // If there are projects, select the first one
+  if (projects.length > 0) {
+    selectProject(projects[0].path);
+  } else {
+    renderSidebar();
+  }
+
+  // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (!e.metaKey && !e.ctrlKey) return;
 
@@ -185,8 +367,6 @@ async function init() {
   });
 
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession());
-
-  await createSession();
 }
 
 if (document.readyState === 'loading') {
