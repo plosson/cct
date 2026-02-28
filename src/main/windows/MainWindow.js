@@ -2,10 +2,16 @@
  * Main Window Manager
  */
 
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, dialog } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
+let terminalService = null;
+let forceClose = false;
+
+function setTerminalService(service) {
+  terminalService = service;
+}
 
 function createMainWindow(windowStateService) {
   const isMac = process.platform === 'darwin';
@@ -33,6 +39,25 @@ function createMainWindow(windowStateService) {
     windowStateService.track(mainWindow);
   }
 
+  mainWindow.on('close', (e) => {
+    if (forceClose) return;
+    if (!terminalService || terminalService.count() === 0) return;
+
+    const count = terminalService.count();
+    const result = dialog.showMessageBoxSync(mainWindow, {
+      type: 'question',
+      buttons: ['Close', 'Cancel'],
+      defaultId: 1,
+      title: 'Close Window',
+      message: `You have ${count} active terminal session${count === 1 ? '' : 's'}.`,
+      detail: 'Closing the window will terminate all running sessions.',
+    });
+
+    if (result === 1) {
+      e.preventDefault();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -44,4 +69,9 @@ function getMainWindow() {
   return mainWindow;
 }
 
-module.exports = { createMainWindow, getMainWindow };
+function forceCloseWindow() {
+  forceClose = true;
+  if (mainWindow) mainWindow.close();
+}
+
+module.exports = { createMainWindow, getMainWindow, setTerminalService, forceCloseWindow };

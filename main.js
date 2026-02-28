@@ -24,7 +24,7 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  const { createMainWindow, getMainWindow } = require('./src/main/windows/MainWindow');
+  const { createMainWindow, getMainWindow, setTerminalService, forceCloseWindow } = require('./src/main/windows/MainWindow');
   const { TerminalService } = require('./src/main/services/TerminalService');
   const { registerTerminalIPC } = require('./src/main/ipc/terminal.ipc');
   const { ProjectStore } = require('./src/main/services/ProjectStore');
@@ -47,6 +47,7 @@ if (!gotTheLock) {
     windowStateService = new WindowStateService();
     const win = createMainWindow(windowStateService);
     terminalService = new TerminalService(win);
+    setTerminalService(terminalService);
     const projectConfigService = new ProjectConfigService();
     registerTerminalIPC(terminalService, projectConfigService);
 
@@ -95,6 +96,8 @@ if (!gotTheLock) {
   });
 
   app.on('before-quit', () => {
+    // Force close skips the confirmation dialog (triggered by app.quit(), Cmd+Q, etc.)
+    forceCloseWindow();
     removeHooks();
     if (terminalService) terminalService.killAll();
   });
