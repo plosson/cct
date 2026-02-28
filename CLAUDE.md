@@ -49,6 +49,20 @@ The project `../claude-terminal` is a mature Electron terminal app. Use it as a 
 
 Do NOT copy its feature set — only adopt its architectural patterns where relevant.
 
+## Step Journal
+
+When a step is complete (all tests pass, branch merged to main), write a journal entry in `notes/STEP_NOTES_XXX.md` (matching the step number). This is **mandatory** before considering a step done.
+
+Each journal entry must cover:
+
+1. **What was done** — summary of files created/modified and the resulting behavior
+2. **Choices made** — alternatives considered and why the chosen approach won
+3. **Architecture decisions** — patterns adopted, how they fit the overall design, trade-offs
+4. **How it was tested** — which Playwright tests were added, what they assert, any manual verification performed, test output summary
+5. **Lessons / gotchas** — anything surprising, workarounds, things to watch out for in future steps
+
+Keep it concise and factual — this is a technical log, not prose.
+
 ## Development Rules
 
 - Use `uv` for any Python tooling
