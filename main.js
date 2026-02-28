@@ -26,6 +26,11 @@ if (!gotTheLock) {
 } else {
   const { createMainWindow, getMainWindow } = require('./src/main/windows/MainWindow');
 
+  const { TerminalService } = require('./src/main/services/TerminalService');
+  const { registerTerminalIPC } = require('./src/main/ipc/terminal.ipc');
+
+  let terminalService = null;
+
   app.on('second-instance', () => {
     const win = getMainWindow();
     if (win) {
@@ -35,7 +40,13 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    createMainWindow();
+    const win = createMainWindow();
+    terminalService = new TerminalService(win);
+    registerTerminalIPC(terminalService);
+  });
+
+  app.on('before-quit', () => {
+    if (terminalService) terminalService.killAll();
   });
 
   app.on('window-all-closed', () => {

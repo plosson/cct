@@ -9,6 +9,9 @@ module.exports = {
     "index.html",
     "styles/**/*",
     "src/main/**/*",
+    "dist/renderer.bundle.js",
+    "dist/renderer.bundle.js.map",
+    "node_modules/@xterm/xterm/css/**",
     "package.json"
   ],
   mac: {

@@ -16,6 +16,19 @@ function createListener(channel) {
 
 // Expose protected API to renderer
 contextBridge.exposeInMainWorld('electron_api', {
-  // Placeholder — will be extended in later steps
-  getVersion: () => ipcRenderer.invoke('get-version')
+  getVersion: () => ipcRenderer.invoke('get-version'),
+
+  terminal: {
+    // Request/response — returns { success, id }
+    create: (params) => ipcRenderer.invoke('terminal-create', params),
+    // Fire-and-forget — high-frequency, no response needed
+    input: ({ id, data }) => ipcRenderer.send('terminal-input', { id, data }),
+    resize: ({ id, cols, rows }) => ipcRenderer.send('terminal-resize', { id, cols, rows }),
+    kill: ({ id }) => ipcRenderer.send('terminal-kill', { id }),
+    // Listeners — return unsubscribe functions
+    onData: createListener('terminal-data'),
+    onExit: createListener('terminal-exit'),
+    // For test assertions
+    count: () => ipcRenderer.invoke('terminal-count')
+  }
 });
