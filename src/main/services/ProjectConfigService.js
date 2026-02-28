@@ -61,14 +61,26 @@ class ProjectConfigService {
    * @param {string} projectPath
    * @param {string} sessionId
    * @param {number} terminalId
+   * @param {'claude'|'terminal'} [type='claude']
    */
-  recordSession(projectPath, sessionId, terminalId) {
+  recordSession(projectPath, sessionId, terminalId, type = 'claude') {
     const config = this.getConfig(projectPath);
     config.sessions.push({
       id: sessionId,
       terminalId,
+      type,
       createdAt: new Date().toISOString()
     });
+    this._save(projectPath, config);
+  }
+
+  /**
+   * Clear all sessions for a project (keeps projectId intact)
+   * @param {string} projectPath
+   */
+  clearSessions(projectPath) {
+    const config = this.getConfig(projectPath);
+    config.sessions = [];
     this._save(projectPath, config);
   }
 

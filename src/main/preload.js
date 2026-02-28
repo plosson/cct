@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('electron_api', {
     add: () => ipcRenderer.invoke('project-add'),
     addPath: (folderPath) => ipcRenderer.invoke('project-add-path', { folderPath }),
     remove: (path) => ipcRenderer.invoke('project-remove', { path }),
-    configPath: () => ipcRenderer.invoke('project-config-path')
+    configPath: () => ipcRenderer.invoke('project-config-path'),
+    getSessions: (projectPath) => ipcRenderer.invoke('get-project-sessions', projectPath),
+    clearSessions: (projectPath) => ipcRenderer.invoke('clear-project-sessions', projectPath)
   }
 });

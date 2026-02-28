@@ -47,7 +47,7 @@ if (!gotTheLock) {
     registerTerminalIPC(terminalService, projectConfigService);
 
     const projectStore = new ProjectStore();
-    registerProjectIPC(projectStore);
+    registerProjectIPC(projectStore, projectConfigService);
 
     // Disable Cmd+W in the native menu so the renderer handles it as tab-close
     const menu = Menu.getApplicationMenu();

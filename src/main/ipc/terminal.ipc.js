@@ -4,7 +4,7 @@
  * Orchestrates session tracking: generates IDs, sets env vars, records sessions.
  */
 
-const { ipcMain } = require('electron');
+const { ipcMain, app } = require('electron');
 const crypto = require('crypto');
 
 /**
@@ -16,9 +16,13 @@ function registerTerminalIPC(terminalService, projectConfigService) {
   // Map<terminalId, { projectPath, sessionId }> for cleanup on kill/exit
   const sessionMap = new Map();
 
+  // During shutdown, PTYs are killed but we want sessions to persist for restore
+  let shuttingDown = false;
+  app.on('before-quit', () => { shuttingDown = true; });
+
   // Request/response — renderer needs the terminal ID back
   ipcMain.handle('terminal-create', (_event, params = {}) => {
-    const { cwd } = params;
+    const { cwd, type } = params;
     let projectId;
     const sessionId = crypto.randomUUID();
 
@@ -32,7 +36,7 @@ function registerTerminalIPC(terminalService, projectConfigService) {
 
     const onExit = ({ id }) => {
       const entry = sessionMap.get(id);
-      if (entry && projectConfigService) {
+      if (!shuttingDown && entry && projectConfigService) {
         projectConfigService.removeSession(entry.projectPath, id);
       }
       sessionMap.delete(id);
@@ -42,7 +46,7 @@ function registerTerminalIPC(terminalService, projectConfigService) {
 
     // Record session in .cct/sessions.json
     if (cwd && projectConfigService) {
-      projectConfigService.recordSession(cwd, sessionId, result.id);
+      projectConfigService.recordSession(cwd, sessionId, result.id, type);
       sessionMap.set(result.id, { projectPath: cwd, sessionId });
     }
 

@@ -8,8 +8,9 @@ const { ipcMain } = require('electron');
 /**
  * Register all project-related IPC handlers
  * @param {import('../services/ProjectStore').ProjectStore} projectStore
+ * @param {import('../services/ProjectConfigService').ProjectConfigService} projectConfigService
  */
-function registerProjectIPC(projectStore) {
+function registerProjectIPC(projectStore, projectConfigService) {
   ipcMain.handle('project-list', () => {
     return projectStore.list();
   });
@@ -28,6 +29,14 @@ function registerProjectIPC(projectStore) {
 
   ipcMain.handle('project-config-path', () => {
     return projectStore.configPath;
+  });
+
+  ipcMain.handle('get-project-sessions', (_event, projectPath) => {
+    return projectConfigService.getConfig(projectPath).sessions;
+  });
+
+  ipcMain.handle('clear-project-sessions', (_event, projectPath) => {
+    projectConfigService.clearSessions(projectPath);
   });
 }
 

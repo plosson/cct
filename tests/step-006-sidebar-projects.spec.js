@@ -16,12 +16,27 @@ let window;
 const tmpDirs = [];
 
 test.beforeAll(async () => {
-  electronApp = await electron.launch({ args: [appPath] });
+  electronApp = await electron.launch({
+    args: [appPath],
+    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+  });
   window = await electronApp.firstWindow();
   // No .xterm on launch anymore — wait for sidebar instead
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Clean any leftover projects via IPC
+  await clearAllProjects();
+});
+
+test.afterAll(async () => {
+  if (electronApp) {
+    try { await clearAllProjects(); } catch { /* app may already be closed */ }
+    await electronApp.close();
+  }
+});
+
+/** Helper: remove all projects via IPC and reload the renderer state */
+async function clearAllProjects() {
   const existing = await window.evaluate(() => window.electron_api.projects.list());
   for (const p of existing) {
     await window.evaluate((path) => window.electron_api.projects.remove(path), p.path);
@@ -30,20 +45,15 @@ test.beforeAll(async () => {
     const saved = await window.electron_api.projects.list();
     window._cctReloadProjects(saved);
   });
-});
+}
 
-test.afterAll(async () => {
-  if (electronApp) {
-    try {
-      const win = await electronApp.firstWindow();
-      const existing = await win.evaluate(() => window.electron_api.projects.list());
-      for (const p of existing) {
-        await win.evaluate((path) => window.electron_api.projects.remove(path), p.path);
-      }
-    } catch { /* app may already be closed */ }
-    await electronApp.close();
-  }
-});
+/** Helper: read and parse .cct/sessions.json for the first project in the sidebar */
+async function readSessionsConfig() {
+  const projectPath = await window.locator('[data-testid="project-item"]').first()
+    .getAttribute('data-project-path');
+  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+  return { projectPath, sessionsPath, config: JSON.parse(fs.readFileSync(sessionsPath, 'utf8')) };
+}
 
 /** Helper: create a temp dir and add it as a project */
 async function addTempProject(suffix = '') {
@@ -200,7 +210,10 @@ test('11 - projects persist across app restart', async () => {
 
   // Restart the app
   await electronApp.close();
-  electronApp = await electron.launch({ args: [appPath] });
+  electronApp = await electron.launch({
+    args: [appPath],
+    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+  });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
@@ -241,30 +254,23 @@ test('13 - creating a session produces .cct/sessions.json in project folder', as
 });
 
 test('14 - sessions.json has UUID projectId and sessions array', async () => {
-  const projectPath = await window.locator('[data-testid="project-item"]').first()
-    .getAttribute('data-project-path');
-  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
-  const config = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  const { config } = await readSessionsConfig();
 
-  // projectId should be a UUID
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   expect(config.projectId).toMatch(uuidRegex);
   expect(Array.isArray(config.sessions)).toBe(true);
   expect(config.sessions.length).toBeGreaterThanOrEqual(1);
 });
 
-test('15 - session entry has id, terminalId, createdAt', async () => {
-  const projectPath = await window.locator('[data-testid="project-item"]').first()
-    .getAttribute('data-project-path');
-  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
-  const config = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+test('15 - session entry has id, terminalId, type, createdAt', async () => {
+  const { config } = await readSessionsConfig();
 
   const session = config.sessions[0];
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   expect(session.id).toMatch(uuidRegex);
   expect(typeof session.terminalId).toBe('number');
+  expect(session.type).toBe('claude');
   expect(session.createdAt).toBeTruthy();
-  // createdAt should be a valid ISO date
   expect(new Date(session.createdAt).toISOString()).toBe(session.createdAt);
 });
 
@@ -293,12 +299,7 @@ test('17 - CCT_SESSION_ID env var is set in terminal', async () => {
 });
 
 test('18 - closing session removes it from sessions.json', async () => {
-  const projectPath = await window.locator('[data-testid="project-item"]').first()
-    .getAttribute('data-project-path');
-  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
-
-  // Verify session is currently tracked
-  const before = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  const { sessionsPath, config: before } = await readSessionsConfig();
   expect(before.sessions.length).toBe(1);
 
   // Close the tab
@@ -313,15 +314,15 @@ test('18 - closing session removes it from sessions.json', async () => {
 });
 
 test('19 - projectId persists across app restart', async () => {
-  const projectPath = await window.locator('[data-testid="project-item"]').first()
-    .getAttribute('data-project-path');
-  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
-  const before = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  const { sessionsPath, config: before } = await readSessionsConfig();
   const originalProjectId = before.projectId;
 
   // Restart the app
   await electronApp.close();
-  electronApp = await electron.launch({ args: [appPath] });
+  electronApp = await electron.launch({
+    args: [appPath],
+    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+  });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
@@ -341,13 +342,161 @@ test('19 - projectId persists across app restart', async () => {
   await window.waitForTimeout(500);
 });
 
-test('20 - removing project from sidebar does NOT delete .cct/ dir', async () => {
-  const projectPath = await window.locator('[data-testid="project-item"]').first()
-    .getAttribute('data-project-path');
+// ── Project Picker (Cmd+P) ───────────────────────────────────
+
+test('20 - Cmd+P opens the project picker overlay', async () => {
+  // Clean slate: add two projects
+  await clearAllProjects();
+
+  await addTempProject('-picker-a');
+  await addTempProject('-picker-b');
+
+  // Explicitly select picker-b so MRU = [picker-b, picker-a]
+  const pickerB = window.locator('[data-testid="project-item"]').nth(1);
+  await pickerB.click();
+  await window.waitForTimeout(300);
+
+  // Press Cmd+P
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  // Overlay should be visible
+  const overlay = window.locator('[data-testid="project-picker-overlay"]');
+  await expect(overlay).toBeVisible({ timeout: 3000 });
+
+  // Input should be focused
+  const input = window.locator('[data-testid="project-picker-input"]');
+  await expect(input).toBeVisible();
+
+  // Should show 2 project items
+  const items = window.locator('[data-testid="project-picker-item"]');
+  await expect(items).toHaveCount(2);
+
+  // Close it
+  await window.keyboard.press('Escape');
+  await window.waitForTimeout(200);
+  await expect(overlay).not.toBeVisible();
+});
+
+test('21 - picker shows projects in MRU order (current project first)', async () => {
+  // Get MRU order
+  const mru = await window.evaluate(() => window._cctProjectMRU());
+  const selectedPath = await window.evaluate(() => window._cctSelectedProject());
+
+  // Current project should be first in MRU
+  expect(mru[0]).toBe(selectedPath);
+
+  // Open picker
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  // Second item should have the 'selected' class (index 1 = quick-switch target)
+  const secondItem = window.locator('[data-testid="project-picker-item"]').nth(1);
+  await expect(secondItem).toHaveClass(/selected/);
+
+  // Close
+  await window.keyboard.press('Escape');
+  await window.waitForTimeout(200);
+});
+
+test('22 - ArrowDown + Enter selects a different project', async () => {
+  const selectedBefore = await window.evaluate(() => window._cctSelectedProject());
+
+  // Open picker, press Down once (to select the second/previous project), then Enter
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  // Picker starts on index 1 (quick-switch target); Enter selects it
+  await window.keyboard.press('Enter');
+  await window.waitForTimeout(300);
+
+  // Overlay should be gone
+  const overlay = window.locator('[data-testid="project-picker-overlay"]');
+  await expect(overlay).not.toBeVisible();
+
+  // Selected project should have changed
+  const selectedAfter = await window.evaluate(() => window._cctSelectedProject());
+  expect(selectedAfter).not.toBe(selectedBefore);
+});
+
+test('23 - Escape closes the picker without changing selection', async () => {
+  const selectedBefore = await window.evaluate(() => window._cctSelectedProject());
+
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  // Navigate down
+  await window.keyboard.press('ArrowDown');
+  await window.waitForTimeout(100);
+
+  // Press Escape
+  await window.keyboard.press('Escape');
+  await window.waitForTimeout(200);
+
+  // Selection should not have changed
+  const selectedAfter = await window.evaluate(() => window._cctSelectedProject());
+  expect(selectedAfter).toBe(selectedBefore);
+});
+
+test('24 - typing filters the project list', async () => {
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  // Should show 2 items initially
+  const items = window.locator('[data-testid="project-picker-item"]');
+  await expect(items).toHaveCount(2);
+
+  // Type a filter that matches only one project name
+  // Project names are based on directory names: cct-test-project-picker-a-<timestamp> and cct-test-project-picker-b-<timestamp>
+  const input = window.locator('[data-testid="project-picker-input"]');
+  await input.fill('picker-a');
+  await window.waitForTimeout(200);
+
+  // Should show only 1 item
+  await expect(items).toHaveCount(1);
+
+  // Clear filter — both should reappear
+  await input.fill('');
+  await window.waitForTimeout(200);
+  await expect(items).toHaveCount(2);
+
+  await window.keyboard.press('Escape');
+  await window.waitForTimeout(200);
+});
+
+test('25 - Cmd+P again closes the picker (toggle)', async () => {
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  const overlay = window.locator('[data-testid="project-picker-overlay"]');
+  await expect(overlay).toBeVisible();
+
+  // Press Cmd+P again to toggle off
+  await window.keyboard.press('Meta+p');
+  await window.waitForTimeout(200);
+
+  await expect(overlay).not.toBeVisible();
+});
+
+// ── Cleanup / persistence tests ─────────────────────────────
+
+test('26 - removing project from sidebar does NOT delete .cct/ dir', async () => {
+  // Ensure we have a session so .cct/ gets created
+  const projectItem = window.locator('[data-testid="project-item"]').first();
+  await projectItem.click();
+  await window.waitForTimeout(300);
+  await window.click('[data-testid="new-tab-btn"]');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+
+  const projectPath = await projectItem.getAttribute('data-project-path');
   const cctDir = path.join(projectPath, '.cct');
 
-  // .cct should exist from earlier tests
+  // .cct should exist after creating a session
   expect(fs.existsSync(cctDir)).toBe(true);
+
+  // Close the session first
+  await window.click('[data-testid="tab"] [data-testid="tab-close"]');
+  await window.waitForTimeout(500);
 
   // Remove the project from sidebar
   const removeBtn = window.locator('[data-testid="project-item"]').first()
@@ -359,4 +508,92 @@ test('20 - removing project from sidebar does NOT delete .cct/ dir', async () =>
   expect(fs.existsSync(cctDir)).toBe(true);
   const config = JSON.parse(fs.readFileSync(path.join(cctDir, 'sessions.json'), 'utf8'));
   expect(config.projectId).toBeTruthy();
+});
+
+// ── Auto-close on exit tests ────────────────────────────────
+
+test('27 - typing exit in a terminal session closes the tab', async () => {
+  // Add a project and create a terminal session
+  await addTempProject('-exit');
+  const projectItem = window.locator('[data-testid="project-item"]').first();
+  await projectItem.click();
+  await window.waitForTimeout(300);
+
+  // Create a terminal session (not claude) via keyboard shortcut
+  await window.keyboard.press('Meta+t');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+
+  const tabsBefore = await window.locator('[data-testid="tab"]').count();
+  expect(tabsBefore).toBe(1);
+
+  // Type exit to quit the shell
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
+  await textarea.pressSequentially('exit', { delay: 30 });
+  await window.keyboard.press('Enter');
+
+  // Tab should disappear
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(0, { timeout: 5000 });
+});
+
+// ── Session persistence & restore ─────────────────────────────
+
+test('28 - terminal session type is persisted in sessions.json', async () => {
+  await clearAllProjects();
+  await addTempProject('-type-persist');
+
+  const projectItem = window.locator('[data-testid="project-item"]').first();
+  await projectItem.click();
+  await window.waitForTimeout(300);
+
+  // Create a terminal session via Cmd+T
+  await window.keyboard.press('Meta+t');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+
+  // Read sessions.json — type should be 'terminal'
+  const { config } = await readSessionsConfig();
+  expect(config.sessions.length).toBe(1);
+  expect(config.sessions[0].type).toBe('terminal');
+
+  // Clean up
+  await window.click('[data-testid="tab"] [data-testid="tab-close"]');
+  await window.waitForTimeout(500);
+});
+
+test('29 - sessions are restored on app restart', async () => {
+  await clearAllProjects();
+  await addTempProject('-restore');
+
+  const projectItem = window.locator('[data-testid="project-item"]').first();
+  await projectItem.click();
+  await window.waitForTimeout(300);
+
+  // Create a claude session + terminal session
+  await window.click('[data-testid="new-tab-btn"]');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+  await window.keyboard.press('Meta+t');
+  await window.waitForTimeout(1000);
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 5000 });
+
+  // Verify session types in sessions.json
+  const { config } = await readSessionsConfig();
+  expect(config.sessions.length).toBe(2);
+  expect(config.sessions[0].type).toBe('claude');
+  expect(config.sessions[1].type).toBe('terminal');
+
+  // Restart the app
+  await electronApp.close();
+  electronApp = await electron.launch({
+    args: [appPath],
+    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+  });
+  window = await electronApp.firstWindow();
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
+
+  // Sessions should be auto-restored — wait for tabs to appear
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 15000 });
+
+  // Verify session count in sidebar matches
+  const count = window.locator('[data-testid="project-item"]').first()
+    .locator('[data-testid="session-count"]');
+  await expect(count).toHaveText('2', { timeout: 5000 });
 });

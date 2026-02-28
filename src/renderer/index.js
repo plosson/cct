@@ -18,11 +18,14 @@ const projectMRU = [];
 
 // Data-driven keybindings
 const DEFAULT_KEYBINDINGS = {
-  'Meta+t': 'createSession',
+  'Meta+n': 'createClaudeSession',
+  'Meta+t': 'createTerminalSession',
   'Meta+w': 'closeActiveTab',
   'Meta+p': 'openProjectPicker',
   'Meta+ArrowLeft': 'prevTab',
   'Meta+ArrowRight': 'nextTab',
+  'Meta+ArrowUp': 'prevProject',
+  'Meta+ArrowDown': 'nextProject',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -125,6 +128,8 @@ function selectProject(projectPath) {
     activateTab(projectSessionIds[projectSessionIds.length - 1]);
   } else {
     activeId = null;
+    // Restore persisted sessions if no live sessions exist
+    restoreSessions(projectPath);
   }
 
   renderSidebar();
@@ -174,14 +179,20 @@ async function removeProject(projectPath) {
 
 // ── Sessions / Tabs ──────────────────────────────────────────
 
-async function createSession() {
+/**
+ * Create a new session tab.
+ * @param {'claude'|'terminal'} [type='claude'] — 'claude' spawns Claude Code, 'terminal' spawns user shell
+ */
+async function createSession(type = 'claude') {
   if (!selectedProjectPath) return;
 
   const project = projects.find(p => p.path === selectedProjectPath);
   if (!project) return;
 
   sessionCounter++;
-  const displayLabel = `${project.name} ${countSessionsForProject(project.path) + 1}`;
+  const num = countSessionsForProject(project.path) + 1;
+  const isClaude = type === 'claude';
+  const command = isClaude ? (api.config?.spawnCommand || 'claude') : undefined;
 
   const panelEl = document.createElement('div');
   panelEl.className = 'terminal-panel';
@@ -193,17 +204,23 @@ async function createSession() {
   terminal.open(panelEl);
 
   const { id, sessionId } = await api.terminal.create({
-    command: api.config?.spawnCommand,
+    command,
     cols: terminal.cols,
     rows: terminal.rows,
-    cwd: project.path
+    cwd: project.path,
+    type
   });
+
+  const icon = isClaude
+    ? '<span class="tab-icon tab-icon-claude">CC</span>'
+    : '<span class="tab-icon tab-icon-terminal">T</span>';
+  const displayLabel = `${project.name} ${num}`;
 
   const tabEl = document.createElement('div');
   tabEl.className = 'tab-item';
   tabEl.dataset.testid = 'tab';
   tabEl.dataset.tabId = String(id);
-  tabEl.innerHTML = `<span class="tab-label">${displayLabel}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
+  tabEl.innerHTML = `${icon}<span class="tab-label">${displayLabel}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
   tabBarTabs.appendChild(tabEl);
 
   tabEl.addEventListener('click', (e) => {
@@ -219,18 +236,31 @@ async function createSession() {
   });
 
   const unsubExit = api.terminal.onExit(({ id: termId }) => {
-    if (termId === id) panelEl.setAttribute('data-terminal-exited', 'true');
+    if (termId === id) closeTab(id);
   });
 
+  let resizeTimeout = null;
+  let lastCols = terminal.cols;
+  let lastRows = terminal.rows;
   const resizeObserver = new ResizeObserver(() => {
-    if (activeId === id) {
-      fitAddon.fit();
-      api.terminal.resize({ id, cols: terminal.cols, rows: terminal.rows });
-    }
+    if (activeId !== id) return;
+    // Fit xterm.js immediately so the UI stays responsive
+    fitAddon.fit();
+    // Debounce the PTY resize to avoid flooding the shell with SIGWINCH
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      resizeTimeout = null;
+      if (terminal.cols !== lastCols || terminal.rows !== lastRows) {
+        lastCols = terminal.cols;
+        lastRows = terminal.rows;
+        api.terminal.resize({ id, cols: terminal.cols, rows: terminal.rows });
+      }
+    }, 150);
   });
   resizeObserver.observe(panelEl);
 
   const cleanup = () => {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
     onDataDisposable.dispose();
     unsubData();
     unsubExit();
@@ -289,6 +319,30 @@ function closeTab(id) {
   renderSidebar();
 }
 
+/**
+ * Restore persisted sessions for a project by spawning fresh PTYs.
+ * Clears stale entries first — createSession re-records each one.
+ */
+async function restoreSessions(projectPath) {
+  const saved = await api.projects.getSessions(projectPath);
+  if (!saved || saved.length === 0) return;
+
+  // Clear stale entries — fresh PTYs will be recorded by createSession
+  await api.projects.clearSessions(projectPath);
+
+  for (const entry of saved) {
+    await createSession(entry.type || 'claude');
+  }
+}
+
+/** Cycle to next or previous project in the sidebar (wraps around) */
+function cycleProject(direction) {
+  if (projects.length < 2) return;
+  const idx = projects.findIndex(p => p.path === selectedProjectPath);
+  const offset = direction === 'next' ? 1 : projects.length - 1;
+  selectProject(projects[(idx + offset) % projects.length].path);
+}
+
 /** Cycle to next or previous tab (within current project) */
 function cycleTab(direction) {
   if (!selectedProjectPath) return;
@@ -333,7 +387,7 @@ function openProjectPicker() {
     if (e.target === pickerOverlay) closeProjectPicker();
   });
 
-  pickerSelectedIndex = 0;
+  pickerSelectedIndex = projectMRU.length > 1 ? 1 : 0;
   renderPickerList(list, '');
 
   input.addEventListener('input', () => {
@@ -480,7 +534,7 @@ async function init() {
     projectMRU.push(p.path);
   }
 
-  // If there are projects, select the first one
+  // If there are projects, select the first one (restoreSessions is called inside selectProject)
   if (projects.length > 0) {
     selectProject(projects[0].path);
   } else {
@@ -488,11 +542,14 @@ async function init() {
   }
 
   // Register keybinding actions
-  actions.set('createSession', () => createSession());
+  actions.set('createClaudeSession', () => createSession('claude'));
+  actions.set('createTerminalSession', () => createSession('terminal'));
   actions.set('closeActiveTab', () => { if (activeId !== null) closeTab(activeId); });
   actions.set('openProjectPicker', () => openProjectPicker());
   actions.set('prevTab', () => cycleTab('prev'));
   actions.set('nextTab', () => cycleTab('next'));
+  actions.set('prevProject', () => cycleProject('prev'));
+  actions.set('nextProject', () => cycleProject('next'));
 
   // Data-driven keyboard dispatch
   document.addEventListener('keydown', (e) => {
@@ -505,7 +562,7 @@ async function init() {
     handler();
   });
 
-  document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession());
+  document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
 }
 
 if (document.readyState === 'loading') {
