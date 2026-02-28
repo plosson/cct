@@ -68,10 +68,11 @@ test('1 - tab has contextmenu listener', async () => {
     return window._cctGetTabContextMenuItems(activeId);
   });
 
-  expect(items).toHaveLength(3);
-  expect(items[0]).toEqual({ label: 'Close', action: 'close' });
-  expect(items[1]).toEqual({ label: 'Close Others', action: 'closeOthers', enabled: false });
-  expect(items[2]).toEqual({ label: 'Close All', action: 'closeAll' });
+  expect(items).toHaveLength(4);
+  expect(items[0]).toEqual({ label: 'Duplicate', action: 'duplicate' });
+  expect(items[1]).toEqual({ label: 'Close', action: 'close' });
+  expect(items[2]).toEqual({ label: 'Close Others', action: 'closeOthers', enabled: false });
+  expect(items[3]).toEqual({ label: 'Close All', action: 'closeAll' });
 });
 
 test('2 - Close Others is disabled with only one tab', async () => {

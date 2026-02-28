@@ -662,12 +662,17 @@ async function showTabContextMenu(tabId) {
   const hasOthers = projectSessions.length > 1;
 
   const action = await api.contextMenu.show([
+    { label: 'Duplicate', action: 'duplicate' },
+    { type: 'separator' },
     { label: 'Close', action: 'close' },
     { label: 'Close Others', action: 'closeOthers', enabled: hasOthers },
     { label: 'Close All', action: 'closeAll' },
   ]);
 
   switch (action) {
+    case 'duplicate':
+      createSession(session.type);
+      break;
     case 'close':
       closeTab(tabId);
       break;
@@ -1014,11 +1019,17 @@ window._cctSelectedProject = () => selectedProjectPath;
 window._cctProjectMRU = () => [...projectMRU];
 window._cctCloseOtherTabs = (keepId) => closeOtherTabs(keepId);
 window._cctCloseAllTabs = (projectPath) => closeAllTabs(projectPath || selectedProjectPath);
+window._cctDuplicateTab = (tabId) => {
+  const session = sessions.get(tabId);
+  if (!session) return;
+  createSession(session.type);
+};
 window._cctGetTabContextMenuItems = (tabId) => {
   const session = sessions.get(tabId);
   if (!session) return null;
   const projectSessions = sessionsForProject(session.projectPath);
   return [
+    { label: 'Duplicate', action: 'duplicate' },
     { label: 'Close', action: 'close' },
     { label: 'Close Others', action: 'closeOthers', enabled: projectSessions.length > 1 },
     { label: 'Close All', action: 'closeAll' },
