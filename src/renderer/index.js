@@ -17,6 +17,9 @@ let sessionCounter = 0;
 // MRU ordering for project picker (most recently selected first)
 const projectMRU = [];
 
+// Tab drag-and-drop state
+let draggedTabId = null;
+
 // Data-driven keybindings
 const DEFAULT_KEYBINDINGS = {
   'Meta+n': 'createClaudeSession',
@@ -232,6 +235,8 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   tabEl.innerHTML = `${icon}<span class="tab-label">${displayLabel}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
   tabBarTabs.appendChild(tabEl);
 
+  tabEl.draggable = true;
+
   tabEl.addEventListener('click', (e) => {
     if (!e.target.closest('.tab-close')) activateTab(id);
   });
@@ -239,6 +244,51 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   tabEl.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     showTabContextMenu(id);
+  });
+
+  tabEl.addEventListener('dragstart', (e) => {
+    draggedTabId = id;
+    tabEl.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
+  });
+
+  tabEl.addEventListener('dragend', () => {
+    tabEl.classList.remove('dragging');
+    draggedTabId = null;
+    clearDropIndicators();
+  });
+
+  tabEl.addEventListener('dragover', (e) => {
+    if (draggedTabId === null || draggedTabId === id) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    clearDropIndicators();
+    const rect = tabEl.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    tabEl.classList.add(e.clientX < midX ? 'drop-before' : 'drop-after');
+  });
+
+  tabEl.addEventListener('dragleave', () => {
+    tabEl.classList.remove('drop-before', 'drop-after');
+  });
+
+  tabEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    if (draggedTabId === null || draggedTabId === id) return;
+    const draggedSession = sessions.get(draggedTabId);
+    if (!draggedSession) return;
+
+    const rect = tabEl.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    const insertBefore = e.clientX < midX;
+
+    if (insertBefore) {
+      tabBarTabs.insertBefore(draggedSession.tabEl, tabEl);
+    } else {
+      tabBarTabs.insertBefore(draggedSession.tabEl, tabEl.nextSibling);
+    }
+    clearDropIndicators();
   });
 
   tabEl.querySelector('.tab-close').addEventListener('click', () => closeTab(id));
@@ -482,6 +532,14 @@ function renderPickerList(listEl, filter) {
 
     listEl.appendChild(item);
   });
+}
+
+// ── Tab drag helpers ─────────────────────────────────────────
+
+function clearDropIndicators() {
+  for (const el of tabBarTabs.querySelectorAll('.drop-before, .drop-after')) {
+    el.classList.remove('drop-before', 'drop-after');
+  }
 }
 
 // ── Tab context menu ─────────────────────────────────────────

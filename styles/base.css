@@ -240,6 +240,19 @@ html, body {
   color: #ff6b6b;
 }
 
+/* Tab drag-and-drop */
+.tab-item.dragging {
+  opacity: 0.4;
+}
+
+.tab-item.drop-before {
+  box-shadow: inset 2px 0 0 #58a6ff;
+}
+
+.tab-item.drop-after {
+  box-shadow: inset -2px 0 0 #58a6ff;
+}
+
 .tab-new-btn {
   background: none;
   border: none;
