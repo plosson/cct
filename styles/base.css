@@ -135,6 +135,18 @@ html, body {
   color: #ff6b6b;
 }
 
+/* Sidebar project activity indicator */
+.sidebar-project.project-activity .sidebar-project-name::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #58a6ff;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 /* Sidebar resize handle */
 .sidebar-resize-handle {
   width: 4px;

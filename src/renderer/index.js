@@ -20,6 +20,9 @@ const projectMRU = [];
 // Tab drag-and-drop state
 let draggedTabId = null;
 
+// Project-level activity tracking
+const projectActivity = new Set();
+
 // Data-driven keybindings
 const DEFAULT_KEYBINDINGS = {
   'Meta+n': 'createClaudeSession',
@@ -97,6 +100,7 @@ function renderSidebar() {
     const el = document.createElement('div');
     el.className = 'sidebar-project';
     if (project.path === selectedProjectPath) el.classList.add('selected');
+    if (projectActivity.has(project.path)) el.classList.add('project-activity');
     el.dataset.testid = 'project-item';
     el.dataset.projectPath = project.path;
 
@@ -123,7 +127,19 @@ function renderSidebar() {
   updateEmptyState();
 }
 
+function updateProjectActivityBadge(projectPath) {
+  const el = sidebarProjectsEl?.querySelector(`[data-project-path="${CSS.escape(projectPath)}"]`);
+  if (!el) return;
+  if (projectActivity.has(projectPath)) {
+    el.classList.add('project-activity');
+  } else {
+    el.classList.remove('project-activity');
+  }
+}
+
 function selectProject(projectPath) {
+  // Clear project activity badge when switching to a project
+  projectActivity.delete(projectPath);
   selectedProjectPath = projectPath;
 
   // Update MRU: move to front
@@ -321,6 +337,14 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
       // Mark tab as having activity if it's not the active tab
       if (activeId !== id) {
         tabEl.classList.add('tab-activity');
+      }
+      // Mark project as having activity if it's not the selected project
+      const sessionProjectPath = sessions.get(id)?.projectPath;
+      if (sessionProjectPath && sessionProjectPath !== selectedProjectPath) {
+        if (!projectActivity.has(sessionProjectPath)) {
+          projectActivity.add(sessionProjectPath);
+          updateProjectActivityBadge(sessionProjectPath);
+        }
       }
     }
   });
@@ -999,6 +1023,11 @@ window._cctGetTabContextMenuItems = (tabId) => {
     { label: 'Close Others', action: 'closeOthers', enabled: projectSessions.length > 1 },
     { label: 'Close All', action: 'closeAll' },
   ];
+};
+
+window._cctProjectActivity = () => [...projectActivity];
+window._cctGetSessionsForProject = (projectPath) => {
+  return sessionsForProject(projectPath).map(([id]) => id);
 };
 
 // Reload projects from store and re-render sidebar (used by tests)
