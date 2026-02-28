@@ -45,6 +45,7 @@ const DEFAULT_KEYBINDINGS = {
   'Shift+Meta+ArrowRight': 'moveTabRight',
   'Meta+a': 'selectAll',
   'Meta+b': 'toggleSidebar',
+  'Shift+Meta+W': 'closeOtherTabs',
   'Meta+/': 'showShortcutHelp',
   'Meta+1': 'goToTab1',
   'Meta+2': 'goToTab2',
@@ -999,6 +1000,7 @@ const ACTION_LABELS = {
   moveTabRight: 'Move Tab Right',
   selectAll: 'Select All',
   toggleSidebar: 'Toggle Sidebar',
+  closeOtherTabs: 'Close Other Tabs',
   showShortcutHelp: 'Show Shortcuts',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
@@ -1356,6 +1358,7 @@ async function init() {
   actions.set('moveTabRight', () => moveTab('right'));
   actions.set('selectAll', () => selectAll());
   actions.set('toggleSidebar', () => toggleSidebar());
+  actions.set('closeOtherTabs', () => { if (activeId !== null) closeOtherTabs(activeId); });
   actions.set('showShortcutHelp', () => showShortcutHelp());
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
