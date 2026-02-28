@@ -1017,7 +1017,20 @@ function closeShortcutHelp() {
 
 let statusProjectEl;
 let statusSessionTypeEl;
+let statusUptimeEl;
 let statusTerminalSizeEl;
+let uptimeInterval = null;
+
+function formatUptime(ms) {
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) return `${minutes}m ${seconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+}
 
 function updateStatusBar() {
   if (!statusProjectEl) return;
@@ -1025,7 +1038,9 @@ function updateStatusBar() {
   if (!selectedProjectPath) {
     statusProjectEl.textContent = '';
     statusSessionTypeEl.textContent = '';
+    statusUptimeEl.textContent = '';
     statusTerminalSizeEl.textContent = '';
+    stopUptimeTimer();
     return;
   }
 
@@ -1036,9 +1051,30 @@ function updateStatusBar() {
   if (session) {
     statusSessionTypeEl.textContent = session.type === 'claude' ? 'Claude' : 'Terminal';
     statusTerminalSizeEl.textContent = `${session.terminal.cols}\u00d7${session.terminal.rows}`;
+    statusUptimeEl.textContent = formatUptime(Date.now() - session.createdAt);
+    startUptimeTimer();
   } else {
     statusSessionTypeEl.textContent = '';
     statusTerminalSizeEl.textContent = '';
+    statusUptimeEl.textContent = '';
+    stopUptimeTimer();
+  }
+}
+
+function startUptimeTimer() {
+  if (uptimeInterval) return;
+  uptimeInterval = setInterval(() => {
+    const session = activeId ? sessions.get(activeId) : null;
+    if (session && statusUptimeEl) {
+      statusUptimeEl.textContent = formatUptime(Date.now() - session.createdAt);
+    }
+  }, 1000);
+}
+
+function stopUptimeTimer() {
+  if (uptimeInterval) {
+    clearInterval(uptimeInterval);
+    uptimeInterval = null;
   }
 }
 
@@ -1180,6 +1216,7 @@ async function init() {
   // Status bar elements
   statusProjectEl = document.querySelector('[data-testid="status-project"]');
   statusSessionTypeEl = document.querySelector('[data-testid="status-session-type"]');
+  statusUptimeEl = document.querySelector('[data-testid="status-uptime"]');
   statusTerminalSizeEl = document.querySelector('[data-testid="status-terminal-size"]');
 
   // Restore sidebar width and font size from persisted state
