@@ -306,7 +306,13 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   const onDataDisposable = terminal.onData((data) => api.terminal.input({ id, data }));
 
   const unsubData = api.terminal.onData(({ id: termId, data }) => {
-    if (termId === id) terminal.write(data);
+    if (termId === id) {
+      terminal.write(data);
+      // Mark tab as having activity if it's not the active tab
+      if (activeId !== id) {
+        tabEl.classList.add('tab-activity');
+      }
+    }
   });
 
   const unsubExit = api.terminal.onExit(({ id: termId }) => {
@@ -363,6 +369,7 @@ function activateTab(id) {
 
   session.panelEl.classList.add('active');
   session.tabEl.classList.add('active');
+  session.tabEl.classList.remove('tab-activity');
   activeId = id;
 
   session.fitAddon.fit();

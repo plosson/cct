@@ -240,6 +240,18 @@ html, body {
   color: #ff6b6b;
 }
 
+/* Tab activity indicator */
+.tab-item.tab-activity .tab-label::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #58a6ff;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 /* Tab rename input */
 .tab-rename-input {
   background: #16162a;
