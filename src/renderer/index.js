@@ -13,6 +13,22 @@ let activeId = null;
 let selectedProjectPath = null;
 let sessionCounter = 0;
 
+// MRU ordering for project picker (most recently selected first)
+const projectMRU = [];
+
+// Data-driven keybindings
+const DEFAULT_KEYBINDINGS = {
+  'Meta+t': 'createSession',
+  'Meta+w': 'closeActiveTab',
+  'Meta+p': 'openProjectPicker',
+  'Meta+ArrowLeft': 'prevTab',
+  'Meta+ArrowRight': 'nextTab',
+};
+
+let keybindings = { ...DEFAULT_KEYBINDINGS };
+
+const actions = new Map();
+
 // Static DOM elements (populated in init)
 let terminalsContainer;
 let tabBarTabs;
@@ -88,22 +104,23 @@ function renderSidebar() {
 function selectProject(projectPath) {
   selectedProjectPath = projectPath;
 
+  // Update MRU: move to front
+  const mruIdx = projectMRU.indexOf(projectPath);
+  if (mruIdx !== -1) projectMRU.splice(mruIdx, 1);
+  projectMRU.unshift(projectPath);
+
   // Show/hide tabs and panels for the selected project
-  for (const [id, s] of sessions.entries()) {
+  for (const [, s] of sessions.entries()) {
     const belongsToProject = s.projectPath === projectPath;
     s.tabEl.style.display = belongsToProject ? '' : 'none';
-    // Hide panels for non-selected projects
     if (!belongsToProject) {
       s.panelEl.classList.remove('active');
       s.tabEl.classList.remove('active');
     }
   }
 
-  // Activate the last active tab for this project, or the first one
-  const projectSessionIds = [...sessions.entries()]
-    .filter(([, s]) => s.projectPath === projectPath)
-    .map(([id]) => id);
-
+  // Activate the last active tab for this project, or clear
+  const projectSessionIds = sessionsForProject(projectPath).map(([id]) => id);
   if (projectSessionIds.length > 0) {
     activateTab(projectSessionIds[projectSessionIds.length - 1]);
   } else {
@@ -113,12 +130,13 @@ function selectProject(projectPath) {
   renderSidebar();
 }
 
+/** Get all session [id, session] entries for a given project path */
+function sessionsForProject(projectPath) {
+  return [...sessions.entries()].filter(([, s]) => s.projectPath === projectPath);
+}
+
 function countSessionsForProject(projectPath) {
-  let count = 0;
-  for (const s of sessions.values()) {
-    if (s.projectPath === projectPath) count++;
-  }
-  return count;
+  return sessionsForProject(projectPath).length;
 }
 
 async function addProject() {
@@ -134,15 +152,13 @@ async function removeProject(projectPath) {
   await api.projects.remove(projectPath);
 
   // Close all sessions for this project
-  const toClose = [];
-  for (const [id, s] of sessions.entries()) {
-    if (s.projectPath === projectPath) toClose.push(id);
-  }
-  for (const id of toClose) closeTab(id);
+  for (const [id] of sessionsForProject(projectPath)) closeTab(id);
 
-  // Remove from local list
+  // Remove from local list and MRU
   const idx = projects.findIndex(p => p.path === projectPath);
   if (idx !== -1) projects.splice(idx, 1);
+  const mruIdx = projectMRU.indexOf(projectPath);
+  if (mruIdx !== -1) projectMRU.splice(mruIdx, 1);
 
   // If we removed the selected project, select another or clear
   if (selectedProjectPath === projectPath) {
@@ -264,10 +280,7 @@ function closeTab(id) {
 
   if (activeId === id) {
     activeId = null;
-    // Find remaining sessions for the same project
-    const remaining = [...sessions.entries()]
-      .filter(([, s]) => s.projectPath === projectPath)
-      .map(([sid]) => sid);
+    const remaining = sessionsForProject(projectPath).map(([sid]) => sid);
     if (remaining.length > 0) {
       activateTab(remaining[remaining.length - 1]);
     }
@@ -279,13 +292,123 @@ function closeTab(id) {
 /** Cycle to next or previous tab (within current project) */
 function cycleTab(direction) {
   if (!selectedProjectPath) return;
-  const ids = [...sessions.entries()]
-    .filter(([, s]) => s.projectPath === selectedProjectPath)
-    .map(([id]) => id);
+  const ids = sessionsForProject(selectedProjectPath).map(([id]) => id);
   if (ids.length < 2) return;
   const idx = ids.indexOf(activeId);
   const offset = direction === 'next' ? 1 : ids.length - 1;
   activateTab(ids[(idx + offset) % ids.length]);
+}
+
+// ── Project Picker (Cmd+P) ───────────────────────────────────
+
+let pickerOverlay = null;
+let pickerSelectedIndex = 0;
+let pickerFilteredPaths = [];
+
+function openProjectPicker() {
+  if (pickerOverlay) { closeProjectPicker(); return; }
+
+  pickerOverlay = document.createElement('div');
+  pickerOverlay.className = 'project-picker-overlay';
+  pickerOverlay.dataset.testid = 'project-picker-overlay';
+
+  const picker = document.createElement('div');
+  picker.className = 'project-picker';
+
+  const input = document.createElement('input');
+  input.className = 'project-picker-input';
+  input.dataset.testid = 'project-picker-input';
+  input.placeholder = 'Switch to project…';
+
+  const list = document.createElement('div');
+  list.className = 'project-picker-list';
+  list.dataset.testid = 'project-picker-list';
+
+  picker.appendChild(input);
+  picker.appendChild(list);
+  pickerOverlay.appendChild(picker);
+
+  // Click backdrop to close
+  pickerOverlay.addEventListener('mousedown', (e) => {
+    if (e.target === pickerOverlay) closeProjectPicker();
+  });
+
+  pickerSelectedIndex = 0;
+  renderPickerList(list, '');
+
+  input.addEventListener('input', () => {
+    pickerSelectedIndex = 0;
+    renderPickerList(list, input.value);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const count = pickerFilteredPaths.length;
+
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        closeProjectPicker();
+        break;
+      case 'ArrowDown':
+      case 'ArrowUp': {
+        e.preventDefault();
+        if (count === 0) break;
+        const delta = e.key === 'ArrowDown' ? 1 : count - 1;
+        pickerSelectedIndex = (pickerSelectedIndex + delta) % count;
+        renderPickerList(list, input.value);
+        break;
+      }
+      case 'Enter':
+        e.preventDefault();
+        if (count > 0) {
+          selectProject(pickerFilteredPaths[pickerSelectedIndex]);
+        }
+        closeProjectPicker();
+        break;
+    }
+  });
+
+  document.querySelector('.app').appendChild(pickerOverlay);
+  input.focus();
+}
+
+function closeProjectPicker() {
+  if (pickerOverlay) {
+    pickerOverlay.remove();
+    pickerOverlay = null;
+  }
+}
+
+function renderPickerList(listEl, filter) {
+  listEl.innerHTML = '';
+  const lowerFilter = filter.toLowerCase();
+
+  // Build filtered list from MRU order, resolving each path to its project once
+  const projectsByPath = new Map(projects.map(p => [p.path, p]));
+  const filtered = projectMRU
+    .map(pp => projectsByPath.get(pp))
+    .filter(p => p && (!lowerFilter || p.name.toLowerCase().includes(lowerFilter)));
+
+  pickerFilteredPaths = filtered.map(p => p.path);
+
+  filtered.forEach((project, i) => {
+    const item = document.createElement('div');
+    item.className = 'project-picker-item';
+    item.dataset.testid = 'project-picker-item';
+    if (i === pickerSelectedIndex) item.classList.add('selected');
+
+    item.innerHTML = `
+      <span class="project-picker-item-name">${project.name}</span>
+      <span class="project-picker-item-path">${project.path}</span>
+    `;
+
+    item.addEventListener('click', () => {
+      selectProject(project.path);
+      closeProjectPicker();
+    });
+
+    listEl.appendChild(item);
+  });
 }
 
 // ── Test helpers ─────────────────────────────────────────────
@@ -304,11 +427,20 @@ window._cctGetBufferText = (targetId) => {
 
 window._cctActiveTabId = () => activeId;
 window._cctSelectedProject = () => selectedProjectPath;
+window._cctProjectMRU = () => [...projectMRU];
 
 // Reload projects from store and re-render sidebar (used by tests)
 window._cctReloadProjects = (projectList) => {
   projects.length = 0;
   projects.push(...projectList);
+  // Sync MRU: add any new paths, remove stale ones
+  const validPaths = new Set(projectList.map(p => p.path));
+  for (let i = projectMRU.length - 1; i >= 0; i--) {
+    if (!validPaths.has(projectMRU[i])) projectMRU.splice(i, 1);
+  }
+  for (const p of projectList) {
+    if (!projectMRU.includes(p.path)) projectMRU.push(p.path);
+  }
   renderSidebar();
 };
 
@@ -316,6 +448,18 @@ window._cctReloadProjects = (projectList) => {
 window._cctSelectProject = (projectPath) => {
   selectProject(projectPath);
 };
+
+// ── Keybindings ──────────────────────────────────────────────
+
+function normalizeKeyEvent(e) {
+  const parts = [];
+  if (e.ctrlKey) parts.push('Ctrl');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+  if (e.metaKey) parts.push('Meta');
+  parts.push(e.key);
+  return parts.join('+');
+}
 
 // ── Init ─────────────────────────────────────────────────────
 
@@ -329,10 +473,11 @@ async function init() {
   document.querySelector('[data-testid="add-project-btn"]')
     .addEventListener('click', addProject);
 
-  // Load persisted projects
+  // Load persisted projects and seed MRU from their order
   const savedProjects = await api.projects.list();
   for (const p of savedProjects) {
     projects.push(p);
+    projectMRU.push(p.path);
   }
 
   // If there are projects, select the first one
@@ -342,28 +487,22 @@ async function init() {
     renderSidebar();
   }
 
-  // Keyboard shortcuts
-  document.addEventListener('keydown', (e) => {
-    if (!e.metaKey && !e.ctrlKey) return;
+  // Register keybinding actions
+  actions.set('createSession', () => createSession());
+  actions.set('closeActiveTab', () => { if (activeId !== null) closeTab(activeId); });
+  actions.set('openProjectPicker', () => openProjectPicker());
+  actions.set('prevTab', () => cycleTab('prev'));
+  actions.set('nextTab', () => cycleTab('next'));
 
-    switch (e.key) {
-      case 't':
-        e.preventDefault();
-        createSession();
-        break;
-      case 'w':
-        e.preventDefault();
-        if (activeId !== null) closeTab(activeId);
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        cycleTab('prev');
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        cycleTab('next');
-        break;
-    }
+  // Data-driven keyboard dispatch
+  document.addEventListener('keydown', (e) => {
+    const key = normalizeKeyEvent(e);
+    const actionName = keybindings[key];
+    if (!actionName) return;
+    const handler = actions.get(actionName);
+    if (!handler) return;
+    e.preventDefault();
+    handler();
   });
 
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession());
