@@ -353,6 +353,13 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
     if (termId === id) closeTab(id);
   });
 
+  const onBellDisposable = terminal.onBell(() => {
+    if (activeId !== id) {
+      tabEl.classList.add('tab-bell');
+      setTimeout(() => tabEl.classList.remove('tab-bell'), 1000);
+    }
+  });
+
   let resizeTimeout = null;
   let lastCols = terminal.cols;
   let lastRows = terminal.rows;
@@ -377,6 +384,7 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   const cleanup = () => {
     if (resizeTimeout) clearTimeout(resizeTimeout);
     onDataDisposable.dispose();
+    onBellDisposable.dispose();
     unsubData();
     unsubExit();
     resizeObserver.disconnect();

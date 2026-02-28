@@ -264,6 +264,16 @@ html, body {
   vertical-align: middle;
 }
 
+/* Tab bell flash */
+.tab-item.tab-bell {
+  animation: tab-bell-flash 1s ease-out;
+}
+
+@keyframes tab-bell-flash {
+  0% { background: rgba(255, 200, 50, 0.3); }
+  100% { background: transparent; }
+}
+
 /* Tab rename input */
 .tab-rename-input {
   background: #16162a;
