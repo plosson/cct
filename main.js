@@ -30,6 +30,7 @@ if (!gotTheLock) {
   const { ProjectStore } = require('./src/main/services/ProjectStore');
   const { ProjectConfigService } = require('./src/main/services/ProjectConfigService');
   const { registerProjectIPC } = require('./src/main/ipc/project.ipc');
+  const { installHooks, removeHooks } = require('./src/main/services/HooksService');
 
   let terminalService;
 
@@ -49,6 +50,8 @@ if (!gotTheLock) {
     const projectStore = new ProjectStore();
     registerProjectIPC(projectStore, projectConfigService);
 
+    installHooks();
+
     // Disable Cmd+W in the native menu so the renderer handles it as tab-close
     const menu = Menu.getApplicationMenu();
     const closeItem = menu?.items
@@ -61,6 +64,7 @@ if (!gotTheLock) {
   });
 
   app.on('before-quit', () => {
+    removeHooks();
     if (terminalService) terminalService.killAll();
   });
 

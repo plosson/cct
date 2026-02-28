@@ -597,3 +597,29 @@ test('29 - sessions are restored on app restart', async () => {
     .locator('[data-testid="session-count"]');
   await expect(count).toHaveText('2', { timeout: 5000 });
 });
+
+// ── Claude Code SessionStart hook ─────────────────────────────
+
+test('30 - SessionStart hook is installed in ~/.claude/settings.json', async () => {
+  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+  expect(fs.existsSync(settingsPath)).toBe(true);
+
+  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  expect(settings.hooks).toBeTruthy();
+  expect(settings.hooks.SessionStart).toBeTruthy();
+
+  const arr = Array.isArray(settings.hooks.SessionStart)
+    ? settings.hooks.SessionStart
+    : [settings.hooks.SessionStart];
+
+  const ourHook = arr.find(entry =>
+    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('cct-hook-handler'))
+  );
+  expect(ourHook).toBeTruthy();
+
+  // Verify the handler script path in the command actually exists
+  const cmd = ourHook.hooks[0].command;
+  const match = cmd.match(/node "([^"]+)"/);
+  expect(match).toBeTruthy();
+  expect(fs.existsSync(match[1])).toBe(true);
+});
