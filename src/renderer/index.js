@@ -31,6 +31,9 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+ArrowUp': 'prevProject',
   'Meta+ArrowDown': 'nextProject',
   'Meta+f': 'openSearchBar',
+  'Meta+=': 'zoomIn',
+  'Meta+-': 'zoomOut',
+  'Meta+0': 'zoomReset',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -205,7 +208,7 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   panelEl.className = 'terminal-panel';
   terminalsContainer.appendChild(panelEl);
 
-  const terminal = new Terminal(TERMINAL_OPTIONS);
+  const terminal = new Terminal({ ...TERMINAL_OPTIONS, fontSize: currentFontSize });
   const fitAddon = new FitAddon();
   const searchAddon = new SearchAddon();
   terminal.loadAddon(fitAddon);
@@ -741,6 +744,29 @@ function closeSearchBar() {
   }
 }
 
+// ── Font size zoom ───────────────────────────────────────────
+
+const DEFAULT_FONT_SIZE = 14;
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 32;
+let currentFontSize = DEFAULT_FONT_SIZE;
+
+function setFontSize(size) {
+  currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
+  for (const [, session] of sessions) {
+    session.terminal.options.fontSize = currentFontSize;
+    session.fitAddon.fit();
+  }
+  if (api.windowState) {
+    api.windowState.setFontSize(currentFontSize);
+  }
+  updateStatusBar();
+}
+
+function zoomIn() { setFontSize(currentFontSize + 1); }
+function zoomOut() { setFontSize(currentFontSize - 1); }
+function zoomReset() { setFontSize(DEFAULT_FONT_SIZE); }
+
 // ── Status bar ───────────────────────────────────────────────
 
 let statusProjectEl;
@@ -894,11 +920,16 @@ async function init() {
   statusSessionTypeEl = document.querySelector('[data-testid="status-session-type"]');
   statusTerminalSizeEl = document.querySelector('[data-testid="status-terminal-size"]');
 
-  // Restore sidebar width from persisted state
+  // Restore sidebar width and font size from persisted state
   if (api.windowState) {
     const savedWidth = await api.windowState.getSidebarWidth();
     if (savedWidth && savedWidth > 0) {
       sidebarEl.style.width = savedWidth + 'px';
+    }
+    const savedFontSize = await api.windowState.getFontSize();
+    if (savedFontSize && savedFontSize >= MIN_FONT_SIZE && savedFontSize <= MAX_FONT_SIZE) {
+      currentFontSize = savedFontSize;
+      TERMINAL_OPTIONS.fontSize = currentFontSize;
     }
   }
 
@@ -930,6 +961,9 @@ async function init() {
   actions.set('prevProject', () => cycleProject('prev'));
   actions.set('nextProject', () => cycleProject('next'));
   actions.set('openSearchBar', () => openSearchBar());
+  actions.set('zoomIn', () => zoomIn());
+  actions.set('zoomOut', () => zoomOut());
+  actions.set('zoomReset', () => zoomReset());
 
   // Data-driven keyboard dispatch
   document.addEventListener('keydown', (e) => {

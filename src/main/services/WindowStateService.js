@@ -14,6 +14,7 @@ const DEFAULTS = {
   y: undefined,
   isMaximized: false,
   sidebarWidth: 220,
+  fontSize: 14,
 };
 
 class WindowStateService {
@@ -109,6 +110,15 @@ class WindowStateService {
 
   set sidebarWidth(value) {
     this._state.sidebarWidth = value;
+    this._debouncedSave();
+  }
+
+  get fontSize() {
+    return this._state.fontSize;
+  }
+
+  set fontSize(value) {
+    this._state.fontSize = value;
     this._debouncedSave();
   }
 

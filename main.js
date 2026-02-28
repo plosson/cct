@@ -58,6 +58,8 @@ if (!gotTheLock) {
     ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
     ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
     ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
+    ipcMain.handle('get-font-size', () => windowStateService.fontSize);
+    ipcMain.on('set-font-size', (_event, size) => { windowStateService.fontSize = size; });
 
     // Generic context menu IPC
     ipcMain.handle('show-context-menu', (event, { items }) => {
