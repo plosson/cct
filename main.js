@@ -30,9 +30,11 @@ if (!gotTheLock) {
   const { ProjectStore } = require('./src/main/services/ProjectStore');
   const { ProjectConfigService } = require('./src/main/services/ProjectConfigService');
   const { registerProjectIPC } = require('./src/main/ipc/project.ipc');
+  const { WindowStateService } = require('./src/main/services/WindowStateService');
   const { installHooks, removeHooks } = require('./src/main/services/HooksService');
 
   let terminalService;
+  let windowStateService;
 
   app.on('second-instance', () => {
     const win = getMainWindow();
@@ -42,13 +44,20 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    const win = createMainWindow();
+    windowStateService = new WindowStateService();
+    const win = createMainWindow(windowStateService);
     terminalService = new TerminalService(win);
     const projectConfigService = new ProjectConfigService();
     registerTerminalIPC(terminalService, projectConfigService);
 
     const projectStore = new ProjectStore();
     registerProjectIPC(projectStore, projectConfigService);
+
+    // IPC for window state
+    const { ipcMain } = require('electron');
+    ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
+    ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
+    ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
 
     installHooks();
 

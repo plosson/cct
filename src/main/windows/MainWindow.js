@@ -7,12 +7,13 @@ const path = require('path');
 
 let mainWindow = null;
 
-function createMainWindow() {
+function createMainWindow(windowStateService) {
   const isMac = process.platform === 'darwin';
 
+  const bounds = windowStateService ? windowStateService.bounds : { width: 1200, height: 800 };
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    ...bounds,
     minWidth: 800,
     minHeight: 500,
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
@@ -27,6 +28,10 @@ function createMainWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '..', '..', '..', 'index.html'));
+
+  if (windowStateService) {
+    windowStateService.track(mainWindow);
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;

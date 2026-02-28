@@ -36,6 +36,7 @@ const actions = new Map();
 let terminalsContainer;
 let tabBarTabs;
 let sidebarProjectsEl;
+let sidebarEl;
 let emptyStateEl;
 
 // Project list (synced with ProjectStore via IPC)
@@ -526,7 +527,16 @@ async function init() {
   terminalsContainer = document.getElementById('terminals');
   tabBarTabs = document.querySelector('.tab-bar-tabs');
   sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
+  sidebarEl = document.querySelector('[data-testid="sidebar"]');
   emptyStateEl = document.querySelector('[data-testid="empty-state"]');
+
+  // Restore sidebar width from persisted state
+  if (api.windowState) {
+    const savedWidth = await api.windowState.getSidebarWidth();
+    if (savedWidth && savedWidth > 0) {
+      sidebarEl.style.width = savedWidth + 'px';
+    }
+  }
 
   // Sidebar: add project button
   document.querySelector('[data-testid="add-project-btn"]')

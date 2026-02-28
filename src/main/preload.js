@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('electron_api', {
     count: () => ipcRenderer.invoke('terminal-count')
   },
 
+  windowState: {
+    getSidebarWidth: () => ipcRenderer.invoke('get-sidebar-width'),
+    setSidebarWidth: (width) => ipcRenderer.send('set-sidebar-width', width),
+    getConfigPath: () => ipcRenderer.invoke('get-window-state-path'),
+  },
+
   projects: {
     list: () => ipcRenderer.invoke('project-list'),
     add: () => ipcRenderer.invoke('project-add'),
