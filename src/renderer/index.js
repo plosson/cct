@@ -1299,6 +1299,12 @@ async function init() {
   statusUptimeEl = document.querySelector('[data-testid="status-uptime"]');
   statusTerminalSizeEl = document.querySelector('[data-testid="status-terminal-size"]');
 
+  // Display app version
+  const statusVersionEl = document.querySelector('[data-testid="status-version"]');
+  if (statusVersionEl) {
+    api.getVersion().then(v => { statusVersionEl.textContent = `v${v}`; }).catch(() => {});
+  }
+
   // Restore sidebar width and font size from persisted state
   if (api.windowState) {
     const savedWidth = await api.windowState.getSidebarWidth();

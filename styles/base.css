@@ -570,6 +570,11 @@ html, body {
   text-align: center;
 }
 
+.status-bar-version {
+  color: #555;
+  font-size: 10px;
+}
+
 /* Empty state */
 .empty-state {
   display: flex;

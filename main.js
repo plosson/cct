@@ -56,6 +56,9 @@ if (!gotTheLock) {
 
     // IPC for window state
     const { ipcMain, BrowserWindow } = require('electron');
+
+    // App version
+    ipcMain.handle('get-version', () => app.getVersion());
     ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
     ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
     ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
