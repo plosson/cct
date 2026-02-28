@@ -6,16 +6,19 @@ Added a left sidebar for managing projects (folders on disk) with project-scoped
 
 **New files:**
 - `src/main/services/ProjectStore.js` — CRUD + JSON persistence in `app.getPath('userData')/projects.json`
+- `src/main/services/ProjectConfigService.js` — per-project `.cct/sessions.json` management, stable UUID, session tracking
 - `src/main/ipc/project.ipc.js` — IPC handlers bridging renderer to ProjectStore
-- `tests/step-006-sidebar-projects.spec.js` — 12 Playwright e2e tests
+- `tests/step-006-sidebar-projects.spec.js` — 20 Playwright e2e tests
 - `docs/plans/2026-02-28-sidebar-projects-sessions.md` — design/implementation plan
 
 **Modified files:**
 - `index.html` — added sidebar HTML structure, empty state element, wrapped terminal area in `.app-body > .main-area`
-- `styles/base.css` — sidebar CSS, selected project highlight, empty state, horizontal flex layout
+- `styles/base.css` — sidebar CSS, selected project highlight, empty state, horizontal flex layout, aligned sidebar/tab-bar height
 - `src/main/preload.js` — added `projects` namespace to context bridge
-- `src/renderer/index.js` — project-scoped sessions, sidebar rendering, project selection, tab visibility switching
-- `main.js` — wired up ProjectStore + project IPC registration
+- `src/main/services/TerminalService.js` — added `env` and `onExit` optional params to `create()`
+- `src/main/ipc/terminal.ipc.js` — orchestrates session lifecycle: generates sessionId, injects `CCT_PROJECT_ID`/`CCT_SESSION_ID` env vars, records/removes sessions
+- `src/renderer/index.js` — project-scoped sessions, sidebar rendering, project selection, tab visibility switching, stores `sessionId`
+- `main.js` — wired up ProjectStore, ProjectConfigService, and IPC registration
 - `tests/step-003-xterm-shell.spec.js` — updated to create a project before spawning sessions
 - `tests/step-004-claude-session.spec.js` — updated to create a project before spawning sessions
 - `tests/step-005-tabbed-terminals.spec.js` — updated for project-scoped model, test 9 now verifies empty state instead of auto-create
@@ -69,9 +72,29 @@ All older test files (003-005) updated to create a temp project in `beforeAll` b
 
 Full suite: **51 tests passing** (steps 001-006), 16.8s total.
 
+### Per-project config & env vars (second iteration)
+
+Added per-project `.cct/sessions.json` with stable project UUID, session tracking, and environment variable injection.
+
+8 new Playwright tests (13-20):
+
+13. Creating a session produces `.cct/sessions.json` in the project folder
+14. `sessions.json` has UUID `projectId` and `sessions` array
+15. Session entry has `id`, `terminalId`, `createdAt`
+16. `echo $CCT_PROJECT_ID` outputs a UUID in the terminal
+17. `echo $CCT_SESSION_ID` outputs a UUID in the terminal
+18. Closing session removes it from `sessions.json`
+19. `projectId` persists across app restart
+20. Removing project from sidebar does NOT delete `.cct/` dir
+
+Full suite: **20 tests passing** (step-006), 9.8s total.
+
 ## Lessons / gotchas
 
 - **`electronApp.evaluate` ≠ full Node.js**: `require` isn't available in Playwright's Electron evaluate context. Use Node.js APIs directly in test code for file ops, IPC for app-level operations.
 - **Test setup complexity**: Since sessions now require a project, every test file that uses terminals needs project setup in `beforeAll`. Added `_cctSelectProject` test helper to programmatically select a project from tests.
 - **No changes to TerminalService**: The `cwd` parameter was already supported since step 003. The entire project-scoping logic lives in the renderer.
 - **Tab visibility vs. DOM removal**: Hiding tabs with `display: none` is simpler and faster than removing/re-adding DOM nodes. Terminal state (xterm buffers) is preserved across project switches since panels stay in the DOM.
+- **IPC layer as orchestrator**: Session ID generation, env var injection, and session recording all live in `terminal.ipc.js` rather than being spread across services. This keeps TerminalService and ProjectConfigService focused on their single responsibilities.
+- **Dual cleanup path**: Sessions are cleaned from `sessions.json` both on explicit `terminal-kill` (user closes tab) and on PTY exit (`onExit` callback). The `sessionMap` in the IPC layer tracks the mapping for both paths.
+- **Sidebar/tab-bar height alignment**: The sidebar header and tab bar must share the same explicit `height: 36px` to keep their bottom borders aligned visually.

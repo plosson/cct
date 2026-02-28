@@ -22,10 +22,10 @@ class TerminalService {
 
   /**
    * Spawn a new PTY process
-   * @param {{ command?: string, args?: string[], cwd?: string, cols?: number, rows?: number }} options
+   * @param {{ command?: string, args?: string[], cwd?: string, cols?: number, rows?: number, env?: object, onExit?: function }} options
    * @returns {{ success: boolean, id: number }}
    */
-  create({ command, args = [], cwd, cols = 80, rows = 24 } = {}) {
+  create({ command, args = [], cwd, cols = 80, rows = 24, env: extraEnv, onExit } = {}) {
     const shell = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/zsh');
     const cmd = command || shell;
     const id = this._nextId++;
@@ -33,6 +33,9 @@ class TerminalService {
     // Clean env: remove CLAUDECODE to avoid nested-session detection
     const env = { ...process.env };
     delete env.CLAUDECODE;
+
+    // Merge caller-provided env vars
+    if (extraEnv) Object.assign(env, extraEnv);
 
     const ptyProcess = pty.spawn(cmd, args, {
       name: 'xterm-256color',
@@ -86,6 +89,7 @@ class TerminalService {
       onExitDisposable.dispose();
       this._terminals.delete(id);
 
+      if (onExit) onExit({ id, exitCode });
       this._send('terminal-exit', { id, exitCode });
     });
 

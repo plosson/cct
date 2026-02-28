@@ -220,3 +220,143 @@ test('12 - config file contains expected JSON entries', async () => {
   expect(config.projects[0]).toHaveProperty('path');
   expect(config.projects[0]).toHaveProperty('name');
 });
+
+// ── Per-project .cct/sessions.json + env vars ────────────────
+
+test('13 - creating a session produces .cct/sessions.json in project folder', async () => {
+  // Select the existing project and create a session
+  const projectItem = window.locator('[data-testid="project-item"]').first();
+  await projectItem.click();
+  await window.waitForTimeout(300);
+
+  await window.click('[data-testid="new-tab-btn"]');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+
+  // Get the project path
+  const projectPath = await projectItem.getAttribute('data-project-path');
+  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+
+  // .cct/sessions.json should exist
+  expect(fs.existsSync(sessionsPath)).toBe(true);
+});
+
+test('14 - sessions.json has UUID projectId and sessions array', async () => {
+  const projectPath = await window.locator('[data-testid="project-item"]').first()
+    .getAttribute('data-project-path');
+  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+  const config = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+
+  // projectId should be a UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  expect(config.projectId).toMatch(uuidRegex);
+  expect(Array.isArray(config.sessions)).toBe(true);
+  expect(config.sessions.length).toBeGreaterThanOrEqual(1);
+});
+
+test('15 - session entry has id, terminalId, createdAt', async () => {
+  const projectPath = await window.locator('[data-testid="project-item"]').first()
+    .getAttribute('data-project-path');
+  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+  const config = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+
+  const session = config.sessions[0];
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  expect(session.id).toMatch(uuidRegex);
+  expect(typeof session.terminalId).toBe('number');
+  expect(session.createdAt).toBeTruthy();
+  // createdAt should be a valid ISO date
+  expect(new Date(session.createdAt).toISOString()).toBe(session.createdAt);
+});
+
+test('16 - CCT_PROJECT_ID env var is set in terminal', async () => {
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
+  await textarea.pressSequentially('echo $CCT_PROJECT_ID', { delay: 30 });
+  await window.keyboard.press('Enter');
+
+  const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  await expect(async () => {
+    const text = await window.evaluate(() => window._cctGetBufferText());
+    expect(text).toMatch(uuidRegex);
+  }).toPass({ timeout: 5000 });
+});
+
+test('17 - CCT_SESSION_ID env var is set in terminal', async () => {
+  const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
+  await textarea.pressSequentially('echo $CCT_SESSION_ID', { delay: 30 });
+  await window.keyboard.press('Enter');
+
+  const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  await expect(async () => {
+    const text = await window.evaluate(() => window._cctGetBufferText());
+    expect(text).toMatch(uuidRegex);
+  }).toPass({ timeout: 5000 });
+});
+
+test('18 - closing session removes it from sessions.json', async () => {
+  const projectPath = await window.locator('[data-testid="project-item"]').first()
+    .getAttribute('data-project-path');
+  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+
+  // Verify session is currently tracked
+  const before = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  expect(before.sessions.length).toBe(1);
+
+  // Close the tab
+  await window.click('[data-testid="tab"] [data-testid="tab-close"]');
+  await window.waitForTimeout(500);
+
+  // Session should be removed
+  const after = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  expect(after.sessions.length).toBe(0);
+  // projectId should be unchanged
+  expect(after.projectId).toBe(before.projectId);
+});
+
+test('19 - projectId persists across app restart', async () => {
+  const projectPath = await window.locator('[data-testid="project-item"]').first()
+    .getAttribute('data-project-path');
+  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+  const before = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  const originalProjectId = before.projectId;
+
+  // Restart the app
+  await electronApp.close();
+  electronApp = await electron.launch({ args: [appPath] });
+  window = await electronApp.firstWindow();
+  await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
+
+  // Create a session to trigger config read
+  const projectItem = window.locator('[data-testid="project-item"]').first();
+  await projectItem.click();
+  await window.waitForTimeout(300);
+  await window.click('[data-testid="new-tab-btn"]');
+  await window.waitForSelector('.xterm', { timeout: 10000 });
+
+  // projectId should be the same
+  const after = JSON.parse(fs.readFileSync(sessionsPath, 'utf8'));
+  expect(after.projectId).toBe(originalProjectId);
+
+  // Clean up: close the session
+  await window.click('[data-testid="tab"] [data-testid="tab-close"]');
+  await window.waitForTimeout(500);
+});
+
+test('20 - removing project from sidebar does NOT delete .cct/ dir', async () => {
+  const projectPath = await window.locator('[data-testid="project-item"]').first()
+    .getAttribute('data-project-path');
+  const cctDir = path.join(projectPath, '.cct');
+
+  // .cct should exist from earlier tests
+  expect(fs.existsSync(cctDir)).toBe(true);
+
+  // Remove the project from sidebar
+  const removeBtn = window.locator('[data-testid="project-item"]').first()
+    .locator('[data-testid="remove-project-btn"]');
+  await removeBtn.click();
+  await window.waitForTimeout(500);
+
+  // .cct/ directory should still exist
+  expect(fs.existsSync(cctDir)).toBe(true);
+  const config = JSON.parse(fs.readFileSync(path.join(cctDir, 'sessions.json'), 'utf8'));
+  expect(config.projectId).toBeTruthy();
+});

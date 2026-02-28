@@ -8,7 +8,7 @@ import { FitAddon } from '@xterm/addon-fit';
 
 const api = window.electron_api;
 
-const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath }
+const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId }
 let activeId = null;
 let selectedProjectPath = null;
 let sessionCounter = 0;
@@ -176,7 +176,7 @@ async function createSession() {
   terminal.loadAddon(fitAddon);
   terminal.open(panelEl);
 
-  const { id } = await api.terminal.create({
+  const { id, sessionId } = await api.terminal.create({
     command: api.config?.spawnCommand,
     cols: terminal.cols,
     rows: terminal.rows,
@@ -222,7 +222,7 @@ async function createSession() {
     terminal.dispose();
   };
 
-  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path });
+  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path, sessionId });
   activateTab(id);
   renderSidebar();
 }
