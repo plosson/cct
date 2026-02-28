@@ -43,6 +43,7 @@ const DEFAULT_KEYBINDINGS = {
   'Shift+Meta+ArrowLeft': 'moveTabLeft',
   'Shift+Meta+ArrowRight': 'moveTabRight',
   'Meta+a': 'selectAll',
+  'Meta+b': 'toggleSidebar',
   'Meta+/': 'showShortcutHelp',
   'Meta+1': 'goToTab1',
   'Meta+2': 'goToTab2',
@@ -867,6 +868,31 @@ function pasteClipboard() {
   }
 }
 
+// ── Toggle Sidebar (Cmd+B) ───────────────────────────────────
+
+let sidebarVisible = true;
+
+function toggleSidebar() {
+  const resizeHandle = document.querySelector('[data-testid="sidebar-resize-handle"]');
+  sidebarVisible = !sidebarVisible;
+
+  if (sidebarVisible) {
+    sidebarEl.style.display = '';
+    if (resizeHandle) resizeHandle.style.display = '';
+  } else {
+    sidebarEl.style.display = 'none';
+    if (resizeHandle) resizeHandle.style.display = 'none';
+  }
+
+  // Refit the active terminal since the layout changed
+  if (activeId) {
+    const session = sessions.get(activeId);
+    if (session) {
+      requestAnimationFrame(() => session.fitAddon.fit());
+    }
+  }
+}
+
 // ── Select All (Cmd+A) ───────────────────────────────────────
 
 function selectAll() {
@@ -938,6 +964,7 @@ const ACTION_LABELS = {
   moveTabLeft: 'Move Tab Left',
   moveTabRight: 'Move Tab Right',
   selectAll: 'Select All',
+  toggleSidebar: 'Toggle Sidebar',
   showShortcutHelp: 'Show Shortcuts',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
@@ -1178,6 +1205,7 @@ window._cctGetTabOrder = () => {
     .filter(el => el.style.display !== 'none')
     .map(el => el.querySelector('.tab-label')?.textContent || '');
 };
+window._cctIsSidebarVisible = () => sidebarVisible;
 window._cctProjectActivity = () => [...projectActivity];
 window._cctGetSessionsForProject = (projectPath) => {
   return sessionsForProject(projectPath).map(([id]) => id);
@@ -1280,6 +1308,7 @@ async function init() {
   actions.set('moveTabLeft', () => moveTab('left'));
   actions.set('moveTabRight', () => moveTab('right'));
   actions.set('selectAll', () => selectAll());
+  actions.set('toggleSidebar', () => toggleSidebar());
   actions.set('showShortcutHelp', () => showShortcutHelp());
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
