@@ -42,6 +42,7 @@ const DEFAULT_KEYBINDINGS = {
   'Shift+Meta+V': 'pasteClipboard',
   'Shift+Meta+ArrowLeft': 'moveTabLeft',
   'Shift+Meta+ArrowRight': 'moveTabRight',
+  'Meta+a': 'selectAll',
   'Meta+/': 'showShortcutHelp',
   'Meta+1': 'goToTab1',
   'Meta+2': 'goToTab2',
@@ -866,6 +867,15 @@ function pasteClipboard() {
   }
 }
 
+// ── Select All (Cmd+A) ───────────────────────────────────────
+
+function selectAll() {
+  if (!activeId) return;
+  const session = sessions.get(activeId);
+  if (!session) return;
+  session.terminal.selectAll();
+}
+
 // ── Move tab (Cmd+Shift+Left/Right) ──────────────────────────
 
 function moveTab(direction) {
@@ -927,6 +937,7 @@ const ACTION_LABELS = {
   pasteClipboard: 'Paste',
   moveTabLeft: 'Move Tab Left',
   moveTabRight: 'Move Tab Right',
+  selectAll: 'Select All',
   showShortcutHelp: 'Show Shortcuts',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
@@ -1268,6 +1279,7 @@ async function init() {
   actions.set('pasteClipboard', () => pasteClipboard());
   actions.set('moveTabLeft', () => moveTab('left'));
   actions.set('moveTabRight', () => moveTab('right'));
+  actions.set('selectAll', () => selectAll());
   actions.set('showShortcutHelp', () => showShortcutHelp());
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
