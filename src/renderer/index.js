@@ -35,6 +35,15 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+-': 'zoomOut',
   'Meta+0': 'zoomReset',
   'Meta+/': 'showShortcutHelp',
+  'Meta+1': 'goToTab1',
+  'Meta+2': 'goToTab2',
+  'Meta+3': 'goToTab3',
+  'Meta+4': 'goToTab4',
+  'Meta+5': 'goToTab5',
+  'Meta+6': 'goToTab6',
+  'Meta+7': 'goToTab7',
+  'Meta+8': 'goToTab8',
+  'Meta+9': 'goToLastTab',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -440,6 +449,15 @@ function cycleTab(direction) {
   activateTab(ids[(idx + offset) % ids.length]);
 }
 
+/** Activate the Nth tab (0-indexed) in the current project; -1 for last tab */
+function goToTab(n) {
+  if (!selectedProjectPath) return;
+  const ids = sessionsForProject(selectedProjectPath).map(([id]) => id);
+  if (ids.length === 0) return;
+  const idx = n === -1 ? ids.length - 1 : Math.min(n, ids.length - 1);
+  activateTab(ids[idx]);
+}
+
 // ── Project Picker (Cmd+P) ───────────────────────────────────
 
 let pickerOverlay = null;
@@ -791,6 +809,15 @@ const ACTION_LABELS = {
   zoomOut: 'Zoom Out',
   zoomReset: 'Reset Zoom',
   showShortcutHelp: 'Show Shortcuts',
+  goToTab1: 'Go to Tab 1',
+  goToTab2: 'Go to Tab 2',
+  goToTab3: 'Go to Tab 3',
+  goToTab4: 'Go to Tab 4',
+  goToTab5: 'Go to Tab 5',
+  goToTab6: 'Go to Tab 6',
+  goToTab7: 'Go to Tab 7',
+  goToTab8: 'Go to Tab 8',
+  goToLastTab: 'Go to Last Tab',
 };
 
 function formatKeyCombo(combo) {
@@ -1065,6 +1092,10 @@ async function init() {
   actions.set('zoomOut', () => zoomOut());
   actions.set('zoomReset', () => zoomReset());
   actions.set('showShortcutHelp', () => showShortcutHelp());
+  for (let i = 1; i <= 8; i++) {
+    actions.set(`goToTab${i}`, () => goToTab(i - 1));
+  }
+  actions.set('goToLastTab', () => goToTab(-1));
 
   // Data-driven keyboard dispatch
   document.addEventListener('keydown', (e) => {
