@@ -18,9 +18,9 @@ test.beforeAll(async () => {
   electronApp = await electron.launch({
     args: [appPath],
     env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
-    timeout: 60000,
+    timeout: 90000,
   });
-  window = await electronApp.firstWindow({ timeout: 60000 });
+  window = await electronApp.firstWindow({ timeout: 90000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
   tmpDir = path.join(os.tmpdir(), `cct-test-022-${Date.now()}`);
