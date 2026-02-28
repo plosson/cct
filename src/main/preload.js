@@ -48,6 +48,10 @@ contextBridge.exposeInMainWorld('electron_api', {
     readText: () => clipboard.readText(),
   },
 
+  shell: {
+    showItemInFolder: (fullPath) => ipcRenderer.invoke('shell-show-item-in-folder', fullPath),
+  },
+
   projects: {
     list: () => ipcRenderer.invoke('project-list'),
     add: () => ipcRenderer.invoke('project-add'),

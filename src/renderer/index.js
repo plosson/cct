@@ -125,6 +125,11 @@ function renderSidebar() {
       }
     });
 
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showProjectContextMenu(project.path);
+    });
+
     el.querySelector('.sidebar-project-remove').addEventListener('click', () => {
       removeProject(project.path);
     });
@@ -715,6 +720,29 @@ function closeAllTabs(projectPath) {
   for (const id of toClose) closeTab(id);
 }
 
+// ── Project context menu ─────────────────────────────────────
+
+async function showProjectContextMenu(projectPath) {
+  const action = await api.contextMenu.show([
+    { label: 'Reveal in Finder', action: 'revealInFinder' },
+    { label: 'Copy Path', action: 'copyPath' },
+    { type: 'separator' },
+    { label: 'Remove Project', action: 'remove' },
+  ]);
+
+  switch (action) {
+    case 'revealInFinder':
+      api.shell.showItemInFolder(projectPath);
+      break;
+    case 'copyPath':
+      api.clipboard.writeText(projectPath);
+      break;
+    case 'remove':
+      removeProject(projectPath);
+      break;
+  }
+}
+
 // ── Terminal search (Cmd+F) ──────────────────────────────────
 
 let searchBarEl = null;
@@ -1204,6 +1232,13 @@ window._cctGetTabOrder = () => {
   return [...tabBarTabs.children]
     .filter(el => el.style.display !== 'none')
     .map(el => el.querySelector('.tab-label')?.textContent || '');
+};
+window._cctGetProjectContextMenuItems = (projectPath) => {
+  return [
+    { label: 'Reveal in Finder', action: 'revealInFinder' },
+    { label: 'Copy Path', action: 'copyPath' },
+    { label: 'Remove Project', action: 'remove' },
+  ];
 };
 window._cctIsSidebarVisible = () => sidebarVisible;
 window._cctProjectActivity = () => [...projectActivity];
