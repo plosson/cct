@@ -2,7 +2,7 @@
  * CCT - Main Process Entry Point
  */
 
-const { app } = require('electron');
+const { app, Menu } = require('electron');
 
 // Fix PATH on macOS — apps launched from Finder have a minimal PATH
 if (process.platform === 'darwin') {
@@ -41,6 +41,16 @@ if (!gotTheLock) {
     const win = createMainWindow();
     terminalService = new TerminalService(win);
     registerTerminalIPC(terminalService);
+
+    // Disable Cmd+W in the native menu so the renderer handles it as tab-close
+    const menu = Menu.getApplicationMenu();
+    const closeItem = menu?.items
+      .find(i => i.role === 'fileMenu' || i.label === 'File')
+      ?.submenu?.items.find(i => i.role === 'close');
+    if (closeItem) {
+      closeItem.enabled = false;
+      Menu.setApplicationMenu(menu);
+    }
   });
 
   app.on('before-quit', () => {
