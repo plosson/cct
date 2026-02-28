@@ -3,7 +3,7 @@
 ## What was done
 
 - `.github/workflows/ci.yml` — CI pipeline triggered on push/PR to main. Runs on `macos-latest`: install, lint, build, Playwright tests.
-- `.github/workflows/release.yml` — Release pipeline triggered on `v*` tags. Builds macOS DMG for both arm64 and x64 using electron-builder with `--publish always`. Uses `nick-fields/retry` for hdiutil flakiness.
+- `.github/workflows/release.yml` — Release pipeline triggered on `v*` tags. Builds macOS arm64 DMG on `macos-latest` using electron-builder with `--publish always`. Uses `nick-fields/retry` for hdiutil flakiness.
 - `electron-builder.config.js` — Minimal config: appId, mac target (dmg), GitHub publish settings. Code signing set to `identity: null` (placeholder for future certs).
 - `package.json` updated: `build` script now uses `electron-builder --dir` (unpacked, fast), `build:dist` for full packaging. Added `electron-builder` as devDependency.
 - `playwright.config.js` — Set `workers: 1` to avoid single-instance lock conflicts.
@@ -14,8 +14,7 @@
 - **macOS-only CI for now** — The app targets macOS first. No Windows/Linux matrix yet (saves CI minutes, can be added when needed).
 - **`build --dir` for CI, not full DMG** — `npm run build` produces an unpacked app (fast, sufficient for CI validation). Full DMG packaging happens only in the release workflow.
 - **`nick-fields/retry` for DMG build** — Adopted from reference project. hdiutil is notoriously flaky on GitHub Actions runners.
-- **Separate arch builds (arm64 + x64)** — Uses `macos-latest` (arm64) and `macos-13` (last Intel runner). Matches reference project pattern.
-- **No merge-mac-yml job** — The reference project has a complex job to merge latest-mac.yml for auto-updater. Skipped — we don't have auto-update yet.
+- **arm64 only** — Simplified to a single `macos-latest` (arm64) build. x64 can be added later if needed.
 - **Placeholder lint** — `npm run lint` is still `echo 'lint: ok'`. Will be replaced with a real linter when we have enough code to lint.
 
 ## Architecture decisions
@@ -42,7 +41,11 @@ Local dry-runs:
 - `npm run lint` → exit 0
 - `npm run build` → electron-builder produces unpacked app in `dist/mac-arm64/`
 
-CI validation: branch will be pushed and `gh run list --workflow=ci.yml` checked after merge.
+GitHub CI validation:
+- CI workflow: pushed to main → **completed success** in 24s
+- Release workflow: pushed tag `v0.0.1-test` → **completed success** in 2m40s
+- Artifacts produced: `CCT-0.1.0-arm64.dmg`, `CCT-0.1.0-arm64.dmg.blockmap`, `latest-mac.yml` — published as draft release
+- Test tag and draft release cleaned up after validation
 
 ## Lessons / gotchas
 
