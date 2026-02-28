@@ -67,6 +67,9 @@ if (!gotTheLock) {
     ipcMain.handle('shell-show-item-in-folder', (_event, fullPath) => {
       shell.showItemInFolder(fullPath);
     });
+    ipcMain.handle('shell-open-external', (_event, url) => {
+      return shell.openExternal(url);
+    });
 
     // Generic context menu IPC
     ipcMain.handle('show-context-menu', (event, { items }) => {

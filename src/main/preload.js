@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electron_api', {
 
   shell: {
     showItemInFolder: (fullPath) => ipcRenderer.invoke('shell-show-item-in-folder', fullPath),
+    openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
   },
 
   projects: {

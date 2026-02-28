@@ -6,6 +6,7 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 
 const api = window.electron_api;
 
@@ -249,8 +250,13 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   const terminal = new Terminal({ ...TERMINAL_OPTIONS, fontSize: currentFontSize });
   const fitAddon = new FitAddon();
   const searchAddon = new SearchAddon();
+  const webLinksAddon = new WebLinksAddon((event, uri) => {
+    event.preventDefault();
+    api.shell.openExternal(uri);
+  });
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(searchAddon);
+  terminal.loadAddon(webLinksAddon);
   terminal.open(panelEl);
 
   const createParams = {
