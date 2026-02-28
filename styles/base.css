@@ -362,6 +362,31 @@ html, body {
   white-space: nowrap;
 }
 
+/* Status bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  background: #16162a;
+  border-top: 1px solid #2a2a4a;
+  padding: 0 12px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #888;
+  gap: 12px;
+  user-select: none;
+}
+
+.status-bar-item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-bar-spacer {
+  flex: 1;
+}
+
 /* Empty state */
 .empty-state {
   display: flex;

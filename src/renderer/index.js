@@ -8,7 +8,7 @@ import { FitAddon } from '@xterm/addon-fit';
 
 const api = window.electron_api;
 
-const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId }
+const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId, type, createdAt }
 let activeId = null;
 let selectedProjectPath = null;
 let sessionCounter = 0;
@@ -134,6 +134,7 @@ function selectProject(projectPath) {
   }
 
   renderSidebar();
+  updateStatusBar();
 }
 
 /** Get all session [id, session] entries for a given project path */
@@ -258,6 +259,7 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
         lastCols = terminal.cols;
         lastRows = terminal.rows;
         api.terminal.resize({ id, cols: terminal.cols, rows: terminal.rows });
+        updateStatusBar();
       }
     }, 150);
   });
@@ -272,7 +274,7 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
     terminal.dispose();
   };
 
-  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path, sessionId });
+  sessions.set(id, { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath: project.path, sessionId, type, createdAt: Date.now() });
   activateTab(id);
   renderSidebar();
 }
@@ -297,6 +299,7 @@ function activateTab(id) {
   session.fitAddon.fit();
   api.terminal.resize({ id, cols: session.terminal.cols, rows: session.terminal.rows });
   session.terminal.focus();
+  updateStatusBar();
 }
 
 /** Close a tab, activating a neighbor within the same project */
@@ -321,6 +324,7 @@ function closeTab(id) {
   }
 
   renderSidebar();
+  updateStatusBar();
 }
 
 /**
@@ -471,6 +475,35 @@ function renderPickerList(listEl, filter) {
   });
 }
 
+// ── Status bar ───────────────────────────────────────────────
+
+let statusProjectEl;
+let statusSessionTypeEl;
+let statusTerminalSizeEl;
+
+function updateStatusBar() {
+  if (!statusProjectEl) return;
+
+  if (!selectedProjectPath) {
+    statusProjectEl.textContent = '';
+    statusSessionTypeEl.textContent = '';
+    statusTerminalSizeEl.textContent = '';
+    return;
+  }
+
+  const project = projects.find(p => p.path === selectedProjectPath);
+  statusProjectEl.textContent = project ? project.name : '';
+
+  const session = activeId ? sessions.get(activeId) : null;
+  if (session) {
+    statusSessionTypeEl.textContent = session.type === 'claude' ? 'Claude' : 'Terminal';
+    statusTerminalSizeEl.textContent = `${session.terminal.cols}\u00d7${session.terminal.rows}`;
+  } else {
+    statusSessionTypeEl.textContent = '';
+    statusTerminalSizeEl.textContent = '';
+  }
+}
+
 // ── Sidebar resize ───────────────────────────────────────────
 
 function initSidebarResize() {
@@ -577,6 +610,11 @@ async function init() {
   sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
   sidebarEl = document.querySelector('[data-testid="sidebar"]');
   emptyStateEl = document.querySelector('[data-testid="empty-state"]');
+
+  // Status bar elements
+  statusProjectEl = document.querySelector('[data-testid="status-project"]');
+  statusSessionTypeEl = document.querySelector('[data-testid="status-session-type"]');
+  statusTerminalSizeEl = document.querySelector('[data-testid="status-terminal-size"]');
 
   // Restore sidebar width from persisted state
   if (api.windowState) {
