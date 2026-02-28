@@ -15,19 +15,24 @@ class TerminalService {
 
   /**
    * Spawn a new PTY process
-   * @param {{ cwd?: string, cols?: number, rows?: number }} options
+   * @param {{ command?: string, args?: string[], cwd?: string, cols?: number, rows?: number }} options
    * @returns {{ success: boolean, id: number }}
    */
-  create({ cwd, cols = 80, rows = 24 } = {}) {
+  create({ command, args = [], cwd, cols = 80, rows = 24 } = {}) {
     const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/zsh');
+    const cmd = command || shell;
     const id = this._nextId++;
 
-    const ptyProcess = pty.spawn(shell, [], {
+    // Clean env: remove CLAUDECODE to avoid nested-session detection
+    const env = { ...process.env };
+    delete env.CLAUDECODE;
+
+    const ptyProcess = pty.spawn(cmd, args, {
       name: 'xterm-256color',
       cols,
       rows,
       cwd: cwd || os.homedir(),
-      env: { ...process.env }
+      env
     });
 
     // Adaptive batching: accumulate data and flush at intervals
