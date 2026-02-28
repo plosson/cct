@@ -40,6 +40,8 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+k': 'clearTerminal',
   'Shift+Meta+C': 'copySelection',
   'Shift+Meta+V': 'pasteClipboard',
+  'Shift+Meta+ArrowLeft': 'moveTabLeft',
+  'Shift+Meta+ArrowRight': 'moveTabRight',
   'Meta+/': 'showShortcutHelp',
   'Meta+1': 'goToTab1',
   'Meta+2': 'goToTab2',
@@ -864,6 +866,47 @@ function pasteClipboard() {
   }
 }
 
+// ── Move tab (Cmd+Shift+Left/Right) ──────────────────────────
+
+function moveTab(direction) {
+  if (!activeId || !selectedProjectPath) return;
+  const session = sessions.get(activeId);
+  if (!session) return;
+
+  // Get visible tab elements for the current project
+  const allTabs = [...tabBarTabs.children];
+  const projectTabs = allTabs.filter(el => {
+    const tabId = Number(el.dataset.tabId);
+    const s = sessions.get(tabId);
+    return s && s.projectPath === selectedProjectPath;
+  });
+
+  if (projectTabs.length < 2) return;
+
+  const currentTab = session.tabEl;
+  const idx = projectTabs.indexOf(currentTab);
+  if (idx === -1) return;
+
+  if (direction === 'left') {
+    if (idx === 0) {
+      // Wrap: move to after the last project tab
+      const lastTab = projectTabs[projectTabs.length - 1];
+      tabBarTabs.insertBefore(currentTab, lastTab.nextSibling);
+    } else {
+      // Move before the previous project tab
+      tabBarTabs.insertBefore(currentTab, projectTabs[idx - 1]);
+    }
+  } else {
+    if (idx === projectTabs.length - 1) {
+      // Wrap: move to before the first project tab
+      tabBarTabs.insertBefore(currentTab, projectTabs[0]);
+    } else {
+      // Move after the next project tab
+      tabBarTabs.insertBefore(currentTab, projectTabs[idx + 1].nextSibling);
+    }
+  }
+}
+
 // ── Shortcut help overlay (Cmd+/) ────────────────────────────
 
 const ACTION_LABELS = {
@@ -882,6 +925,8 @@ const ACTION_LABELS = {
   clearTerminal: 'Clear Terminal',
   copySelection: 'Copy Selection',
   pasteClipboard: 'Paste',
+  moveTabLeft: 'Move Tab Left',
+  moveTabRight: 'Move Tab Right',
   showShortcutHelp: 'Show Shortcuts',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
@@ -1081,6 +1126,11 @@ window._cctGetTabContextMenuItems = (tabId) => {
   ];
 };
 
+window._cctGetTabOrder = () => {
+  return [...tabBarTabs.children]
+    .filter(el => el.style.display !== 'none')
+    .map(el => el.querySelector('.tab-label')?.textContent || '');
+};
 window._cctProjectActivity = () => [...projectActivity];
 window._cctGetSessionsForProject = (projectPath) => {
   return sessionsForProject(projectPath).map(([id]) => id);
@@ -1179,6 +1229,8 @@ async function init() {
   actions.set('clearTerminal', () => clearTerminal());
   actions.set('copySelection', () => copySelection());
   actions.set('pasteClipboard', () => pasteClipboard());
+  actions.set('moveTabLeft', () => moveTab('left'));
+  actions.set('moveTabRight', () => moveTab('right'));
   actions.set('showShortcutHelp', () => showShortcutHelp());
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
