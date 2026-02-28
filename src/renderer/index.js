@@ -38,6 +38,8 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+-': 'zoomOut',
   'Meta+0': 'zoomReset',
   'Meta+k': 'clearTerminal',
+  'Shift+Meta+C': 'copySelection',
+  'Shift+Meta+V': 'pasteClipboard',
   'Meta+/': 'showShortcutHelp',
   'Meta+1': 'goToTab1',
   'Meta+2': 'goToTab2',
@@ -840,6 +842,28 @@ function clearTerminal() {
   session.terminal.clear();
 }
 
+// ── Clipboard (Cmd+Shift+C / Cmd+Shift+V) ───────────────────
+
+function copySelection() {
+  if (!activeId) return;
+  const session = sessions.get(activeId);
+  if (!session) return;
+  const selection = session.terminal.getSelection();
+  if (selection) {
+    api.clipboard.writeText(selection);
+  }
+}
+
+function pasteClipboard() {
+  if (!activeId) return;
+  const session = sessions.get(activeId);
+  if (!session) return;
+  const text = api.clipboard.readText();
+  if (text) {
+    api.terminal.input({ id: activeId, data: text });
+  }
+}
+
 // ── Shortcut help overlay (Cmd+/) ────────────────────────────
 
 const ACTION_LABELS = {
@@ -856,6 +880,8 @@ const ACTION_LABELS = {
   zoomOut: 'Zoom Out',
   zoomReset: 'Reset Zoom',
   clearTerminal: 'Clear Terminal',
+  copySelection: 'Copy Selection',
+  pasteClipboard: 'Paste',
   showShortcutHelp: 'Show Shortcuts',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
@@ -1151,6 +1177,8 @@ async function init() {
   actions.set('zoomOut', () => zoomOut());
   actions.set('zoomReset', () => zoomReset());
   actions.set('clearTerminal', () => clearTerminal());
+  actions.set('copySelection', () => copySelection());
+  actions.set('pasteClipboard', () => pasteClipboard());
   actions.set('showShortcutHelp', () => showShortcutHelp());
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));

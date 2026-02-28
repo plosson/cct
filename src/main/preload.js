@@ -3,7 +3,7 @@
  * Exposes IPC API to renderer with context isolation
  */
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
 /** Create an IPC listener that returns an unsubscribe function */
 function createListener(channel) {
@@ -41,6 +41,11 @@ contextBridge.exposeInMainWorld('electron_api', {
 
   contextMenu: {
     show: (items) => ipcRenderer.invoke('show-context-menu', { items }),
+  },
+
+  clipboard: {
+    writeText: (text) => clipboard.writeText(text),
+    readText: () => clipboard.readText(),
   },
 
   projects: {
