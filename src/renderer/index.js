@@ -34,6 +34,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+=': 'zoomIn',
   'Meta+-': 'zoomOut',
   'Meta+0': 'zoomReset',
+  'Meta+/': 'showShortcutHelp',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -774,6 +775,98 @@ function zoomIn() { setFontSize(currentFontSize + 1); }
 function zoomOut() { setFontSize(currentFontSize - 1); }
 function zoomReset() { setFontSize(DEFAULT_FONT_SIZE); }
 
+// ── Shortcut help overlay (Cmd+/) ────────────────────────────
+
+const ACTION_LABELS = {
+  createClaudeSession: 'New Claude Session',
+  createTerminalSession: 'New Terminal Session',
+  closeActiveTab: 'Close Active Tab',
+  openProjectPicker: 'Project Picker',
+  prevTab: 'Previous Tab',
+  nextTab: 'Next Tab',
+  prevProject: 'Previous Project',
+  nextProject: 'Next Project',
+  openSearchBar: 'Find in Terminal',
+  zoomIn: 'Zoom In',
+  zoomOut: 'Zoom Out',
+  zoomReset: 'Reset Zoom',
+  showShortcutHelp: 'Show Shortcuts',
+};
+
+function formatKeyCombo(combo) {
+  return combo
+    .replace(/Meta/g, '\u2318')
+    .replace(/Alt/g, '\u2325')
+    .replace(/Shift/g, '\u21e7')
+    .replace(/Ctrl/g, '\u2303')
+    .replace(/ArrowLeft/g, '\u2190')
+    .replace(/ArrowRight/g, '\u2192')
+    .replace(/ArrowUp/g, '\u2191')
+    .replace(/ArrowDown/g, '\u2193')
+    .replace(/\+/g, ' ');
+}
+
+let shortcutHelpOverlay = null;
+
+function showShortcutHelp() {
+  if (shortcutHelpOverlay) { closeShortcutHelp(); return; }
+
+  shortcutHelpOverlay = document.createElement('div');
+  shortcutHelpOverlay.className = 'shortcut-help-overlay';
+  shortcutHelpOverlay.dataset.testid = 'shortcut-help-overlay';
+
+  const panel = document.createElement('div');
+  panel.className = 'shortcut-help-panel';
+
+  const title = document.createElement('h2');
+  title.className = 'shortcut-help-title';
+  title.textContent = 'Keyboard Shortcuts';
+  panel.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'shortcut-help-list';
+
+  for (const [combo, actionName] of Object.entries(keybindings)) {
+    const label = ACTION_LABELS[actionName] || actionName;
+    const row = document.createElement('div');
+    row.className = 'shortcut-help-row';
+    row.dataset.testid = 'shortcut-help-row';
+    row.innerHTML = `<span class="shortcut-help-label">${label}</span><kbd class="shortcut-help-key">${formatKeyCombo(combo)}</kbd>`;
+    list.appendChild(row);
+  }
+
+  panel.appendChild(list);
+  shortcutHelpOverlay.appendChild(panel);
+
+  shortcutHelpOverlay.addEventListener('mousedown', (e) => {
+    if (e.target === shortcutHelpOverlay) closeShortcutHelp();
+  });
+
+  shortcutHelpOverlay.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeShortcutHelp();
+    }
+  });
+
+  document.querySelector('.app').appendChild(shortcutHelpOverlay);
+  shortcutHelpOverlay.tabIndex = -1;
+  shortcutHelpOverlay.focus();
+}
+
+function closeShortcutHelp() {
+  if (shortcutHelpOverlay) {
+    shortcutHelpOverlay.remove();
+    shortcutHelpOverlay = null;
+  }
+  // Refocus terminal
+  if (activeId) {
+    const s = sessions.get(activeId);
+    if (s) s.terminal.focus();
+  }
+}
+
 // ── Status bar ───────────────────────────────────────────────
 
 let statusProjectEl;
@@ -971,6 +1064,7 @@ async function init() {
   actions.set('zoomIn', () => zoomIn());
   actions.set('zoomOut', () => zoomOut());
   actions.set('zoomReset', () => zoomReset());
+  actions.set('showShortcutHelp', () => showShortcutHelp());
 
   // Data-driven keyboard dispatch
   document.addEventListener('keydown', (e) => {
