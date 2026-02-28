@@ -240,6 +240,19 @@ html, body {
   color: #ff6b6b;
 }
 
+/* Tab rename input */
+.tab-rename-input {
+  background: #16162a;
+  border: 1px solid #58a6ff;
+  border-radius: 3px;
+  color: #e0e0e0;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 1px 4px;
+  outline: none;
+  min-width: 40px;
+}
+
 /* Tab drag-and-drop */
 .tab-item.dragging {
   opacity: 0.4;

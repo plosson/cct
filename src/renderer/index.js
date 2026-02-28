@@ -232,13 +232,20 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   tabEl.className = 'tab-item';
   tabEl.dataset.testid = 'tab';
   tabEl.dataset.tabId = String(id);
-  tabEl.innerHTML = `${icon}<span class="tab-label">${displayLabel}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
+  tabEl.innerHTML = `${icon}<span class="tab-label" data-testid="tab-label">${displayLabel}</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
   tabBarTabs.appendChild(tabEl);
 
   tabEl.draggable = true;
 
   tabEl.addEventListener('click', (e) => {
     if (!e.target.closest('.tab-close')) activateTab(id);
+  });
+
+  // Double-click to rename tab
+  const labelEl = tabEl.querySelector('.tab-label');
+  labelEl.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    startTabRename(id, labelEl);
   });
 
   tabEl.addEventListener('contextmenu', (e) => {
@@ -540,6 +547,55 @@ function clearDropIndicators() {
   for (const el of tabBarTabs.querySelectorAll('.drop-before, .drop-after')) {
     el.classList.remove('drop-before', 'drop-after');
   }
+}
+
+// ── Tab rename ───────────────────────────────────────────────
+
+function startTabRename(tabId, labelEl) {
+  const session = sessions.get(tabId);
+  if (!session) return;
+
+  const currentText = labelEl.textContent;
+  const input = document.createElement('input');
+  input.className = 'tab-rename-input';
+  input.dataset.testid = 'tab-rename-input';
+  input.value = currentText;
+  input.style.width = Math.max(60, labelEl.offsetWidth + 10) + 'px';
+
+  labelEl.textContent = '';
+  labelEl.appendChild(input);
+  input.focus();
+  input.select();
+
+  let cancelled = false;
+
+  const finishRename = (commit) => {
+    if (!input.parentElement) return; // already removed
+    const newName = input.value.trim();
+    input.remove();
+    if (commit && newName) {
+      labelEl.textContent = newName;
+      session.customLabel = newName;
+    } else {
+      labelEl.textContent = session.customLabel || currentText;
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finishRename(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelled = true;
+      finishRename(false);
+    }
+    e.stopPropagation(); // prevent keybindings while editing
+  });
+
+  input.addEventListener('blur', () => {
+    if (!cancelled) finishRename(true);
+  });
 }
 
 // ── Tab context menu ─────────────────────────────────────────
