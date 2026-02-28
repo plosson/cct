@@ -11,7 +11,6 @@ const api = window.electron_api;
 async function init() {
   const container = document.getElementById('terminal-container');
 
-  // Create terminal with dark theme matching app colors
   const terminal = new Terminal({
     cursorBlink: true,
     fontSize: 14,
@@ -29,7 +28,7 @@ async function init() {
   terminal.open(container);
   fitAddon.fit();
 
-  // Expose buffer text for test assertions (before async calls)
+  // Expose buffer text for test assertions
   window._cctGetBufferText = () => {
     const buf = terminal.buffer.active;
     let text = '';
@@ -40,10 +39,8 @@ async function init() {
     return text;
   };
 
-  // Spawn PTY — command comes from config (env CCT_COMMAND), defaults to shell
-  const spawnCommand = api.config?.spawnCommand || undefined;
   const { id } = await api.terminal.create({
-    command: spawnCommand,
+    command: api.config?.spawnCommand,
     cols: terminal.cols,
     rows: terminal.rows
   });

@@ -60,8 +60,7 @@ test('xterm buffer text contains HELLO_CCT', async () => {
 test('exit closes the PTY and sets exited attribute', async () => {
   const textarea = window.locator('.xterm-helper-textarea');
   await textarea.focus();
-  // Wait for previous command to complete (prompt appears)
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await window.waitForTimeout(500);
   await textarea.pressSequentially('exit', { delay: 30 });
   await window.keyboard.press('Enter');
   // Wait for the terminal-exited attribute

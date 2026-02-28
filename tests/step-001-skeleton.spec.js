@@ -65,8 +65,3 @@ test('require is not leaked to renderer', async () => {
   const requireType = await window.evaluate(() => typeof window.require);
   expect(requireType).toBe('undefined');
 });
-
-test('app closes cleanly', async () => {
-  // This is validated by afterAll — if close() hangs or crashes, the test suite fails
-  expect(true).toBe(true);
-});

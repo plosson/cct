@@ -1,39 +1,35 @@
 // @ts-check
-const { test, expect, _electron: electron } = require('@playwright/test');
+const { test, expect } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 
 const projectRoot = path.join(__dirname, '..');
 
-// --- File & YAML validation tests (no Electron needed) ---
+function readWorkflow(name) {
+  const filePath = path.join(projectRoot, '.github', 'workflows', name);
+  expect(fs.existsSync(filePath)).toBe(true);
+  return fs.readFileSync(filePath, 'utf8');
+}
 
-test('ci.yml exists and is valid YAML', async () => {
-  const ciPath = path.join(projectRoot, '.github', 'workflows', 'ci.yml');
-  expect(fs.existsSync(ciPath)).toBe(true);
-
-  const content = fs.readFileSync(ciPath, 'utf8');
-  expect(content).toContain('name: CI');
+function expectValidYaml(content, workflowName) {
+  expect(content).toContain(`name: ${workflowName}`);
   expect(content).toContain('on:');
   expect(content).toContain('jobs:');
-  // No tabs (would break YAML)
   expect(content).not.toMatch(/\t/);
+}
+
+test('ci.yml exists and is valid YAML', async () => {
+  const content = readWorkflow('ci.yml');
+  expectValidYaml(content, 'CI');
 });
 
 test('release.yml exists and is valid YAML', async () => {
-  const releasePath = path.join(projectRoot, '.github', 'workflows', 'release.yml');
-  expect(fs.existsSync(releasePath)).toBe(true);
-
-  const content = fs.readFileSync(releasePath, 'utf8');
-  expect(content).toContain('name: Release');
-  expect(content).toContain('on:');
-  expect(content).toContain('jobs:');
-  expect(content).not.toMatch(/\t/);
+  const content = readWorkflow('release.yml');
+  expectValidYaml(content, 'Release');
 });
 
 test('CI workflow has install, lint, build, test steps', async () => {
-  const content = fs.readFileSync(
-    path.join(projectRoot, '.github', 'workflows', 'ci.yml'), 'utf8'
-  );
+  const content = readWorkflow('ci.yml');
   expect(content).toContain('npm ci');
   expect(content).toContain('npm run lint');
   expect(content).toContain('npm run build');
@@ -41,9 +37,7 @@ test('CI workflow has install, lint, build, test steps', async () => {
 });
 
 test('release workflow triggers on v* tags and uses electron-builder', async () => {
-  const content = fs.readFileSync(
-    path.join(projectRoot, '.github', 'workflows', 'release.yml'), 'utf8'
-  );
+  const content = readWorkflow('release.yml');
   expect(content).toContain("- 'v*'");
   expect(content).toContain('electron-builder');
 });

@@ -25,18 +25,16 @@ if (!gotTheLock) {
   app.quit();
 } else {
   const { createMainWindow, getMainWindow } = require('./src/main/windows/MainWindow');
-
   const { TerminalService } = require('./src/main/services/TerminalService');
   const { registerTerminalIPC } = require('./src/main/ipc/terminal.ipc');
 
-  let terminalService = null;
+  let terminalService;
 
   app.on('second-instance', () => {
     const win = getMainWindow();
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.focus();
   });
 
   app.whenReady().then(() => {
@@ -51,11 +49,5 @@ if (!gotTheLock) {
 
   app.on('window-all-closed', () => {
     app.quit();
-  });
-
-  app.on('activate', () => {
-    if (getMainWindow() === null) {
-      createMainWindow();
-    }
   });
 }

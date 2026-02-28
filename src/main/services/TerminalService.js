@@ -13,13 +13,20 @@ class TerminalService {
     this._nextId = 1;
   }
 
+  /** Send an IPC message to the renderer, if the window is still alive */
+  _send(channel, payload) {
+    if (this._window && !this._window.isDestroyed()) {
+      this._window.webContents.send(channel, payload);
+    }
+  }
+
   /**
    * Spawn a new PTY process
    * @param {{ command?: string, args?: string[], cwd?: string, cols?: number, rows?: number }} options
    * @returns {{ success: boolean, id: number }}
    */
   create({ command, args = [], cwd, cols = 80, rows = 24 } = {}) {
-    const shell = process.env.SHELL || (os.platform() === 'win32' ? 'powershell.exe' : '/bin/zsh');
+    const shell = process.env.SHELL || (process.platform === 'win32' ? 'powershell.exe' : '/bin/zsh');
     const cmd = command || shell;
     const id = this._nextId++;
 
@@ -43,8 +50,8 @@ class TerminalService {
     let bytesSinceLastFlush = 0;
 
     const flush = () => {
-      if (buffer && this._window && !this._window.isDestroyed()) {
-        this._window.webContents.send('terminal-data', { id, data: buffer });
+      if (buffer) {
+        this._send('terminal-data', { id, data: buffer });
         buffer = '';
       }
       batchTimeout = null;
@@ -79,53 +86,35 @@ class TerminalService {
       onExitDisposable.dispose();
       this._terminals.delete(id);
 
-      if (this._window && !this._window.isDestroyed()) {
-        this._window.webContents.send('terminal-exit', { id, exitCode });
-      }
+      this._send('terminal-exit', { id, exitCode });
     });
 
     this._terminals.set(id, { ptyProcess, onDataDisposable, onExitDisposable });
     return { success: true, id };
   }
 
-  /**
-   * Write data to a terminal
-   */
   write(id, data) {
     const entry = this._terminals.get(id);
     if (entry) entry.ptyProcess.write(data);
   }
 
-  /**
-   * Resize a terminal
-   */
   resize(id, cols, rows) {
     const entry = this._terminals.get(id);
     if (entry) entry.ptyProcess.resize(cols, rows);
   }
 
-  /**
-   * Kill a specific terminal
-   */
   kill(id) {
     const entry = this._terminals.get(id);
-    if (entry) {
-      entry.ptyProcess.kill();
-    }
+    if (entry) entry.ptyProcess.kill();
   }
 
-  /**
-   * Kill all terminals — used during app shutdown
-   */
+  /** Kill all terminals -- used during app shutdown */
   killAll() {
-    for (const [id, entry] of this._terminals) {
+    for (const entry of this._terminals.values()) {
       entry.ptyProcess.kill();
     }
   }
 
-  /**
-   * Get count of active terminals
-   */
   count() {
     return this._terminals.size;
   }
