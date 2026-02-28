@@ -62,15 +62,18 @@ class ProjectConfigService {
    * @param {string} sessionId
    * @param {number} terminalId
    * @param {'claude'|'terminal'} [type='claude']
+   * @param {string} [claudeSessionId] — Claude Code's session ID for --resume
    */
-  recordSession(projectPath, sessionId, terminalId, type = 'claude') {
+  recordSession(projectPath, sessionId, terminalId, type = 'claude', claudeSessionId) {
     const config = this.getConfig(projectPath);
-    config.sessions.push({
+    const entry = {
       id: sessionId,
       terminalId,
       type,
       createdAt: new Date().toISOString()
-    });
+    };
+    if (claudeSessionId) entry.claudeSessionId = claudeSessionId;
+    config.sessions.push(entry);
     this._save(projectPath, config);
   }
 

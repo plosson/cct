@@ -22,9 +22,13 @@ function registerTerminalIPC(terminalService, projectConfigService) {
 
   // Request/response — renderer needs the terminal ID back
   ipcMain.handle('terminal-create', (_event, params = {}) => {
-    const { cwd, type } = params;
+    const { cwd, type, claudeSessionId: resumeId } = params;
     let projectId;
     const sessionId = crypto.randomUUID();
+
+    // For claude sessions, assign a stable Claude session ID for --resume support
+    const isClaude = type === 'claude';
+    const claudeSessionId = isClaude ? (resumeId || crypto.randomUUID()) : undefined;
 
     // Build extra env vars
     const env = {};
@@ -34,6 +38,16 @@ function registerTerminalIPC(terminalService, projectConfigService) {
     }
     env.CCT_SESSION_ID = sessionId;
 
+    // Build args for claude: --session-id on first spawn, --resume on restore
+    let args = params.args || [];
+    if (isClaude && claudeSessionId) {
+      if (resumeId) {
+        args = ['--resume', claudeSessionId, ...args];
+      } else {
+        args = ['--session-id', claudeSessionId, ...args];
+      }
+    }
+
     const onExit = ({ id }) => {
       const entry = sessionMap.get(id);
       if (!shuttingDown && entry && projectConfigService) {
@@ -42,11 +56,11 @@ function registerTerminalIPC(terminalService, projectConfigService) {
       sessionMap.delete(id);
     };
 
-    const result = terminalService.create({ ...params, env, onExit });
+    const result = terminalService.create({ ...params, args, env, onExit });
 
     // Record session in .cct/sessions.json
     if (cwd && projectConfigService) {
-      projectConfigService.recordSession(cwd, sessionId, result.id, type);
+      projectConfigService.recordSession(cwd, sessionId, result.id, type, claudeSessionId);
       sessionMap.set(result.id, { projectPath: cwd, sessionId });
     }
 

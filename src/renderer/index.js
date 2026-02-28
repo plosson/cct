@@ -183,7 +183,7 @@ async function removeProject(projectPath) {
  * Create a new session tab.
  * @param {'claude'|'terminal'} [type='claude'] — 'claude' spawns Claude Code, 'terminal' spawns user shell
  */
-async function createSession(type = 'claude') {
+async function createSession(type = 'claude', { claudeSessionId } = {}) {
   if (!selectedProjectPath) return;
 
   const project = projects.find(p => p.path === selectedProjectPath);
@@ -203,13 +203,16 @@ async function createSession(type = 'claude') {
   terminal.loadAddon(fitAddon);
   terminal.open(panelEl);
 
-  const { id, sessionId } = await api.terminal.create({
+  const createParams = {
     command,
     cols: terminal.cols,
     rows: terminal.rows,
     cwd: project.path,
     type
-  });
+  };
+  if (claudeSessionId) createParams.claudeSessionId = claudeSessionId;
+
+  const { id, sessionId } = await api.terminal.create(createParams);
 
   const icon = isClaude
     ? '<span class="tab-icon tab-icon-claude">CC</span>'
@@ -331,7 +334,9 @@ async function restoreSessions(projectPath) {
   await api.projects.clearSessions(projectPath);
 
   for (const entry of saved) {
-    await createSession(entry.type || 'claude');
+    await createSession(entry.type || 'claude', {
+      claudeSessionId: entry.claudeSessionId
+    });
   }
 }
 
