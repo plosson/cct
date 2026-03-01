@@ -35,6 +35,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+t': 'createTerminalSession',
   'Meta+w': 'closeActiveTab',
   'Meta+e': 'openProjectPicker',
+  'Meta+o': 'addProject',
   'Meta+ArrowLeft': 'prevTab',
   'Meta+ArrowRight': 'nextTab',
   'Meta+ArrowUp': 'prevProject',
@@ -1025,6 +1026,7 @@ const ACTION_LABELS = {
   createTerminalSession: 'New Terminal Session',
   closeActiveTab: 'Close Active Tab',
   openProjectPicker: 'Project Picker',
+  addProject: 'Add Project',
   prevTab: 'Previous Tab',
   nextTab: 'Next Tab',
   prevProject: 'Previous Project',
@@ -1400,6 +1402,7 @@ async function init() {
   actions.set('createTerminalSession', () => createSession('terminal'));
   actions.set('closeActiveTab', () => { if (activeId !== null) closeTab(activeId); });
   actions.set('openProjectPicker', openProjectPicker);
+  actions.set('addProject', addProject);
   actions.set('prevTab', () => cycleTab('prev'));
   actions.set('nextTab', () => cycleTab('next'));
   actions.set('prevProject', () => cycleProject('prev'));
