@@ -55,7 +55,7 @@ test('3 - resizing window updates window-state.json', async () => {
   // Read initial state
   const before = JSON.parse(fs.readFileSync(statePath, 'utf8'));
 
-  // Resize the window
+  // Resize the window (macOS may clamp to fit display)
   const newWidth = before.width + 50;
   const newHeight = before.height + 50;
   await electronApp.evaluate(({ BrowserWindow }, { w, h }) => {
@@ -63,12 +63,19 @@ test('3 - resizing window updates window-state.json', async () => {
     win.setSize(w, h);
   }, { w: newWidth, h: newHeight });
 
+  // Read back actual size (OS may have clamped it)
+  const actual = await electronApp.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    const [w, h] = win.getSize();
+    return { w, h };
+  });
+
   // Wait for debounced save (300ms + buffer)
   await window.waitForTimeout(600);
 
   const after = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-  expect(after.width).toBe(newWidth);
-  expect(after.height).toBe(newHeight);
+  expect(after.width).toBe(actual.w);
+  expect(after.height).toBe(actual.h);
 });
 
 test('4 - moving window updates position in state', async () => {
@@ -111,18 +118,25 @@ test('6 - window state persists across app restart', async () => {
     window.electron_api.windowState.getConfigPath()
   );
 
-  // Set specific size and position
+  // Set specific size and position (macOS may clamp to fit display)
   await electronApp.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows()[0];
     win.setSize(1000, 700);
     win.setPosition(200, 150);
   });
+
+  // Read back actual size (OS may have clamped it)
+  const actual = await electronApp.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    const [w, h] = win.getSize();
+    return { w, h };
+  });
   await window.waitForTimeout(600);
 
   // Verify state before restart
   const before = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-  expect(before.width).toBe(1000);
-  expect(before.height).toBe(700);
+  expect(before.width).toBe(actual.w);
+  expect(before.height).toBe(actual.h);
 
   // Restart the app
   await electronApp.close();
@@ -140,8 +154,8 @@ test('6 - window state persists across app restart', async () => {
     return { w, h };
   });
 
-  expect(size.w).toBe(1000);
-  expect(size.h).toBe(700);
+  expect(size.w).toBe(actual.w);
+  expect(size.h).toBe(actual.h);
 });
 
 test('7 - sidebar width is restored on app restart', async () => {
