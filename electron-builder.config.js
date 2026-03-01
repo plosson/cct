@@ -26,6 +26,7 @@ module.exports = {
   publish: {
     provider: "github",
     owner: "plosson",
-    repo: "cct"
+    repo: "cct",
+    releaseType: "release"
   }
 };
