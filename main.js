@@ -32,6 +32,7 @@ if (!gotTheLock) {
   const { registerProjectIPC } = require('./src/main/ipc/project.ipc');
   const { WindowStateService } = require('./src/main/services/WindowStateService');
   const { installHooks, removeHooks } = require('./src/main/services/HooksService');
+  const { UpdaterService } = require('./src/main/services/UpdaterService');
 
   let terminalService;
   let windowStateService;
@@ -85,6 +86,9 @@ if (!gotTheLock) {
         });
       });
     });
+
+    // Auto-updater (skips initialization in dev mode)
+    new UpdaterService(win);
 
     installHooks();
 

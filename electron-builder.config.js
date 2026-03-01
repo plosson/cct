@@ -15,11 +15,9 @@ module.exports = {
     "package.json"
   ],
   mac: {
-    target: "dmg",
+    target: ["dmg", "zip"],
     category: "public.app-category.developer-tools",
-    darkModeSupport: true,
-    // Code signing — will be configured via env vars in CI
-    identity: null
+    darkModeSupport: true
   },
   dmg: {
     background: null,

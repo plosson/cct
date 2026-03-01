@@ -53,6 +53,13 @@ contextBridge.exposeInMainWorld('electron_api', {
     openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
   },
 
+  updater: {
+    onUpdateAvailable: createListener('update-available'),
+    onUpdateDownloaded: createListener('update-downloaded'),
+    onUpdateError: createListener('update-error'),
+    installNow: () => ipcRenderer.invoke('updater-install-now'),
+  },
+
   projects: {
     list: () => ipcRenderer.invoke('project-list'),
     add: () => ipcRenderer.invoke('project-add'),

@@ -1296,6 +1296,22 @@ async function init() {
     api.getVersion().then(v => { statusVersionEl.textContent = `v${v}`; }).catch(() => {});
   }
 
+  // Auto-updater notification
+  if (api.updater) {
+    api.updater.onUpdateDownloaded(({ version }) => {
+      // Don't add duplicate banners
+      if (document.querySelector('.update-banner')) return;
+      const banner = document.createElement('div');
+      banner.className = 'update-banner';
+      banner.dataset.testid = 'update-banner';
+      banner.textContent = `Update v${version} ready \u2014 click to restart`;
+      banner.addEventListener('click', () => api.updater.installNow());
+      const mainArea = document.querySelector('.main-area');
+      const tabBar = mainArea.querySelector('.tab-bar');
+      mainArea.insertBefore(banner, tabBar.nextSibling);
+    });
+  }
+
   // Restore sidebar width and font size from persisted state
   if (api.windowState) {
     const savedWidth = await api.windowState.getSidebarWidth();
