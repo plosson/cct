@@ -92,13 +92,16 @@ if (!gotTheLock) {
 
     installHooks();
 
-    // Disable Cmd+W in the native menu so the renderer handles it as tab-close
+    // Disable native menu shortcuts that conflict with renderer keybindings
     const menu = Menu.getApplicationMenu();
-    const closeItem = menu?.items
-      .find(i => i.role === 'fileMenu' || i.label === 'File')
-      ?.submenu?.items.find(i => i.role === 'close');
-    if (closeItem) {
-      closeItem.enabled = false;
+    const fileMenu = menu?.items.find(i => i.role === 'fileMenu' || i.label === 'File');
+    if (fileMenu) {
+      // Cmd+W → renderer handles as tab-close
+      const closeItem = fileMenu.submenu?.items.find(i => i.role === 'close');
+      if (closeItem) closeItem.enabled = false;
+      // Cmd+N → renderer handles as new Claude session
+      const newItem = fileMenu.submenu?.items.find(i => i.accelerator === 'CommandOrControl+N' || i.label === 'New Window');
+      if (newItem) newItem.enabled = false;
       Menu.setApplicationMenu(menu);
     }
   });
