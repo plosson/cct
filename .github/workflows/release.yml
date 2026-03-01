@@ -11,6 +11,13 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+      CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,29 +27,24 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install Claude CLI
-        run: curl -fsSL https://claude.ai/install.sh | bash
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Build renderer
+        run: npm run build:renderer
 
-      - name: Build
-        run: npm run build
-
-      - name: Build macOS DMG (arm64)
+      - name: Build and publish zip (auto-updater)
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 15
-          command: npx electron-builder --mac --arm64 --publish always --config electron-builder.config.js
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          command: npx electron-builder --mac zip --arm64 --publish always --config electron-builder.config.js
+
+      - name: Build and publish DMG (first install)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          retry_wait_seconds: 15
+          command: npx electron-builder --mac dmg --arm64 --publish always --config electron-builder.config.js
