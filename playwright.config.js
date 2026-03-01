@@ -1,6 +1,9 @@
 // @ts-check
 const { defineConfig } = require('@playwright/test');
 
+// Hide the Electron window during tests
+process.env.CCT_HEADLESS = '1';
+
 module.exports = defineConfig({
   testDir: './tests',
   timeout: 30000,

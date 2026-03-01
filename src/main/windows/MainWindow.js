@@ -18,8 +18,11 @@ function createMainWindow(windowStateService) {
 
   const bounds = windowStateService ? windowStateService.bounds : { width: 1200, height: 800 };
 
+  const headless = process.env.CCT_HEADLESS === '1';
+
   mainWindow = new BrowserWindow({
     ...bounds,
+    show: !headless,
     minWidth: 800,
     minHeight: 500,
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
