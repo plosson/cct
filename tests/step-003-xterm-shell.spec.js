@@ -3,8 +3,7 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-
-const appPath = path.join(__dirname, '..');
+const { appPath, launchEnv } = require('./helpers');
 
 /** @type {import('@playwright/test').ElectronApplication} */
 let electronApp;
@@ -15,7 +14,7 @@ let window;
 test.beforeAll(async () => {
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: launchEnv(),
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });

@@ -4,8 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execSync } = require('child_process');
-
-const appPath = path.join(__dirname, '..');
+const { appPath, launchEnv } = require('./helpers');
 
 /** @type {import('@playwright/test').ElectronApplication} */
 let electronApp;
@@ -17,7 +16,7 @@ test.beforeAll(async () => {
   // Launch with CCT_COMMAND=claude to spawn a Claude Code session
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: 'claude' }
+    env: launchEnv({ CCT_COMMAND: 'claude' })
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });

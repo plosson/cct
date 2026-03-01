@@ -8,7 +8,7 @@ module.exports = defineConfig({
   testDir: './tests',
   timeout: 30000,
   retries: 0,
-  workers: 1, // Electron single-instance lock prevents parallel app launches
+  workers: 4,
   use: {
     trace: 'on-first-retry',
   },

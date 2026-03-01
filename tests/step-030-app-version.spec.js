@@ -5,8 +5,7 @@
 
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
-
-const appPath = path.resolve(__dirname, '..');
+const { appPath, launchEnv } = require('./helpers');
 const pkg = require(path.join(appPath, 'package.json'));
 
 let electronApp;
@@ -15,7 +14,7 @@ let window;
 test.beforeAll(async () => {
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: launchEnv(),
     timeout: 90000,
   });
   window = await electronApp.firstWindow({ timeout: 90000 });

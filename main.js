@@ -19,6 +19,11 @@ if (process.platform === 'darwin') {
   });
 }
 
+// Allow tests to isolate userData (enables parallel workers)
+if (process.env.CCT_USER_DATA) {
+  app.setPath('userData', process.env.CCT_USER_DATA);
+}
+
 // Single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {

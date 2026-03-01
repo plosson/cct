@@ -1,8 +1,7 @@
 // @ts-check
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
-
-const appPath = path.join(__dirname, '..');
+const { appPath, launchEnv } = require('./helpers');
 
 /** @type {import('@playwright/test').ElectronApplication} */
 let electronApp;
@@ -11,7 +10,7 @@ let electronApp;
 let window;
 
 test.beforeAll(async () => {
-  electronApp = await electron.launch({ args: [appPath] });
+  electronApp = await electron.launch({ args: [appPath], env: launchEnv() });
   window = await electronApp.firstWindow();
 });
 

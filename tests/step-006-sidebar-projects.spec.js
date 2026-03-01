@@ -7,18 +7,18 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-
-const appPath = path.resolve(__dirname, '..');
+const { appPath, launchEnv } = require('./helpers');
 
 let electronApp;
 let window;
+const testEnv = launchEnv();
 
 const tmpDirs = [];
 
 test.beforeAll(async () => {
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   // No .xterm on launch anymore — wait for sidebar instead
@@ -212,7 +212,7 @@ test('11 - projects persist across app restart', async () => {
   await electronApp.close();
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
@@ -321,7 +321,7 @@ test('19 - projectId persists across app restart', async () => {
   await electronApp.close();
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
@@ -584,7 +584,7 @@ test('29 - sessions are restored on app restart', async () => {
   await electronApp.close();
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });

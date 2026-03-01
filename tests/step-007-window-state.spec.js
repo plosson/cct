@@ -6,16 +6,16 @@
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
-
-const appPath = path.resolve(__dirname, '..');
+const { appPath, launchEnv } = require('./helpers');
 
 let electronApp;
 let window;
+const testEnv = launchEnv();
 
 test.beforeAll(async () => {
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
@@ -142,7 +142,7 @@ test('6 - window state persists across app restart', async () => {
   await electronApp.close();
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
@@ -167,7 +167,7 @@ test('7 - sidebar width is restored on app restart', async () => {
   await electronApp.close();
   electronApp = await electron.launch({
     args: [appPath],
-    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+    env: testEnv,
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
