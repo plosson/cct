@@ -71,3 +71,4 @@ Keep it concise and factual — this is a technical log, not prose.
 - Go step by step — small increments, test stability at each step before moving on
 - Prefer editing existing files over creating new ones
 - No over-engineering — build only what the current step requires
+- Don't `npm run build` to test as it takes agents because of signing. Use `npm run start` 

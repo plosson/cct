@@ -24,7 +24,7 @@ html, body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding-left: 80px; /* clear macOS traffic lights */
+  padding-left: 78px; /* clear macOS traffic lights */
   background: var(--project-accent-dim, transparent);
   transition: background-color 0.2s ease;
 }
@@ -41,7 +41,7 @@ html, body {
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   font-size: 11px;

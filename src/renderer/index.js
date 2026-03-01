@@ -224,7 +224,7 @@ function updateProjectIdentity() {
   root.style.setProperty('--project-accent-border', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.3)`);
 
   if (titlebarMonogram) {
-    titlebarMonogram.style.display = '';
+    titlebarMonogram.style.display = 'flex';
     titlebarMonogram.textContent = project.name.charAt(0).toUpperCase();
   }
   if (titlebarProjectName) {

@@ -32,7 +32,7 @@ test.beforeAll(async () => {
 
   // Create a session in the project
   await window.click('[data-testid="new-tab-btn"]');
-  await window.waitForSelector('.xterm', { timeout: 10000 });
+  await window.waitForSelector('.terminal-panel.active .xterm', { timeout: 10000 });
 });
 
 test.afterAll(async () => {
@@ -49,12 +49,12 @@ test.afterAll(async () => {
 });
 
 test('.xterm is visible in DOM', async () => {
-  const xterm = window.locator('.xterm');
+  const xterm = window.locator('.terminal-panel.active .xterm');
   await expect(xterm).toBeVisible();
 });
 
 test('.xterm-screen has non-zero dimensions', async () => {
-  const box = await window.locator('.xterm-screen').boundingBox();
+  const box = await window.locator('.terminal-panel.active .xterm-screen').boundingBox();
   expect(box).toBeTruthy();
   expect(box.width).toBeGreaterThan(0);
   expect(box.height).toBeGreaterThan(0);
