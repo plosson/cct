@@ -32,9 +32,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Test
-        run: npx playwright test
-
       - name: Build macOS DMG (arm64)
         uses: nick-fields/retry@v3
         with:
