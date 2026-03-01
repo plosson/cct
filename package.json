@@ -1,6 +1,6 @@
 {
   "name": "cct",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Claude Code Terminal - A Terminal Development Environment",
   "main": "main.js",
   "scripts": {
