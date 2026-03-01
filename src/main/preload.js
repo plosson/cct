@@ -3,7 +3,7 @@
  * Exposes IPC API to renderer with context isolation
  */
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
 /** Create an IPC listener that returns an unsubscribe function */
 function createListener(channel) {
@@ -29,6 +29,28 @@ contextBridge.exposeInMainWorld('electron_api', {
     onData: createListener('terminal-data'),
     onExit: createListener('terminal-exit'),
     count: () => ipcRenderer.invoke('terminal-count')
+  },
+
+  windowState: {
+    getSidebarWidth: () => ipcRenderer.invoke('get-sidebar-width'),
+    setSidebarWidth: (width) => ipcRenderer.send('set-sidebar-width', width),
+    getFontSize: () => ipcRenderer.invoke('get-font-size'),
+    setFontSize: (size) => ipcRenderer.send('set-font-size', size),
+    getConfigPath: () => ipcRenderer.invoke('get-window-state-path'),
+  },
+
+  contextMenu: {
+    show: (items) => ipcRenderer.invoke('show-context-menu', { items }),
+  },
+
+  clipboard: {
+    writeText: (text) => clipboard.writeText(text),
+    readText: () => clipboard.readText(),
+  },
+
+  shell: {
+    showItemInFolder: (fullPath) => ipcRenderer.invoke('shell-show-item-in-folder', fullPath),
+    openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
   },
 
   projects: {

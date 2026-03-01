@@ -13,7 +13,10 @@ let electronApp;
 let window;
 
 test.beforeAll(async () => {
-  electronApp = await electron.launch({ args: [appPath] });
+  electronApp = await electron.launch({
+    args: [appPath],
+    env: { ...process.env, CCT_COMMAND: process.env.SHELL || '/bin/zsh' },
+  });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 

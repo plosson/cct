@@ -39,8 +39,10 @@ function registerTerminalIPC(terminalService, projectConfigService) {
     env.CCT_SESSION_ID = sessionId;
 
     // Build args for claude: --session-id on first spawn, --resume on restore
+    // Only add these when actually spawning the claude binary, not when CCT_COMMAND overrides to a shell
     let args = params.args || [];
-    if (isClaude && claudeSessionId) {
+    const isActuallyClaude = isClaude && (!params.command || params.command === 'claude');
+    if (isActuallyClaude && claudeSessionId) {
       if (resumeId) {
         args = ['--resume', claudeSessionId, ...args];
       } else {
