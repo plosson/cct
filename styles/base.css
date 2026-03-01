@@ -22,6 +22,40 @@ html, body {
   height: 38px;
   -webkit-app-region: drag;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 80px; /* clear macOS traffic lights */
+  background: var(--project-accent-dim, transparent);
+  transition: background-color 0.2s ease;
+}
+
+.titlebar-project {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+  pointer-events: none;
+}
+
+.titlebar-monogram {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--project-accent, #555);
+  flex-shrink: 0;
+}
+
+.titlebar-project-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e0e0;
+  letter-spacing: 0.3px;
 }
 
 /* App body — horizontal split */
@@ -49,8 +83,10 @@ html, body {
   justify-content: space-between;
   padding: 0 12px;
   height: 36px;
-  border-bottom: 1px solid #2a2a4a;
+  background: var(--project-accent-bg, transparent);
+  border-bottom: 1px solid var(--project-accent-border, #2a2a4a);
   flex-shrink: 0;
+  transition: background-color 0.2s ease;
 }
 
 .sidebar-title {
@@ -97,8 +133,9 @@ html, body {
 }
 
 .sidebar-project.selected {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--project-accent-dim, rgba(255, 255, 255, 0.1));
   color: #e0e0e0;
+  border-left: 3px solid var(--project-accent, #58a6ff);
 }
 
 .sidebar-project-name {
@@ -176,11 +213,12 @@ html, body {
   display: flex;
   align-items: center;
   height: 36px;
-  background: #16162a;
-  border-bottom: 1px solid #2a2a4a;
+  background: var(--project-accent-bg, #16162a);
+  border-bottom: 1px solid var(--project-accent-border, #2a2a4a);
   flex-shrink: 0;
   padding: 0 8px;
   -webkit-app-region: drag;
+  transition: background-color 0.2s ease;
 }
 
 .tab-bar-tabs {

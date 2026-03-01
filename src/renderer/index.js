@@ -72,6 +72,8 @@ let tabBarTabs;
 let sidebarProjectsEl;
 let sidebarEl;
 let emptyStateEl;
+let titlebarMonogram;
+let titlebarProjectName;
 
 // Project list (synced with ProjectStore via IPC)
 const projects = [];
@@ -194,6 +196,40 @@ function selectProject(projectPath) {
 
   renderSidebar();
   updateStatusBar();
+  updateProjectIdentity();
+}
+
+function updateProjectIdentity() {
+  if (!selectedProjectPath) {
+    if (titlebarMonogram) titlebarMonogram.style.display = 'none';
+    if (titlebarProjectName) titlebarProjectName.textContent = '';
+    const root = document.documentElement;
+    root.style.removeProperty('--project-accent');
+    root.style.removeProperty('--project-accent-bg');
+    root.style.removeProperty('--project-accent-dim');
+    root.style.removeProperty('--project-accent-border');
+    return;
+  }
+
+  const project = projects.find(p => p.path === selectedProjectPath);
+  if (!project) return;
+
+  const color = getProjectColor(project.name);
+  const accent = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+
+  const root = document.documentElement;
+  root.style.setProperty('--project-accent', accent);
+  root.style.setProperty('--project-accent-bg', `hsl(${color.hue}, 40%, 15%)`);
+  root.style.setProperty('--project-accent-dim', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.15)`);
+  root.style.setProperty('--project-accent-border', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.3)`);
+
+  if (titlebarMonogram) {
+    titlebarMonogram.style.display = '';
+    titlebarMonogram.textContent = project.name.charAt(0).toUpperCase();
+  }
+  if (titlebarProjectName) {
+    titlebarProjectName.textContent = project.name;
+  }
 }
 
 /** Get all session [id, session] entries for a given project path */
@@ -236,6 +272,7 @@ async function removeProject(projectPath) {
   }
 
   renderSidebar();
+  updateProjectIdentity();
 }
 
 // ── Sessions / Tabs ──────────────────────────────────────────
@@ -1259,7 +1296,11 @@ window._cctReloadProjects = (projectList) => {
   for (const p of projectList) {
     if (!projectMRU.includes(p.path)) projectMRU.push(p.path);
   }
+  if (selectedProjectPath && !validPaths.has(selectedProjectPath)) {
+    selectedProjectPath = null;
+  }
   renderSidebar();
+  updateProjectIdentity();
 };
 
 // Select a project programmatically (used by tests)
@@ -1287,6 +1328,8 @@ async function init() {
   sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
   sidebarEl = document.querySelector('[data-testid="sidebar"]');
   emptyStateEl = document.querySelector('[data-testid="empty-state"]');
+  titlebarMonogram = document.querySelector('[data-testid="titlebar-monogram"]');
+  titlebarProjectName = document.querySelector('[data-testid="titlebar-project-name"]');
 
   // Status bar elements
   statusProjectEl = document.querySelector('[data-testid="status-project"]');
