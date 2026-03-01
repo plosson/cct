@@ -8,6 +8,7 @@ module.exports = {
     "main.js",
     "index.html",
     "styles/**/*",
+    "fonts/**/*",
     "src/main/**/*",
     "dist/renderer.bundle.js",
     "dist/renderer.bundle.js.map",

@@ -83,7 +83,7 @@ const TERMINAL_OPTIONS = {
   allowProposedApi: true,
   cursorBlink: true,
   fontSize: 14,
-  fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",
+  fontFamily: "'Menlo', 'Monaco', 'Courier New', 'Symbols Nerd Font Mono', monospace",
   theme: {
     background: '#1a1a2e',
     foreground: '#e0e0e0',
