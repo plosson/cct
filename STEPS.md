@@ -1,6 +1,6 @@
 ## Steps
 
-### Step 32 - Configuration screen 
+### Step 33 - Configuration screen 
 
 We should have a global configuration screen 
   - command line to use for claude code session (by default) 

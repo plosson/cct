@@ -34,6 +34,9 @@ class TerminalService {
     const env = { ...process.env };
     delete env.CLAUDECODE;
 
+    // Ensure UTF-8 locale for proper unicode rendering
+    if (!env.LANG) env.LANG = 'en_US.UTF-8';
+
     // Merge caller-provided env vars
     if (extraEnv) Object.assign(env, extraEnv);
 

@@ -342,9 +342,9 @@ test('19 - projectId persists across app restart', async () => {
   await window.waitForTimeout(500);
 });
 
-// ── Project Picker (Cmd+P) ───────────────────────────────────
+// ── Project Picker (Cmd+E) ───────────────────────────────────
 
-test('20 - Cmd+P opens the project picker overlay', async () => {
+test('20 - Cmd+E opens the project picker overlay', async () => {
   // Clean slate: add two projects
   await clearAllProjects();
 
@@ -356,8 +356,8 @@ test('20 - Cmd+P opens the project picker overlay', async () => {
   await pickerB.click();
   await window.waitForTimeout(300);
 
-  // Press Cmd+P
-  await window.keyboard.press('Meta+p');
+  // Press Cmd+E
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   // Overlay should be visible
@@ -387,7 +387,7 @@ test('21 - picker shows projects in MRU order (current project first)', async ()
   expect(mru[0]).toBe(selectedPath);
 
   // Open picker
-  await window.keyboard.press('Meta+p');
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   // Second item should have the 'selected' class (index 1 = quick-switch target)
@@ -403,7 +403,7 @@ test('22 - ArrowDown + Enter selects a different project', async () => {
   const selectedBefore = await window.evaluate(() => window._cctSelectedProject());
 
   // Open picker, press Down once (to select the second/previous project), then Enter
-  await window.keyboard.press('Meta+p');
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   // Picker starts on index 1 (quick-switch target); Enter selects it
@@ -422,7 +422,7 @@ test('22 - ArrowDown + Enter selects a different project', async () => {
 test('23 - Escape closes the picker without changing selection', async () => {
   const selectedBefore = await window.evaluate(() => window._cctSelectedProject());
 
-  await window.keyboard.press('Meta+p');
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   // Navigate down
@@ -439,7 +439,7 @@ test('23 - Escape closes the picker without changing selection', async () => {
 });
 
 test('24 - typing filters the project list', async () => {
-  await window.keyboard.press('Meta+p');
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   // Should show 2 items initially
@@ -464,15 +464,15 @@ test('24 - typing filters the project list', async () => {
   await window.waitForTimeout(200);
 });
 
-test('25 - Cmd+P again closes the picker (toggle)', async () => {
-  await window.keyboard.press('Meta+p');
+test('25 - Cmd+E again closes the picker (toggle)', async () => {
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   const overlay = window.locator('[data-testid="project-picker-overlay"]');
   await expect(overlay).toBeVisible();
 
-  // Press Cmd+P again to toggle off
-  await window.keyboard.press('Meta+p');
+  // Press Cmd+E again to toggle off
+  await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
 
   await expect(overlay).not.toBeVisible();

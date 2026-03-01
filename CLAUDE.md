@@ -49,6 +49,14 @@ The project `../claude-terminal` is a mature Electron terminal app. Use it as a 
 
 Do NOT copy its feature set — only adopt its architectural patterns where relevant.
 
+## Work in Steps 
+
+Whenever the users asks you to implement a new feature, this should be done : 
+
+- Figure out the step number (by checking the last step number in notes/)
+- Always work on a branch called `step-XXX-description` 
+
+
 ## Step Journal
 
 When a step is complete (all tests pass, branch merged to main), write a journal entry in `notes/STEP_NOTES_XXX.md` (matching the step number). This is **mandatory** before considering a step done.

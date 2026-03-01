@@ -7,6 +7,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { getProjectColor } from './projectColors.js';
 
 const api = window.electron_api;
@@ -33,7 +34,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+n': 'createClaudeSession',
   'Meta+t': 'createTerminalSession',
   'Meta+w': 'closeActiveTab',
-  'Meta+p': 'openProjectPicker',
+  'Meta+e': 'openProjectPicker',
   'Meta+ArrowLeft': 'prevTab',
   'Meta+ArrowRight': 'nextTab',
   'Meta+ArrowUp': 'prevProject',
@@ -303,9 +304,12 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
     event.preventDefault();
     api.shell.openExternal(uri);
   });
+  const unicode11Addon = new Unicode11Addon();
   terminal.loadAddon(fitAddon);
   terminal.loadAddon(searchAddon);
   terminal.loadAddon(webLinksAddon);
+  terminal.loadAddon(unicode11Addon);
+  terminal.unicode.activeVersion = '11';
   terminal.open(panelEl);
 
   const createParams = {
@@ -557,7 +561,7 @@ function goToTab(n) {
   activateTab(ids[idx]);
 }
 
-// ── Project Picker (Cmd+P) ───────────────────────────────────
+// ── Project Picker (Cmd+E) ───────────────────────────────────
 
 let pickerOverlay = null;
 let pickerSelectedIndex = 0;
