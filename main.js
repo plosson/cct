@@ -64,6 +64,8 @@ if (!gotTheLock) {
     ipcMain.handle('get-version', () => app.getVersion());
     ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
     ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
+    ipcMain.handle('get-sidebar-mode', () => windowStateService.sidebarMode);
+    ipcMain.on('set-sidebar-mode', (_event, mode) => { windowStateService.sidebarMode = mode; });
     ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
     ipcMain.handle('get-font-size', () => windowStateService.fontSize);
     ipcMain.on('set-font-size', (_event, size) => { windowStateService.fontSize = size; });

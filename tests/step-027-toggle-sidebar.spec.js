@@ -1,6 +1,6 @@
 /**
- * Step 027 — Toggle Sidebar Visibility (Cmd+B)
- * Cmd+B hides/shows the sidebar.
+ * Step 027 — Sidebar Auto-Hide (Dock Mode)
+ * Default is autohide. Cmd+B toggles between pinned and autohide.
  */
 
 const { test, expect, _electron: electron } = require('@playwright/test');
@@ -45,53 +45,61 @@ test.afterAll(async () => {
   }
 });
 
-test('1 - sidebar is visible by default', async () => {
+test('1 - sidebar starts in autohide mode', async () => {
+  const mode = await window.evaluate(() => window._cctGetSidebarMode());
+  expect(mode).toBe('autohide');
+  const visible = await window.evaluate(() => window._cctIsSidebarVisible());
+  expect(visible).toBe(false);
+});
+
+test('2 - Cmd+B pins the sidebar', async () => {
+  await window.keyboard.press('Meta+b');
+  await window.waitForTimeout(200);
+
+  const mode = await window.evaluate(() => window._cctGetSidebarMode());
+  expect(mode).toBe('pinned');
+
   const sidebar = window.locator('[data-testid="sidebar"]');
   await expect(sidebar).toBeVisible();
+
   const visible = await window.evaluate(() => window._cctIsSidebarVisible());
   expect(visible).toBe(true);
 });
 
-test('2 - Cmd+B hides the sidebar', async () => {
+test('3 - resize handle is visible when pinned', async () => {
+  const handle = window.locator('[data-testid="sidebar-resize-handle"]');
+  await expect(handle).toBeVisible();
+});
+
+test('4 - Cmd+B returns to autohide', async () => {
   await window.keyboard.press('Meta+b');
   await window.waitForTimeout(200);
 
-  const sidebar = window.locator('[data-testid="sidebar"]');
-  await expect(sidebar).not.toBeVisible();
+  const mode = await window.evaluate(() => window._cctGetSidebarMode());
+  expect(mode).toBe('autohide');
 
   const visible = await window.evaluate(() => window._cctIsSidebarVisible());
   expect(visible).toBe(false);
 });
 
-test('3 - resize handle is also hidden', async () => {
+test('5 - resize handle is hidden in autohide mode', async () => {
   const handle = window.locator('[data-testid="sidebar-resize-handle"]');
   await expect(handle).not.toBeVisible();
 });
 
-test('4 - Cmd+B shows the sidebar again', async () => {
-  await window.keyboard.press('Meta+b');
-  await window.waitForTimeout(200);
-
-  const sidebar = window.locator('[data-testid="sidebar"]');
-  await expect(sidebar).toBeVisible();
-
-  const visible = await window.evaluate(() => window._cctIsSidebarVisible());
-  expect(visible).toBe(true);
-});
-
-test('5 - resize handle is visible again', async () => {
-  const handle = window.locator('[data-testid="sidebar-resize-handle"]');
-  await expect(handle).toBeVisible();
-});
-
-test('6 - shortcut help overlay includes Toggle Sidebar entry', async () => {
+test('6 - shortcut help overlay includes Pin/Unpin Sidebar entry', async () => {
   await window.keyboard.press('Meta+/');
   const overlay = window.locator('[data-testid="shortcut-help-overlay"]');
   await expect(overlay).toBeVisible({ timeout: 3000 });
 
   const labels = overlay.locator('.shortcut-help-label');
   const allLabels = await labels.allTextContents();
-  expect(allLabels).toContain('Toggle Sidebar');
+  expect(allLabels).toContain('Pin/Unpin Sidebar');
 
   await window.keyboard.press('Escape');
+});
+
+test('7 - trigger zone exists and is visible in autohide mode', async () => {
+  const triggerZone = window.locator('[data-testid="sidebar-trigger-zone"]');
+  await expect(triggerZone).toBeVisible();
 });

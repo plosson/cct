@@ -34,6 +34,8 @@ contextBridge.exposeInMainWorld('electron_api', {
   windowState: {
     getSidebarWidth: () => ipcRenderer.invoke('get-sidebar-width'),
     setSidebarWidth: (width) => ipcRenderer.send('set-sidebar-width', width),
+    getSidebarMode: () => ipcRenderer.invoke('get-sidebar-mode'),
+    setSidebarMode: (mode) => ipcRenderer.send('set-sidebar-mode', mode),
     getFontSize: () => ipcRenderer.invoke('get-font-size'),
     setFontSize: (size) => ipcRenderer.send('set-font-size', size),
     getConfigPath: () => ipcRenderer.invoke('get-window-state-path'),

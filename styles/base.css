@@ -70,6 +70,18 @@ html, body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
+}
+
+/* Sidebar trigger zone — invisible strip at left edge for autohide hover detection */
+.sidebar-trigger-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  z-index: 20;
+  display: none;
 }
 
 /* Sidebar */
@@ -82,6 +94,34 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Autohide mode — sidebar collapses to 0 width, pushing main content */
+.app-body.sidebar-autohide .sidebar-trigger-zone {
+  display: block;
+}
+
+.app-body.sidebar-autohide .sidebar {
+  min-width: 0;
+  border-right-color: transparent;
+  overflow: hidden;
+}
+
+/* Transition enabled only after init (prevents animation on load) */
+.app-body.sidebar-autohide.sidebar-transitions .sidebar {
+  transition: width 0.2s ease, border-right-color 0.2s ease;
+}
+
+.app-body.sidebar-autohide .sidebar.sidebar-revealed {
+  border-right-color: #2a2a4a;
+}
+
+.app-body.sidebar-autohide .sidebar-resize-handle {
+  display: none;
+}
+
+.app-body.sidebar-autohide .terminals-container {
+  padding-left: 8px;
 }
 
 .sidebar-header {

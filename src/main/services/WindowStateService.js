@@ -14,6 +14,7 @@ const DEFAULTS = {
   y: undefined,
   isMaximized: false,
   sidebarWidth: 220,
+  sidebarMode: 'autohide',
   fontSize: 14,
 };
 
@@ -110,6 +111,15 @@ class WindowStateService {
 
   set sidebarWidth(value) {
     this._state.sidebarWidth = value;
+    this._debouncedSave();
+  }
+
+  get sidebarMode() {
+    return this._state.sidebarMode;
+  }
+
+  set sidebarMode(value) {
+    this._state.sidebarMode = value;
     this._debouncedSave();
   }
 

@@ -948,27 +948,83 @@ function pasteClipboard() {
   }
 }
 
-// ── Toggle Sidebar (Cmd+B) ───────────────────────────────────
+// ── Sidebar Auto-Hide (Dock Mode) ────────────────────────────
 
-let sidebarVisible = true;
+let sidebarMode = 'autohide'; // 'pinned' | 'autohide'
+let sidebarRevealed = false;
+let sidebarHideTimeout = null;
+let sidebarWidth = 220; // persisted width, used to restore on reveal
 
+/** Toggle between pinned and autohide sidebar modes */
 function toggleSidebar() {
-  const resizeHandle = document.querySelector('[data-testid="sidebar-resize-handle"]');
-  sidebarVisible = !sidebarVisible;
+  const appBody = document.querySelector('.app-body');
 
-  if (sidebarVisible) {
-    sidebarEl.style.display = '';
-    if (resizeHandle) resizeHandle.style.display = '';
+  if (sidebarMode === 'pinned') {
+    // Switch to autohide — collapse sidebar
+    sidebarMode = 'autohide';
+    appBody.classList.add('sidebar-autohide', 'sidebar-transitions');
+    sidebarEl.classList.remove('sidebar-revealed');
+    sidebarEl.style.width = '0';
+    sidebarRevealed = false;
   } else {
-    sidebarEl.style.display = 'none';
-    if (resizeHandle) resizeHandle.style.display = 'none';
+    // Switch to pinned — restore sidebar width
+    sidebarMode = 'pinned';
+    if (sidebarHideTimeout) {
+      clearTimeout(sidebarHideTimeout);
+      sidebarHideTimeout = null;
+    }
+    appBody.classList.remove('sidebar-autohide');
+    sidebarEl.classList.remove('sidebar-revealed');
+    sidebarEl.style.width = sidebarWidth + 'px';
+    sidebarRevealed = false;
   }
 
-  // Refit the active terminal since the layout changed
-  const session = getActiveSession();
-  if (session) {
-    requestAnimationFrame(() => session.fitAddon.fit());
+  if (api.windowState) {
+    api.windowState.setSidebarMode(sidebarMode);
   }
+}
+
+/** Reveal the sidebar in autohide mode */
+function revealSidebar() {
+  if (sidebarMode !== 'autohide') return;
+  if (sidebarHideTimeout) {
+    clearTimeout(sidebarHideTimeout);
+    sidebarHideTimeout = null;
+  }
+  if (!sidebarRevealed) {
+    sidebarRevealed = true;
+    sidebarEl.style.width = sidebarWidth + 'px';
+    sidebarEl.classList.add('sidebar-revealed');
+  }
+}
+
+/** Schedule hiding the sidebar after a delay */
+function scheduleSidebarHide() {
+  if (sidebarMode !== 'autohide') return;
+  if (sidebarHideTimeout) clearTimeout(sidebarHideTimeout);
+  sidebarHideTimeout = setTimeout(() => {
+    sidebarHideTimeout = null;
+    hideSidebar();
+  }, 300);
+}
+
+/** Hide the sidebar immediately */
+function hideSidebar() {
+  if (sidebarMode !== 'autohide' || !sidebarRevealed) return;
+  sidebarRevealed = false;
+  sidebarEl.style.width = '0';
+  sidebarEl.classList.remove('sidebar-revealed');
+}
+
+/** Set up mouse event listeners for auto-hide trigger zone and sidebar */
+function initSidebarAutoHide() {
+  const triggerZone = document.querySelector('[data-testid="sidebar-trigger-zone"]');
+  if (!triggerZone) return;
+
+  triggerZone.addEventListener('mouseenter', () => revealSidebar());
+  sidebarEl.addEventListener('mouseenter', () => revealSidebar());
+  sidebarEl.addEventListener('mouseleave', () => scheduleSidebarHide());
+  triggerZone.addEventListener('mouseleave', () => scheduleSidebarHide());
 }
 
 // ── Select All (Cmd+A) ───────────────────────────────────────
@@ -1041,7 +1097,7 @@ const ACTION_LABELS = {
   moveTabLeft: 'Move Tab Left',
   moveTabRight: 'Move Tab Right',
   selectAll: 'Select All',
-  toggleSidebar: 'Toggle Sidebar',
+  toggleSidebar: 'Pin/Unpin Sidebar',
   closeOtherTabs: 'Close Other Tabs',
   showShortcutHelp: 'Show Shortcuts',
   goToTab1: 'Go to Tab 1',
@@ -1202,6 +1258,7 @@ function initSidebarResize() {
   const MAX_WIDTH = 500;
 
   handle.addEventListener('mousedown', (e) => {
+    if (sidebarMode === 'autohide') return;
     isDragging = true;
     startX = e.clientX;
     startWidth = sidebarEl.getBoundingClientRect().width;
@@ -1229,8 +1286,9 @@ function initSidebarResize() {
     handle.classList.remove('dragging');
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
-    // Persist sidebar width
+    // Persist sidebar width and update local variable
     const finalWidth = Math.round(sidebarEl.getBoundingClientRect().width);
+    sidebarWidth = finalWidth;
     if (api.windowState) {
       api.windowState.setSidebarWidth(finalWidth);
     }
@@ -1285,7 +1343,8 @@ window._cctGetProjectContextMenuItems = (projectPath) => {
     { label: 'Remove Project', action: 'remove' },
   ];
 };
-window._cctIsSidebarVisible = () => sidebarVisible;
+window._cctIsSidebarVisible = () => sidebarMode === 'pinned' || sidebarRevealed;
+window._cctGetSidebarMode = () => sidebarMode;
 window._cctProjectActivity = () => [...projectActivity];
 window._cctGetSessionsForProject = (projectPath) => {
   return sessionsForProject(projectPath).map(([id]) => id);
@@ -1366,11 +1425,23 @@ async function init() {
     });
   }
 
-  // Restore sidebar width and font size from persisted state
+  // Restore sidebar width, mode, and font size from persisted state
   if (api.windowState) {
     const savedWidth = await api.windowState.getSidebarWidth();
     if (savedWidth && savedWidth > 0) {
-      sidebarEl.style.width = savedWidth + 'px';
+      sidebarWidth = savedWidth;
+    }
+    const savedMode = await api.windowState.getSidebarMode();
+    if (savedMode === 'pinned' || savedMode === 'autohide') {
+      sidebarMode = savedMode;
+    }
+    // HTML starts with sidebar-autohide class (default).
+    if (sidebarMode === 'pinned') {
+      document.querySelector('.app-body').classList.remove('sidebar-autohide');
+      sidebarEl.style.width = sidebarWidth + 'px';
+    } else {
+      // Autohide: collapse to 0
+      sidebarEl.style.width = '0';
     }
     const savedFontSize = await api.windowState.getFontSize();
     if (savedFontSize && savedFontSize >= MIN_FONT_SIZE && savedFontSize <= MAX_FONT_SIZE) {
@@ -1439,6 +1510,12 @@ async function init() {
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
 
   initSidebarResize();
+  initSidebarAutoHide();
+
+  // Enable sidebar transitions after first paint to prevent slide-on-load
+  requestAnimationFrame(() => {
+    document.querySelector('.app-body').classList.add('sidebar-transitions');
+  });
 }
 
 if (document.readyState === 'loading') {
