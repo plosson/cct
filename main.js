@@ -92,18 +92,31 @@ if (!gotTheLock) {
 
     installHooks();
 
-    // Disable native menu shortcuts that conflict with renderer keybindings
+    // Customize native application menu
     const menu = Menu.getApplicationMenu();
+
+    // Disable Cmd+W — renderer handles it as tab-close
     const fileMenu = menu?.items.find(i => i.role === 'fileMenu' || i.label === 'File');
     if (fileMenu) {
-      // Cmd+W → renderer handles as tab-close
       const closeItem = fileMenu.submenu?.items.find(i => i.role === 'close');
       if (closeItem) closeItem.enabled = false;
-      // Cmd+N → renderer handles as new Claude session
-      const newItem = fileMenu.submenu?.items.find(i => i.accelerator === 'CommandOrControl+N' || i.label === 'New Window');
-      if (newItem) newItem.enabled = false;
-      Menu.setApplicationMenu(menu);
     }
+
+    // Add "Check for Updates…" to the app menu (after About)
+    if (app.isPackaged) {
+      const { autoUpdater } = require('electron-updater');
+      const appMenu = menu?.items[0];
+      if (appMenu?.submenu) {
+        const aboutIdx = appMenu.submenu.items.findIndex(i => i.role === 'about');
+        const checkForUpdates = new (require('electron').MenuItem)({
+          label: 'Check for Updates…',
+          click: () => autoUpdater.checkForUpdates().catch(() => {}),
+        });
+        appMenu.submenu.insert(aboutIdx + 1, checkForUpdates);
+      }
+    }
+
+    Menu.setApplicationMenu(menu);
   });
 
   app.on('before-quit', () => {
