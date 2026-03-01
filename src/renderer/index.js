@@ -80,6 +80,7 @@ let titlebarProjectName;
 const projects = [];
 
 const TERMINAL_OPTIONS = {
+  allowProposedApi: true,
   cursorBlink: true,
   fontSize: 14,
   fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace",

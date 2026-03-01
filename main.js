@@ -24,8 +24,8 @@ if (process.env.CCT_USER_DATA) {
   app.setPath('userData', process.env.CCT_USER_DATA);
 }
 
-// Single instance lock
-const gotTheLock = app.requestSingleInstanceLock();
+// Single instance lock (skip in test mode so parallel workers can run)
+const gotTheLock = process.env.CCT_USER_DATA || app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
