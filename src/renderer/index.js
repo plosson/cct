@@ -7,8 +7,12 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { getProjectColor } from './projectColors.js';
 
 const api = window.electron_api;
+
+// Expose for testing
+window._cctProjectColors = { getProjectColor };
 
 const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId, type, createdAt }
 let activeId = null;
