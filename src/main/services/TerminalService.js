@@ -104,7 +104,12 @@ class TerminalService {
 
   resize(id, cols, rows) {
     const entry = this._terminals.get(id);
-    if (entry) entry.ptyProcess.resize(cols, rows);
+    if (!entry) return;
+    try {
+      entry.ptyProcess.resize(cols, rows);
+    } catch {
+      // PTY file descriptor may already be closed (race with exit)
+    }
   }
 
   kill(id) {
