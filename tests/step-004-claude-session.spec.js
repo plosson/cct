@@ -113,19 +113,14 @@ test('send /help and verify buffer updates', async () => {
 test('close session — no zombie claude process', async () => {
   const terminalCount = await window.evaluate(() => window.electron_api.terminal.count());
   if (terminalCount > 0) {
-    const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
-    await textarea.focus();
-    // Escape to clear any pending state, then /exit
-    await window.keyboard.press('Escape');
-    await window.waitForTimeout(500);
-    await textarea.pressSequentially('/exit', { delay: 50 });
-    await window.keyboard.press('Enter');
+    // Close the tab via the UI — this calls ptyProcess.kill() (SIGHUP)
+    await window.click('[data-testid="tab-close"]');
 
-    // Wait for PTY to exit
+    // PTY should exit promptly after kill signal
     await expect(async () => {
       const count = await window.evaluate(() => window.electron_api.terminal.count());
       expect(count).toBe(0);
-    }).toPass({ timeout: 15000 });
+    }).toPass({ timeout: 5000 });
   }
 });
 
