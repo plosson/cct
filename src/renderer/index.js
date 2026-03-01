@@ -84,21 +84,32 @@ const TERMINAL_OPTIONS = {
   }
 };
 
+// ── Helpers ──────────────────────────────────────────────────
+
+/** Return the active session or null — avoids repeated null-check boilerplate */
+function getActiveSession() {
+  return activeId ? sessions.get(activeId) || null : null;
+}
+
+/** Focus the active terminal — used after closing overlays and search */
+function refocusTerminal() {
+  const session = getActiveSession();
+  if (session) session.terminal.focus();
+}
+
 // ── Empty state ─────────────────────────────────────────────
 
+function getEmptyStateMessage() {
+  if (projects.length === 0) return 'Add a project to get started';
+  if (!selectedProjectPath) return 'Select a project from the sidebar';
+  if (countSessionsForProject(selectedProjectPath) === 0) return 'No sessions — click + to create one';
+  return null;
+}
+
 function updateEmptyState() {
-  if (projects.length === 0) {
-    emptyStateEl.textContent = 'Add a project to get started';
-    emptyStateEl.style.display = 'flex';
-  } else if (selectedProjectPath && countSessionsForProject(selectedProjectPath) === 0) {
-    emptyStateEl.textContent = 'No sessions — click + to create one';
-    emptyStateEl.style.display = 'flex';
-  } else if (!selectedProjectPath) {
-    emptyStateEl.textContent = 'Select a project from the sidebar';
-    emptyStateEl.style.display = 'flex';
-  } else {
-    emptyStateEl.style.display = 'none';
-  }
+  const message = getEmptyStateMessage();
+  emptyStateEl.style.display = message ? 'flex' : 'none';
+  if (message) emptyStateEl.textContent = message;
 }
 
 // ── Sidebar ──────────────────────────────────────────────────
@@ -144,11 +155,7 @@ function renderSidebar() {
 function updateProjectActivityBadge(projectPath) {
   const el = sidebarProjectsEl?.querySelector(`[data-project-path="${CSS.escape(projectPath)}"]`);
   if (!el) return;
-  if (projectActivity.has(projectPath)) {
-    el.classList.add('project-activity');
-  } else {
-    el.classList.remove('project-activity');
-  }
+  el.classList.toggle('project-activity', projectActivity.has(projectPath));
 }
 
 function selectProject(projectPath) {
@@ -519,11 +526,11 @@ function openProjectPicker() {
   if (pickerOverlay) { closeProjectPicker(); return; }
 
   pickerOverlay = document.createElement('div');
-  pickerOverlay.className = 'project-picker-overlay';
+  pickerOverlay.className = 'overlay project-picker-overlay';
   pickerOverlay.dataset.testid = 'project-picker-overlay';
 
   const picker = document.createElement('div');
-  picker.className = 'project-picker';
+  picker.className = 'overlay-panel project-picker';
 
   const input = document.createElement('input');
   input.className = 'project-picker-input';
@@ -583,10 +590,10 @@ function openProjectPicker() {
 }
 
 function closeProjectPicker() {
-  if (pickerOverlay) {
-    pickerOverlay.remove();
-    pickerOverlay = null;
-  }
+  if (!pickerOverlay) return;
+  pickerOverlay.remove();
+  pickerOverlay = null;
+  refocusTerminal();
 }
 
 function renderPickerList(listEl, filter) {
@@ -837,16 +844,11 @@ function focusSearchBar() {
 
 function closeSearchBar() {
   if (!searchBarEl) return;
-  // Clear search decoration
-  const session = activeId ? sessions.get(activeId) : null;
+  const session = getActiveSession();
   if (session) session.searchAddon.clearDecorations();
   searchBarEl.remove();
   searchBarEl = null;
-  // Refocus terminal
-  if (activeId) {
-    const s = sessions.get(activeId);
-    if (s) s.terminal.focus();
-  }
+  refocusTerminal();
 }
 
 // ── Font size zoom ───────────────────────────────────────────
@@ -875,8 +877,7 @@ function zoomReset() { setFontSize(DEFAULT_FONT_SIZE); }
 // ── Clear terminal (Cmd+K) ───────────────────────────────────
 
 function clearTerminal() {
-  if (!activeId) return;
-  const session = sessions.get(activeId);
+  const session = getActiveSession();
   if (!session) return;
   session.terminal.clear();
 }
@@ -884,8 +885,7 @@ function clearTerminal() {
 // ── Clipboard (Cmd+Shift+C / Cmd+Shift+V) ───────────────────
 
 function copySelection() {
-  if (!activeId) return;
-  const session = sessions.get(activeId);
+  const session = getActiveSession();
   if (!session) return;
   const selection = session.terminal.getSelection();
   if (selection) {
@@ -894,9 +894,7 @@ function copySelection() {
 }
 
 function pasteClipboard() {
-  if (!activeId) return;
-  const session = sessions.get(activeId);
-  if (!session) return;
+  if (!getActiveSession()) return;
   const text = api.clipboard.readText();
   if (text) {
     api.terminal.input({ id: activeId, data: text });
@@ -920,19 +918,16 @@ function toggleSidebar() {
   }
 
   // Refit the active terminal since the layout changed
-  if (activeId) {
-    const session = sessions.get(activeId);
-    if (session) {
-      requestAnimationFrame(() => session.fitAddon.fit());
-    }
+  const session = getActiveSession();
+  if (session) {
+    requestAnimationFrame(() => session.fitAddon.fit());
   }
 }
 
 // ── Select All (Cmd+A) ───────────────────────────────────────
 
 function selectAll() {
-  if (!activeId) return;
-  const session = sessions.get(activeId);
+  const session = getActiveSession();
   if (!session) return;
   session.terminal.selectAll();
 }
@@ -940,9 +935,8 @@ function selectAll() {
 // ── Move tab (Cmd+Shift+Left/Right) ──────────────────────────
 
 function moveTab(direction) {
-  if (!activeId || !selectedProjectPath) return;
-  const session = sessions.get(activeId);
-  if (!session) return;
+  const session = getActiveSession();
+  if (!session || !selectedProjectPath) return;
 
   // Get visible tab elements for the current project
   const allTabs = [...tabBarTabs.children];
@@ -1032,11 +1026,11 @@ function showShortcutHelp() {
   if (shortcutHelpOverlay) { closeShortcutHelp(); return; }
 
   shortcutHelpOverlay = document.createElement('div');
-  shortcutHelpOverlay.className = 'shortcut-help-overlay';
+  shortcutHelpOverlay.className = 'overlay shortcut-help-overlay';
   shortcutHelpOverlay.dataset.testid = 'shortcut-help-overlay';
 
   const panel = document.createElement('div');
-  panel.className = 'shortcut-help-panel';
+  panel.className = 'overlay-panel shortcut-help-panel';
 
   const title = document.createElement('h2');
   title.className = 'shortcut-help-title';
@@ -1076,15 +1070,10 @@ function showShortcutHelp() {
 }
 
 function closeShortcutHelp() {
-  if (shortcutHelpOverlay) {
-    shortcutHelpOverlay.remove();
-    shortcutHelpOverlay = null;
-  }
-  // Refocus terminal
-  if (activeId) {
-    const s = sessions.get(activeId);
-    if (s) s.terminal.focus();
-  }
+  if (!shortcutHelpOverlay) return;
+  shortcutHelpOverlay.remove();
+  shortcutHelpOverlay = null;
+  refocusTerminal();
 }
 
 // ── Status bar ───────────────────────────────────────────────
@@ -1121,7 +1110,7 @@ function updateStatusBar() {
   const project = projects.find(p => p.path === selectedProjectPath);
   statusProjectEl.textContent = project ? project.name : '';
 
-  const session = activeId ? sessions.get(activeId) : null;
+  const session = getActiveSession();
   if (session) {
     statusSessionTypeEl.textContent = session.type === 'claude' ? 'Claude' : 'Terminal';
     statusTerminalSizeEl.textContent = `${session.terminal.cols}\u00d7${session.terminal.rows}`;
@@ -1138,7 +1127,7 @@ function updateStatusBar() {
 function startUptimeTimer() {
   if (uptimeInterval) return;
   uptimeInterval = setInterval(() => {
-    const session = activeId ? sessions.get(activeId) : null;
+    const session = getActiveSession();
     if (session && statusUptimeEl) {
       statusUptimeEl.textContent = formatUptime(Date.now() - session.createdAt);
     }
@@ -1342,24 +1331,24 @@ async function init() {
   actions.set('createClaudeSession', () => createSession('claude'));
   actions.set('createTerminalSession', () => createSession('terminal'));
   actions.set('closeActiveTab', () => { if (activeId !== null) closeTab(activeId); });
-  actions.set('openProjectPicker', () => openProjectPicker());
+  actions.set('openProjectPicker', openProjectPicker);
   actions.set('prevTab', () => cycleTab('prev'));
   actions.set('nextTab', () => cycleTab('next'));
   actions.set('prevProject', () => cycleProject('prev'));
   actions.set('nextProject', () => cycleProject('next'));
-  actions.set('openSearchBar', () => openSearchBar());
-  actions.set('zoomIn', () => zoomIn());
-  actions.set('zoomOut', () => zoomOut());
-  actions.set('zoomReset', () => zoomReset());
-  actions.set('clearTerminal', () => clearTerminal());
-  actions.set('copySelection', () => copySelection());
-  actions.set('pasteClipboard', () => pasteClipboard());
+  actions.set('openSearchBar', openSearchBar);
+  actions.set('zoomIn', zoomIn);
+  actions.set('zoomOut', zoomOut);
+  actions.set('zoomReset', zoomReset);
+  actions.set('clearTerminal', clearTerminal);
+  actions.set('copySelection', copySelection);
+  actions.set('pasteClipboard', pasteClipboard);
   actions.set('moveTabLeft', () => moveTab('left'));
   actions.set('moveTabRight', () => moveTab('right'));
-  actions.set('selectAll', () => selectAll());
-  actions.set('toggleSidebar', () => toggleSidebar());
+  actions.set('selectAll', selectAll);
+  actions.set('toggleSidebar', toggleSidebar);
   actions.set('closeOtherTabs', () => { if (activeId !== null) closeOtherTabs(activeId); });
-  actions.set('showShortcutHelp', () => showShortcutHelp());
+  actions.set('showShortcutHelp', showShortcutHelp);
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
   }

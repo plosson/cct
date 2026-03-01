@@ -336,8 +336,8 @@ html, body {
   display: flex;
 }
 
-/* Project picker (Cmd+P) */
-.project-picker-overlay {
+/* Shared overlay & panel base */
+.overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -347,26 +347,34 @@ html, body {
   z-index: 1000;
   display: flex;
   justify-content: center;
-  padding-top: 80px;
+  outline: none;
 }
 
-.project-picker {
+.overlay-panel {
   background: #1e1e3a;
   border: 1px solid #3a3a5a;
   border-radius: 8px;
   width: 100%;
-  max-width: 480px;
-  max-height: 320px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  animation: picker-drop-in 0.1s ease-out;
+  animation: overlay-drop-in 0.1s ease-out;
   align-self: flex-start;
 }
 
-@keyframes picker-drop-in {
+@keyframes overlay-drop-in {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Project picker (Cmd+P) */
+.project-picker-overlay {
+  padding-top: 80px;
+}
+
+.project-picker {
+  max-width: 480px;
+  max-height: 320px;
 }
 
 .project-picker-input {
@@ -503,31 +511,12 @@ html, body {
 
 /* Shortcut help overlay (Cmd+/) */
 .shortcut-help-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 1000;
-  display: flex;
-  justify-content: center;
   padding-top: 60px;
-  outline: none;
 }
 
 .shortcut-help-panel {
-  background: #1e1e3a;
-  border: 1px solid #3a3a5a;
-  border-radius: 8px;
-  width: 100%;
   max-width: 420px;
   max-height: 480px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  animation: picker-drop-in 0.1s ease-out;
-  align-self: flex-start;
   overflow: hidden;
 }
 

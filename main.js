@@ -2,13 +2,13 @@
  * CCT - Main Process Entry Point
  */
 
-const { app, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
 
 // Fix PATH on macOS — apps launched from Finder have a minimal PATH
 if (process.platform === 'darwin') {
   const { execFile } = require('child_process');
-  const shell = process.env.SHELL || '/bin/zsh';
-  execFile(shell, ['-lc', 'echo $PATH'], {
+  const userShell = process.env.SHELL || '/bin/zsh';
+  execFile(userShell, ['-lc', 'echo $PATH'], {
     encoding: 'utf8',
     timeout: 5000,
   }, (err, stdout) => {
@@ -54,10 +54,7 @@ if (!gotTheLock) {
     const projectStore = new ProjectStore();
     registerProjectIPC(projectStore, projectConfigService);
 
-    // IPC for window state
-    const { ipcMain, BrowserWindow } = require('electron');
-
-    // App version
+    // Window state IPC
     ipcMain.handle('get-version', () => app.getVersion());
     ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
     ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
@@ -66,18 +63,13 @@ if (!gotTheLock) {
     ipcMain.on('set-font-size', (_event, size) => { windowStateService.fontSize = size; });
 
     // Shell IPC
-    const { shell } = require('electron');
-    ipcMain.handle('shell-show-item-in-folder', (_event, fullPath) => {
-      shell.showItemInFolder(fullPath);
-    });
-    ipcMain.handle('shell-open-external', (_event, url) => {
-      return shell.openExternal(url);
-    });
+    ipcMain.handle('shell-show-item-in-folder', (_event, fullPath) => shell.showItemInFolder(fullPath));
+    ipcMain.handle('shell-open-external', (_event, url) => shell.openExternal(url));
 
-    // Generic context menu IPC
+    // Context menu IPC
     ipcMain.handle('show-context-menu', (event, { items }) => {
       return new Promise((resolve) => {
-        const menu = Menu.buildFromTemplate(
+        const contextMenu = Menu.buildFromTemplate(
           items.map(item => {
             if (item.type === 'separator') return { type: 'separator' };
             return {
@@ -87,7 +79,7 @@ if (!gotTheLock) {
             };
           })
         );
-        menu.popup({
+        contextMenu.popup({
           window: BrowserWindow.fromWebContents(event.sender),
           callback: () => resolve(null),
         });
