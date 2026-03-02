@@ -8,7 +8,8 @@ const path = require('path');
 const { app, dialog } = require('electron');
 
 class ProjectStore {
-  constructor() {
+  constructor(logService) {
+    this._logService = logService || null;
     this._filePath = path.join(app.getPath('userData'), 'projects.json');
     this._projects = [];
     this._load();
@@ -18,8 +19,9 @@ class ProjectStore {
     try {
       const data = JSON.parse(fs.readFileSync(this._filePath, 'utf8'));
       this._projects = Array.isArray(data.projects) ? data.projects : [];
-    } catch {
+    } catch (e) {
       this._projects = [];
+      if (this._logService) this._logService.warn('projects', 'Failed to load projects: ' + (e.message || e));
     }
   }
 

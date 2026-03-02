@@ -33,14 +33,25 @@ test('1 - log history IPC returns array', async () => {
   expect(Array.isArray(history)).toBe(true);
 });
 
-test('2 - debug pane state defaults are persisted', async () => {
+test('2 - startup logs appear in history', async () => {
+  const history = await window.evaluate(() => window.electron_api.log.getHistory());
+  expect(history.length).toBeGreaterThan(0);
+  // Check that entries have the expected shape
+  const entry = history[0];
+  expect(entry).toHaveProperty('timestamp');
+  expect(entry).toHaveProperty('level');
+  expect(entry).toHaveProperty('source');
+  expect(entry).toHaveProperty('message');
+});
+
+test('3 - debug pane state defaults are persisted', async () => {
   const height = await window.evaluate(() => window.electron_api.windowState.getDebugPaneHeight());
   const open = await window.evaluate(() => window.electron_api.windowState.getDebugPaneOpen());
   expect(height).toBe(200);
   expect(open).toBe(false);
 });
 
-test('3 - debug pane exists in DOM and is collapsed by default', async () => {
+test('4 - debug pane exists in DOM and is collapsed by default', async () => {
   const pane = await window.evaluate(() => {
     const el = document.querySelector('[data-testid="debug-pane"]');
     if (!el) return null;
@@ -54,7 +65,7 @@ test('3 - debug pane exists in DOM and is collapsed by default', async () => {
   expect(pane.height).toBe(0);
 });
 
-test('4 - Cmd+J toggles debug pane open and closed', async () => {
+test('5 - Cmd+J toggles debug pane open and closed', async () => {
   // Initially collapsed
   let height = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').offsetHeight);
   expect(height).toBe(0);
@@ -79,7 +90,7 @@ test('4 - Cmd+J toggles debug pane open and closed', async () => {
   expect(height).toBe(0);
 });
 
-test('5 - debug pane is resizable via drag handle', async () => {
+test('6 - debug pane is resizable via drag handle', async () => {
   // Open the pane first
   const isOpen = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').classList.contains('open'));
   if (!isOpen) await window.keyboard.press('Meta+j');
@@ -98,7 +109,7 @@ test('5 - debug pane is resizable via drag handle', async () => {
   expect(newHeight).toBeGreaterThan(200);
 });
 
-test('6 - log entries appear in the debug pane', async () => {
+test('7 - log entries appear in the debug pane', async () => {
   // Make sure pane is open
   const isOpen = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').classList.contains('open'));
   if (!isOpen) await window.keyboard.press('Meta+j');
@@ -120,7 +131,7 @@ test('6 - log entries appear in the debug pane', async () => {
   expect(text).toContain('Hello from test');
 });
 
-test('7 - clear button removes all entries', async () => {
+test('8 - clear button removes all entries', async () => {
   // Add an entry first
   await window.evaluate(() => {
     window._cctAddDebugEntry({ timestamp: Date.now(), level: 'warn', source: 'test', message: 'Warning entry' });
@@ -135,3 +146,4 @@ test('7 - clear button removes all entries', async () => {
   );
   expect(entries).toBe(0);
 });
+

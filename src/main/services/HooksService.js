@@ -26,6 +26,12 @@ const HOOK_DEFINITIONS = [
   { key: 'SessionStart', hasMatcher: true },
 ];
 
+let _logService = null;
+
+function setLogService(logService) {
+  _logService = logService;
+}
+
 /**
  * Read Claude settings.json safely
  */
@@ -35,7 +41,7 @@ function readClaudeSettings() {
       return JSON.parse(fs.readFileSync(CLAUDE_SETTINGS_PATH, 'utf8'));
     }
   } catch (e) {
-    console.error('Failed to read Claude settings:', e);
+    if (_logService) _logService.warn('hooks', 'Failed to read Claude settings: ' + e.message);
   }
   return {};
 }
@@ -112,7 +118,7 @@ function installHooks() {
     writeClaudeSettings(settings);
     return { success: true };
   } catch (e) {
-    console.error('Failed to install hooks:', e);
+    if (_logService) _logService.error('hooks', 'Failed to install hooks: ' + e.message);
     return { success: false, error: e.message };
   }
 }
@@ -153,9 +159,9 @@ function removeHooks() {
     writeClaudeSettings(settings);
     return { success: true };
   } catch (e) {
-    console.error('Failed to remove hooks:', e);
+    if (_logService) _logService.error('hooks', 'Failed to remove hooks: ' + e.message);
     return { success: false, error: e.message };
   }
 }
 
-module.exports = { installHooks, removeHooks };
+module.exports = { installHooks, removeHooks, setLogService };

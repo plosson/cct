@@ -7,8 +7,9 @@ const pty = require('node-pty');
 const os = require('os');
 
 class TerminalService {
-  constructor(mainWindow) {
+  constructor(mainWindow, logService) {
     this._window = mainWindow;
+    this._logService = logService || null;
     this._terminals = new Map();
     this._nextId = 1;
   }
@@ -110,8 +111,8 @@ class TerminalService {
     if (!entry) return;
     try {
       entry.ptyProcess.resize(cols, rows);
-    } catch {
-      // PTY file descriptor may already be closed (race with exit)
+    } catch (e) {
+      if (this._logService) this._logService.warn('terminal', 'PTY resize failed (fd may be closed): ' + (e.message || e));
     }
   }
 
