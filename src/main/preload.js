@@ -81,5 +81,11 @@ contextBridge.exposeInMainWorld('electron_api', {
     setProject: (projectPath, values) => ipcRenderer.invoke('config-set-project', { projectPath, values }),
     resolve: (key, projectPath) => ipcRenderer.invoke('config-resolve', { key, projectPath }),
     resolveAll: (projectPath) => ipcRenderer.invoke('config-resolve-all', projectPath),
-  }
+  },
+
+  log: {
+    getHistory: () => ipcRenderer.invoke('log-get-history'),
+    clear: () => ipcRenderer.send('log-clear'),
+    onEntry: createListener('log-entry'),
+  },
 });

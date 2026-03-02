@@ -65,6 +65,8 @@ if (!gotTheLock) {
   const { WindowStateService } = require('./src/main/services/WindowStateService');
   const { installHooks, removeHooks } = require('./src/main/services/HooksService');
   const { UpdaterService } = require('./src/main/services/UpdaterService');
+  const { LogService } = require('./src/main/services/LogService');
+  const { registerLogIPC } = require('./src/main/ipc/log.ipc');
 
   let terminalService;
   let windowStateService;
@@ -91,6 +93,9 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    const logService = new LogService();
+    registerLogIPC(logService);
+
     windowStateService = new WindowStateService();
     const win = createMainWindow(windowStateService);
     terminalService = new TerminalService(win);
