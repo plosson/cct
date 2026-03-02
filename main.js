@@ -3,6 +3,8 @@
  */
 
 const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
+const path = require('path');
+const fs = require('fs');
 
 // Fix PATH on macOS — apps launched from Finder have a minimal PATH
 if (process.platform === 'darwin') {
@@ -19,13 +21,35 @@ if (process.platform === 'darwin') {
   });
 }
 
+/**
+ * Extract a project folder path from argv.
+ * Skips Electron/Chromium flags and the app entry point.
+ * Returns the first valid directory path, resolved to absolute, or null.
+ */
+function parseProjectPath(argv) {
+  // In packaged app, argv[0] is the binary; in dev, argv[0]=electron, argv[1]=main.js
+  // Skip all args that start with '-' (flags) and the electron binary / main script
+  const candidates = argv.slice(app.isPackaged ? 1 : 2).filter(a => !a.startsWith('-'));
+  for (const candidate of candidates) {
+    const resolved = path.resolve(candidate);
+    try {
+      if (fs.statSync(resolved).isDirectory()) return resolved;
+    } catch {
+      // Not a valid path, skip
+    }
+  }
+  return null;
+}
+
 // Allow tests to isolate userData (enables parallel workers)
 if (process.env.CCT_USER_DATA) {
   app.setPath('userData', process.env.CCT_USER_DATA);
 }
 
 // Single instance lock (skip in test mode so parallel workers can run)
-const gotTheLock = process.env.CCT_USER_DATA || app.requestSingleInstanceLock();
+// Pass the initial project path as additionalData so the running instance receives it
+const initialProjectPath = parseProjectPath(process.argv);
+const gotTheLock = process.env.CCT_USER_DATA || app.requestSingleInstanceLock({ projectPath: initialProjectPath });
 if (!gotTheLock) {
   app.quit();
 } else {
@@ -43,12 +67,26 @@ if (!gotTheLock) {
 
   let terminalService;
   let windowStateService;
+  let projectStore;
 
-  app.on('second-instance', () => {
+  /**
+   * Open a project in the renderer: add it if new, then tell the renderer to select it.
+   */
+  function openProjectFromCLI(projectPath) {
+    if (!projectPath) return;
+    const win = getMainWindow();
+    if (!win || win.isDestroyed()) return;
+    if (projectStore) projectStore.addPath(projectPath);
+    win.webContents.send('open-project', projectPath);
+  }
+
+  app.on('second-instance', (_event, argv, _workingDirectory, additionalData) => {
     const win = getMainWindow();
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.focus();
+    const projectPath = additionalData?.projectPath || parseProjectPath(argv);
+    openProjectFromCLI(projectPath);
   });
 
   app.whenReady().then(() => {
@@ -60,7 +98,7 @@ if (!gotTheLock) {
     const configService = new ConfigService();
     registerTerminalIPC(terminalService, projectConfigService, configService);
 
-    const projectStore = new ProjectStore();
+    projectStore = new ProjectStore();
     registerProjectIPC(projectStore, projectConfigService);
     registerConfigIPC(configService);
 
@@ -128,6 +166,14 @@ if (!gotTheLock) {
     }
 
     Menu.setApplicationMenu(menu);
+
+    // If launched with a project path argument, open it once the renderer is ready
+    if (initialProjectPath) {
+      win.webContents.once('did-finish-load', () => {
+        // Small delay to let the renderer init() complete
+        setTimeout(() => openProjectFromCLI(initialProjectPath), 300);
+      });
+    }
   });
 
   app.on('before-quit', () => {

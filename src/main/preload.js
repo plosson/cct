@@ -69,7 +69,8 @@ contextBridge.exposeInMainWorld('electron_api', {
     remove: (path) => ipcRenderer.invoke('project-remove', { path }),
     configPath: () => ipcRenderer.invoke('project-config-path'),
     getSessions: (projectPath) => ipcRenderer.invoke('get-project-sessions', projectPath),
-    clearSessions: (projectPath) => ipcRenderer.invoke('clear-project-sessions', projectPath)
+    clearSessions: (projectPath) => ipcRenderer.invoke('clear-project-sessions', projectPath),
+    onOpen: createListener('open-project'),
   },
 
   appConfig: {

@@ -1,0 +1,35 @@
+#!/bin/bash
+# CCT CLI launcher — opens a project in Claude Code Terminal
+#
+# Usage:
+#   cct .                         # open current directory
+#   cct /path/to/project          # open specific project
+#   cct                           # just open/focus CCT
+#
+# If CCT is already running, the project is opened in the existing window.
+# If CCT is not running, it is launched with the project argument.
+
+set -euo pipefail
+
+# Resolve the project path to an absolute directory
+ARGS=()
+if [ $# -gt 0 ]; then
+  CANDIDATE="$(cd "$1" 2>/dev/null && pwd || echo "")"
+  if [ -n "$CANDIDATE" ] && [ -d "$CANDIDATE" ]; then
+    ARGS=("$CANDIDATE")
+  else
+    echo "cct: not a directory: $1" >&2
+    exit 1
+  fi
+fi
+
+# Find the CCT app bundle (packaged) or fall back to dev mode
+CCT_APP="/Applications/CCT.app"
+if [ -d "$CCT_APP" ]; then
+  open -a "$CCT_APP" -- "${ARGS[@]+"${ARGS[@]}"}"
+else
+  # Dev mode: find the project root (directory containing this script's parent)
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+  electron "$PROJECT_ROOT" "${ARGS[@]+"${ARGS[@]}"}"
+fi

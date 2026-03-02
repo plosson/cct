@@ -3,6 +3,9 @@
   "version": "0.2.8",
   "description": "Claude Code Terminal - A Terminal Development Environment",
   "main": "main.js",
+  "bin": {
+    "cct": "bin/cct"
+  },
   "scripts": {
     "start": "node scripts/build-renderer.js && electron .",
     "lint": "echo 'lint: ok'",

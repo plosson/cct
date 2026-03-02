@@ -245,6 +245,19 @@ function countSessionsForProject(projectPath) {
   return sessionsForProject(projectPath).length;
 }
 
+/** Replace the in-memory project list and sync MRU (remove stale, add new) */
+function refreshProjectList(projectList) {
+  projects.length = 0;
+  projects.push(...projectList);
+  const validPaths = new Set(projectList.map(p => p.path));
+  for (let i = projectMRU.length - 1; i >= 0; i--) {
+    if (!validPaths.has(projectMRU[i])) projectMRU.splice(i, 1);
+  }
+  for (const p of projectList) {
+    if (!projectMRU.includes(p.path)) projectMRU.push(p.path);
+  }
+}
+
 async function addProject() {
   const project = await api.projects.add();
   if (!project) return; // dialog canceled
@@ -1551,17 +1564,8 @@ window._cctGetSessionsForProject = (projectPath) => {
 
 // Reload projects from store and re-render sidebar (used by tests)
 window._cctReloadProjects = (projectList) => {
-  projects.length = 0;
-  projects.push(...projectList);
-  // Sync MRU: add any new paths, remove stale ones
-  const validPaths = new Set(projectList.map(p => p.path));
-  for (let i = projectMRU.length - 1; i >= 0; i--) {
-    if (!validPaths.has(projectMRU[i])) projectMRU.splice(i, 1);
-  }
-  for (const p of projectList) {
-    if (!projectMRU.includes(p.path)) projectMRU.push(p.path);
-  }
-  if (selectedProjectPath && !validPaths.has(selectedProjectPath)) {
+  refreshProjectList(projectList);
+  if (selectedProjectPath && !projects.some(p => p.path === selectedProjectPath)) {
     selectedProjectPath = null;
   }
   renderSidebar();
@@ -1666,6 +1670,13 @@ async function init() {
   } else {
     renderSidebar();
   }
+
+  // Listen for open-project from main process (CLI invocation / second instance)
+  api.projects.onOpen(async (projectPath) => {
+    // Reload projects from store in case main process added a new one
+    refreshProjectList(await api.projects.list());
+    selectProject(projectPath);
+  });
 
   // Register keybinding actions
   actions.set('createClaudeSession', () => createSession('claude'));
