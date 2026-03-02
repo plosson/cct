@@ -1126,6 +1126,7 @@ const ACTION_LABELS = {
   closeOtherTabs: 'Close Other Tabs',
   openSettings: 'Settings',
   showShortcutHelp: 'Show Shortcuts',
+  toggleDebugPane: 'Toggle Debug Log',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
   goToTab3: 'Go to Tab 3',
