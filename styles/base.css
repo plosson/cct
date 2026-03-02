@@ -137,10 +137,9 @@ html, body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  background: var(--project-accent-bg, var(--bg-surface));
-  border-bottom: 1px solid var(--project-accent-border, var(--border));
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
   padding-left: 78px;
-  transition: background-color 0.2s ease;
 }
 
 .titlebar-tabs {
@@ -217,10 +216,9 @@ html, body {
   justify-content: space-between;
   padding: 0 12px;
   height: 36px;
-  background: var(--project-accent-bg, transparent);
-  border-bottom: 1px solid var(--project-accent-border, var(--border));
+  background: transparent;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  transition: background-color 0.2s ease;
 }
 
 .sidebar-title {
@@ -267,9 +265,9 @@ html, body {
 }
 
 .sidebar-project.selected {
-  background: var(--project-accent-dim, var(--active-bg));
+  background: var(--active-bg);
   color: var(--text-primary);
-  border-left: 3px solid var(--project-accent, var(--accent));
+  border-left: 3px solid var(--accent);
 }
 
 .sidebar-project-name {
@@ -360,7 +358,6 @@ html, body {
   user-select: none;
   -webkit-app-region: no-drag;
   border-right: 1px solid var(--border);
-  border-bottom: 2px solid transparent;
   box-sizing: border-box;
 }
 
@@ -374,8 +371,8 @@ html, body {
 }
 
 .tab-item.active {
+  background: var(--active-bg);
   color: var(--text-primary);
-  border-bottom-color: var(--project-accent, var(--accent));
 }
 
 .tab-icon {
@@ -793,7 +790,7 @@ html, body {
 
 .settings-tab.active {
   color: var(--text-primary);
-  border-bottom-color: var(--project-accent, var(--accent));
+  border-bottom-color: var(--accent);
 }
 
 .settings-tab:disabled {
@@ -894,7 +891,7 @@ html, body {
 }
 
 .settings-save-btn {
-  background: var(--project-accent, var(--accent));
+  background: var(--accent);
   color: #fff;
   border-color: transparent;
 }

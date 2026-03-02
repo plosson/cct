@@ -250,29 +250,7 @@ function selectProject(projectPath) {
 }
 
 function updateProjectIdentity() {
-  if (!selectedProjectPath) {
-    const root = document.documentElement;
-    root.style.removeProperty('--project-accent');
-    root.style.removeProperty('--project-accent-bg');
-    root.style.removeProperty('--project-accent-dim');
-    root.style.removeProperty('--project-accent-border');
-    return;
-  }
-
-  const project = projects.find(p => p.path === selectedProjectPath);
-  if (!project) return;
-
-  const color = getProjectColor(project.name);
-  const isLight = getCurrentThemeMode() === 'light';
-  const accent = `hsl(${color.hue}, ${color.s}%, ${isLight ? Math.max(color.l - 10, 30) : color.l}%)`;
-
-  const root = document.documentElement;
-  root.style.setProperty('--project-accent', accent);
-  root.style.setProperty('--project-accent-bg', isLight
-    ? `hsl(${color.hue}, 30%, 92%)`
-    : `hsl(${color.hue}, 40%, 15%)`);
-  root.style.setProperty('--project-accent-dim', `hsla(${color.hue}, ${color.s}%, ${color.l}%, ${isLight ? 0.12 : 0.15})`);
-  root.style.setProperty('--project-accent-border', `hsla(${color.hue}, ${color.s}%, ${color.l}%, ${isLight ? 0.25 : 0.3})`);
+  // No-op — per-project accent colors removed; kept for call-site compatibility
 }
 
 /** Get all session [id, session] entries for a given project path */
