@@ -14,7 +14,7 @@ const DEFAULTS = {
   y: undefined,
   isMaximized: false,
   sidebarWidth: 220,
-  sidebarMode: 'autohide',
+  sidebarMode: 'pinned',
   fontSize: 14,
 };
 

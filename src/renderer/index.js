@@ -968,7 +968,7 @@ function pasteClipboard() {
 
 // ── Sidebar Auto-Hide (Dock Mode) ────────────────────────────
 
-let sidebarMode = 'autohide'; // 'pinned' | 'autohide'
+let sidebarMode = 'pinned'; // 'pinned' | 'autohide'
 let sidebarRevealed = false;
 let sidebarHideTimeout = null;
 let sidebarWidth = 220; // persisted width, used to restore on reveal

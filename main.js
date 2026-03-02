@@ -6,6 +6,7 @@ const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+
 // Fix PATH on macOS — apps launched from Finder have a minimal PATH
 if (process.platform === 'darwin') {
   const { execFile } = require('child_process');

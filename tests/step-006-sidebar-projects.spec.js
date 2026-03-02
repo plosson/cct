@@ -600,8 +600,9 @@ test('29 - sessions are restored on app restart', async () => {
 
 // ── Claude Code SessionStart hook ─────────────────────────────
 
-test('30 - SessionStart hook is installed in ~/.claude/settings.json', async () => {
-  const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+test('30 - SessionStart hook is installed in isolated settings file', async () => {
+  // Hooks are written to CCT_USER_DATA/claude-settings.json in test mode
+  const settingsPath = path.join(testEnv.CCT_USER_DATA, 'claude-settings.json');
   expect(fs.existsSync(settingsPath)).toBe(true);
 
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));

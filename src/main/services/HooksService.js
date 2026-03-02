@@ -8,7 +8,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const CLAUDE_SETTINGS_PATH = path.join(os.homedir(), '.claude', 'settings.json');
+// In test mode (CCT_USER_DATA set), write to isolated dir instead of real ~/.claude/settings.json
+const CLAUDE_SETTINGS_PATH = process.env.CCT_USER_DATA
+  ? path.join(process.env.CCT_USER_DATA, 'claude-settings.json')
+  : path.join(os.homedir(), '.claude', 'settings.json');
 
 // Identifier used to detect our hooks in the config
 const HOOK_IDENTIFIER = 'cct-hook-handler';

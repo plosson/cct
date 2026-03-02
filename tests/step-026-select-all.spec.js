@@ -63,39 +63,30 @@ test('1 - terminal has no selection initially', async () => {
 });
 
 test('2 - Cmd+A selects all text in terminal', async () => {
-  // Type some text first
+  // Clear the clipboard so stale values from other tests don't interfere
+  await window.evaluate(() => window.electron_api.clipboard.writeText(''));
+
+  // Type some text and wait for it to appear in the buffer
   await window.evaluate(() => {
     const id = window._cctActiveTabId();
-    window.electron_api.terminal.input({ id, data: 'echo SELECT_ALL_TEST\\n' });
+    window.electron_api.terminal.input({ id, data: 'echo SELECT_ALL_TEST\n' });
   });
-  await window.waitForTimeout(500);
+  await expect(async () => {
+    const text = await window.evaluate(() => window._cctGetBufferText());
+    expect(text).toContain('SELECT_ALL_TEST');
+  }).toPass({ timeout: 5000 });
 
   // Press Cmd+A to select all
   await window.keyboard.press('Meta+a');
   await window.waitForTimeout(200);
 
-  // Check that there is a selection
-  const hasSelection = await window.evaluate(() => {
-    const id = window._cctActiveTabId();
-    // We need to access the terminal through sessions map
-    // Use the clipboard approach: after selectAll, getSelection should return non-empty
-    return document.querySelector('.xterm .xterm-screen') !== null;
-  });
-  expect(hasSelection).toBe(true);
-
   // Copy the selection and verify it contains our test text
-  await window.evaluate(() => {
-    // The selectAll was already done by Cmd+A
-    // Now use the clipboard to get what's selected
-    const id = window._cctActiveTabId();
-  });
-
-  // Verify by using Cmd+Shift+C to copy, then reading clipboard
   await window.keyboard.press('Meta+Shift+C');
-  await window.waitForTimeout(200);
 
-  const clipboardText = await window.evaluate(() => window.electron_api.clipboard.readText());
-  expect(clipboardText).toContain('SELECT_ALL_TEST');
+  await expect(async () => {
+    const clipboardText = await window.evaluate(() => window.electron_api.clipboard.readText());
+    expect(clipboardText).toContain('SELECT_ALL_TEST');
+  }).toPass({ timeout: 5000 });
 });
 
 test('3 - Cmd+A is a no-op when no active session', async () => {
