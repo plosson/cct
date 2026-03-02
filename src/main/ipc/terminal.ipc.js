@@ -39,6 +39,14 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
       command = configService.resolve(key, cwd) || undefined;
     }
 
+    // Split command string into binary + extra args (e.g. "claude --dangerously-skip-permissions")
+    let commandArgs = [];
+    if (command) {
+      const parts = command.split(/\s+/).filter(Boolean);
+      command = parts[0];
+      commandArgs = parts.slice(1);
+    }
+
     // Build extra env vars
     const env = {};
     if (cwd && projectConfigService) {
@@ -67,7 +75,7 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
       sessionMap.delete(id);
     };
 
-    const result = terminalService.create({ ...params, command, args, env, onExit });
+    const result = terminalService.create({ ...params, command, args: [...commandArgs, ...args], env, onExit });
 
     // Record session in .cct/sessions.json
     if (cwd && projectConfigService) {
