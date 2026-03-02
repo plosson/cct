@@ -39,3 +39,17 @@ test('2 - debug pane state defaults are persisted', async () => {
   expect(height).toBe(200);
   expect(open).toBe(false);
 });
+
+test('3 - debug pane exists in DOM and is collapsed by default', async () => {
+  const pane = await window.evaluate(() => {
+    const el = document.querySelector('[data-testid="debug-pane"]');
+    if (!el) return null;
+    return {
+      exists: true,
+      display: getComputedStyle(el).display,
+      height: el.offsetHeight,
+    };
+  });
+  expect(pane).not.toBeNull();
+  expect(pane.height).toBe(0);
+});

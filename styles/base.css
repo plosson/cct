@@ -835,3 +835,125 @@ html, body {
   font-size: 14px;
   user-select: none;
 }
+
+/* Debug pane */
+.debug-pane-resize-handle {
+  height: 4px;
+  cursor: row-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  display: none;
+}
+
+.debug-pane-resize-handle.visible {
+  display: block;
+}
+
+.debug-pane-resize-handle:hover,
+.debug-pane-resize-handle.dragging {
+  background: #3a3a5a;
+}
+
+.debug-pane {
+  height: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #12122a;
+  border-top: none;
+}
+
+.debug-pane.open {
+  overflow: visible;
+  border-top: 1px solid #2a2a4a;
+}
+
+.debug-pane-header {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  background: #16162a;
+  border-bottom: 1px solid #2a2a4a;
+  flex-shrink: 0;
+  gap: 8px;
+  font-size: 11px;
+  color: #888;
+  user-select: none;
+}
+
+.debug-pane-title {
+  font-weight: 600;
+  color: #aaa;
+}
+
+.debug-pane-count {
+  color: #666;
+  font-size: 10px;
+}
+
+.debug-pane-spacer {
+  flex: 1;
+}
+
+.debug-pane-clear-btn {
+  background: none;
+  border: 1px solid #3a3a5a;
+  color: #888;
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.debug-pane-clear-btn:hover {
+  color: #ccc;
+  border-color: #555;
+}
+
+.debug-pane-entries {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.debug-entry {
+  padding: 1px 12px;
+  display: flex;
+  gap: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.debug-entry-time {
+  color: #555;
+  flex-shrink: 0;
+}
+
+.debug-entry-source {
+  color: #6a6a9a;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.debug-entry-message {
+  flex: 1;
+}
+
+.debug-entry.level-info .debug-entry-message {
+  color: #888;
+}
+
+.debug-entry.level-warn .debug-entry-message {
+  color: #e5c07b;
+}
+
+.debug-entry.level-error .debug-entry-message {
+  color: #e06c75;
+}

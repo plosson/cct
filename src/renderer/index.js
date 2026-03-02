@@ -77,6 +77,12 @@ let sidebarEl;
 let emptyStateEl;
 let titlebarMonogram;
 let titlebarProjectName;
+let debugPaneEl;
+let debugPaneEntriesEl;
+let debugPaneCountEl;
+let debugPaneResizeHandle;
+let debugPaneOpen = false;
+let debugPaneHeight = 200;
 
 // Project list (synced with ProjectStore via IPC)
 const projects = [];
@@ -1597,6 +1603,10 @@ async function init() {
   sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
   sidebarEl = document.querySelector('[data-testid="sidebar"]');
   emptyStateEl = document.querySelector('[data-testid="empty-state"]');
+  debugPaneEl = document.querySelector('[data-testid="debug-pane"]');
+  debugPaneEntriesEl = document.querySelector('[data-testid="debug-pane-entries"]');
+  debugPaneCountEl = document.querySelector('[data-testid="debug-pane-count"]');
+  debugPaneResizeHandle = document.querySelector('[data-testid="debug-pane-resize-handle"]');
   titlebarMonogram = document.querySelector('[data-testid="titlebar-monogram"]');
   titlebarProjectName = document.querySelector('[data-testid="titlebar-project-name"]');
 
@@ -1650,6 +1660,16 @@ async function init() {
     if (savedFontSize && savedFontSize >= MIN_FONT_SIZE && savedFontSize <= MAX_FONT_SIZE) {
       currentFontSize = savedFontSize;
       TERMINAL_OPTIONS.fontSize = currentFontSize;
+    }
+    // Restore debug pane state
+    const savedDebugHeight = await api.windowState.getDebugPaneHeight();
+    if (savedDebugHeight && savedDebugHeight > 0) debugPaneHeight = savedDebugHeight;
+    const savedDebugOpen = await api.windowState.getDebugPaneOpen();
+    if (savedDebugOpen) {
+      debugPaneOpen = true;
+      debugPaneEl.style.height = debugPaneHeight + 'px';
+      debugPaneEl.classList.add('open');
+      debugPaneResizeHandle.classList.add('visible');
     }
   }
 
