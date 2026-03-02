@@ -125,6 +125,7 @@ html, body {
   color: var(--text-primary);
 }
 
+
 .app {
   height: 100%;
   display: flex;
@@ -1040,4 +1041,18 @@ html, body {
 
 .debug-entry.level-error .debug-entry-message {
   color: var(--error);
+}
+
+/* ── xterm.js scrollbar: native macOS overlay look ───────────── */
+
+.xterm .xterm-scrollable-element > .scrollbar.vertical {
+  width: 7px !important;
+  right: 1px !important;
+  left: auto !important;
+}
+
+.xterm .xterm-scrollable-element > .scrollbar > .slider {
+  border-radius: 4px;
+  width: 5px !important;
+  left: 1px !important;
 }

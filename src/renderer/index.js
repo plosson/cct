@@ -93,6 +93,9 @@ const DARK_TERMINAL_THEME = {
   foreground: '#e8e0d4',
   cursor: '#e8e0d4',
   selectionBackground: 'rgba(212, 148, 60, 0.25)',
+  scrollbarSliderBackground: 'rgba(255, 255, 255, 0.2)',
+  scrollbarSliderHoverBackground: 'rgba(255, 255, 255, 0.35)',
+  scrollbarSliderActiveBackground: 'rgba(255, 255, 255, 0.5)',
 };
 
 const LIGHT_TERMINAL_THEME = {
@@ -100,6 +103,9 @@ const LIGHT_TERMINAL_THEME = {
   foreground: '#1a1a1a',
   cursor: '#1a1a1a',
   selectionBackground: 'rgba(0, 102, 204, 0.2)',
+  scrollbarSliderBackground: 'rgba(0, 0, 0, 0.2)',
+  scrollbarSliderHoverBackground: 'rgba(0, 0, 0, 0.35)',
+  scrollbarSliderActiveBackground: 'rgba(0, 0, 0, 0.5)',
 };
 
 function getCurrentThemeMode() {
@@ -343,6 +349,18 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   terminal.loadAddon(unicode11Addon);
   terminal.unicode.activeVersion = '11';
   terminal.open(panelEl);
+
+  // Force scrollbar flush to right edge (xterm sets inline left/width)
+  const scrollbar = panelEl.querySelector('.xterm-scrollable-element > .scrollbar.vertical');
+  if (scrollbar) {
+    const fixScrollbar = () => {
+      scrollbar.style.setProperty('width', '7px', 'important');
+      scrollbar.style.setProperty('left', 'auto', 'important');
+      scrollbar.style.setProperty('right', '1px', 'important');
+    };
+    fixScrollbar();
+    new MutationObserver(fixScrollbar).observe(scrollbar, { attributes: true, attributeFilter: ['style'] });
+  }
 
   const createParams = {
     cols: terminal.cols,
