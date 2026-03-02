@@ -63,6 +63,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+7': 'goToTab7',
   'Meta+8': 'goToTab8',
   'Meta+9': 'goToLastTab',
+  'Meta+j': 'toggleDebugPane',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -77,6 +78,12 @@ let sidebarEl;
 let emptyStateEl;
 let titlebarMonogram;
 let titlebarProjectName;
+let debugPaneEl;
+let debugPaneEntriesEl;
+let debugPaneCountEl;
+let debugPaneResizeHandle;
+let debugPaneOpen = false;
+let debugPaneHeight = 200;
 
 // Project list (synced with ProjectStore via IPC)
 const projects = [];
@@ -1119,6 +1126,7 @@ const ACTION_LABELS = {
   closeOtherTabs: 'Close Other Tabs',
   openSettings: 'Settings',
   showShortcutHelp: 'Show Shortcuts',
+  toggleDebugPane: 'Toggle Debug Log',
   goToTab1: 'Go to Tab 1',
   goToTab2: 'Go to Tab 2',
   goToTab3: 'Go to Tab 3',
@@ -1506,6 +1514,129 @@ function initSidebarResize() {
   });
 }
 
+// ── Debug pane toggle ────────────────────────────────────────
+
+function toggleDebugPane() {
+  debugPaneOpen = !debugPaneOpen;
+  if (debugPaneOpen) {
+    debugPaneEl.style.height = debugPaneHeight + 'px';
+    debugPaneEl.classList.add('open');
+    debugPaneResizeHandle.classList.add('visible');
+  } else {
+    debugPaneEl.style.height = '0';
+    debugPaneEl.classList.remove('open');
+    debugPaneResizeHandle.classList.remove('visible');
+  }
+  if (api.windowState) {
+    api.windowState.setDebugPaneOpen(debugPaneOpen);
+  }
+  // Refit active terminal since available space changed
+  if (activeId) {
+    const session = sessions.get(activeId);
+    if (session) session.fitAddon.fit();
+  }
+}
+
+// ── Debug pane resize ────────────────────────────────────────
+
+function initDebugPaneResize() {
+  const MIN_HEIGHT = 80;
+
+  let isDragging = false;
+  let startY = 0;
+  let startHeight = 0;
+
+  debugPaneResizeHandle.addEventListener('mousedown', (e) => {
+    if (!debugPaneOpen) return;
+    isDragging = true;
+    startY = e.clientY;
+    startHeight = debugPaneEl.offsetHeight;
+    debugPaneResizeHandle.classList.add('dragging');
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const mainArea = document.querySelector('.main-area');
+    const maxHeight = Math.floor(mainArea.offsetHeight * 0.5);
+    const delta = startY - e.clientY; // dragging up increases height
+    const newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, startHeight + delta));
+    debugPaneEl.style.height = newHeight + 'px';
+    // Refit active terminal
+    if (activeId) {
+      const session = sessions.get(activeId);
+      if (session) session.fitAddon.fit();
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    debugPaneResizeHandle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    debugPaneHeight = debugPaneEl.offsetHeight;
+    if (api.windowState) {
+      api.windowState.setDebugPaneHeight(debugPaneHeight);
+    }
+  });
+}
+
+// ── Debug pane entries ───────────────────────────────────────
+
+let debugAutoScroll = true;
+
+function formatLogTime(timestamp) {
+  const d = new Date(timestamp);
+  return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function addDebugEntry(entry) {
+  if (!debugPaneEntriesEl) return;
+
+  const row = document.createElement('div');
+  row.className = `debug-entry level-${entry.level}`;
+
+  const time = document.createElement('span');
+  time.className = 'debug-entry-time';
+  time.textContent = formatLogTime(entry.timestamp);
+
+  const source = document.createElement('span');
+  source.className = 'debug-entry-source';
+  source.textContent = `[${entry.source}]`;
+
+  const msg = document.createElement('span');
+  msg.className = 'debug-entry-message';
+  msg.textContent = entry.message;
+
+  row.append(time, source, msg);
+  debugPaneEntriesEl.appendChild(row);
+
+  updateDebugPaneCount();
+
+  // Auto-scroll if user hasn't scrolled up
+  if (debugAutoScroll) {
+    debugPaneEntriesEl.scrollTop = debugPaneEntriesEl.scrollHeight;
+  }
+}
+
+function updateDebugPaneCount() {
+  if (debugPaneCountEl) {
+    const count = debugPaneEntriesEl.querySelectorAll('.debug-entry').length;
+    debugPaneCountEl.textContent = count > 0 ? `(${count})` : '';
+  }
+}
+
+function clearDebugPane() {
+  if (debugPaneEntriesEl) {
+    debugPaneEntriesEl.innerHTML = '';
+    updateDebugPaneCount();
+  }
+  if (api.log) api.log.clear();
+}
+
 // ── Test helpers ─────────────────────────────────────────────
 
 window._cctGetBufferText = (targetId) => {
@@ -1576,6 +1707,7 @@ window._cctReloadProjects = (projectList) => {
 window._cctSelectProject = (projectPath) => {
   selectProject(projectPath);
 };
+window._cctAddDebugEntry = addDebugEntry;
 
 // ── Keybindings ──────────────────────────────────────────────
 
@@ -1597,6 +1729,10 @@ async function init() {
   sidebarProjectsEl = document.querySelector('[data-testid="project-list"]');
   sidebarEl = document.querySelector('[data-testid="sidebar"]');
   emptyStateEl = document.querySelector('[data-testid="empty-state"]');
+  debugPaneEl = document.querySelector('[data-testid="debug-pane"]');
+  debugPaneEntriesEl = document.querySelector('[data-testid="debug-pane-entries"]');
+  debugPaneCountEl = document.querySelector('[data-testid="debug-pane-count"]');
+  debugPaneResizeHandle = document.querySelector('[data-testid="debug-pane-resize-handle"]');
   titlebarMonogram = document.querySelector('[data-testid="titlebar-monogram"]');
   titlebarProjectName = document.querySelector('[data-testid="titlebar-project-name"]');
 
@@ -1651,7 +1787,37 @@ async function init() {
       currentFontSize = savedFontSize;
       TERMINAL_OPTIONS.fontSize = currentFontSize;
     }
+    // Restore debug pane state
+    const savedDebugHeight = await api.windowState.getDebugPaneHeight();
+    if (savedDebugHeight && savedDebugHeight > 0) debugPaneHeight = savedDebugHeight;
+    const savedDebugOpen = await api.windowState.getDebugPaneOpen();
+    if (savedDebugOpen) {
+      debugPaneOpen = true;
+      debugPaneEl.style.height = debugPaneHeight + 'px';
+      debugPaneEl.classList.add('open');
+      debugPaneResizeHandle.classList.add('visible');
+    }
   }
+
+  // Wire up debug pane
+  if (api.log) {
+    // Load history
+    const history = await api.log.getHistory();
+    for (const entry of history) addDebugEntry(entry);
+
+    // Stream new entries
+    api.log.onEntry((entry) => addDebugEntry(entry));
+  }
+
+  // Clear button
+  document.querySelector('[data-testid="debug-pane-clear-btn"]')
+    .addEventListener('click', clearDebugPane);
+
+  // Track scroll position for auto-scroll behavior
+  debugPaneEntriesEl.addEventListener('scroll', () => {
+    const { scrollTop, scrollHeight, clientHeight } = debugPaneEntriesEl;
+    debugAutoScroll = scrollTop + clientHeight >= scrollHeight - 10;
+  });
 
   // Sidebar: add project button
   document.querySelector('[data-testid="add-project-btn"]')
@@ -1702,6 +1868,7 @@ async function init() {
   actions.set('closeOtherTabs', () => { if (activeId !== null) closeOtherTabs(activeId); });
   actions.set('openSettings', openSettings);
   actions.set('showShortcutHelp', showShortcutHelp);
+  actions.set('toggleDebugPane', toggleDebugPane);
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
   }
@@ -1721,6 +1888,7 @@ async function init() {
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
 
   initSidebarResize();
+  initDebugPaneResize();
   initSidebarAutoHide();
 
   // Enable sidebar transitions after first paint to prevent slide-on-load

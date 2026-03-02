@@ -63,8 +63,10 @@ if (!gotTheLock) {
   const { ConfigService } = require('./src/main/services/ConfigService');
   const { registerConfigIPC } = require('./src/main/ipc/config.ipc');
   const { WindowStateService } = require('./src/main/services/WindowStateService');
-  const { installHooks, removeHooks } = require('./src/main/services/HooksService');
+  const { installHooks, removeHooks, setLogService } = require('./src/main/services/HooksService');
   const { UpdaterService } = require('./src/main/services/UpdaterService');
+  const { LogService } = require('./src/main/services/LogService');
+  const { registerLogIPC } = require('./src/main/ipc/log.ipc');
 
   let terminalService;
   let windowStateService;
@@ -91,15 +93,18 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
-    windowStateService = new WindowStateService();
+    const logService = new LogService();
+    registerLogIPC(logService);
+
+    windowStateService = new WindowStateService(logService);
     const win = createMainWindow(windowStateService);
-    terminalService = new TerminalService(win);
+    terminalService = new TerminalService(win, logService);
     setTerminalService(terminalService);
     const projectConfigService = new ProjectConfigService();
-    const configService = new ConfigService();
+    const configService = new ConfigService(logService);
     registerTerminalIPC(terminalService, projectConfigService, configService);
 
-    projectStore = new ProjectStore();
+    projectStore = new ProjectStore(logService);
     registerProjectIPC(projectStore, projectConfigService);
     registerConfigIPC(configService);
 
@@ -112,6 +117,10 @@ if (!gotTheLock) {
     ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
     ipcMain.handle('get-font-size', () => windowStateService.fontSize);
     ipcMain.on('set-font-size', (_event, size) => { windowStateService.fontSize = size; });
+    ipcMain.handle('get-debug-pane-height', () => windowStateService.debugPaneHeight);
+    ipcMain.on('set-debug-pane-height', (_event, h) => { windowStateService.debugPaneHeight = h; });
+    ipcMain.handle('get-debug-pane-open', () => windowStateService.debugPaneOpen);
+    ipcMain.on('set-debug-pane-open', (_event, open) => { windowStateService.debugPaneOpen = open; });
 
     // Shell IPC
     ipcMain.handle('shell-show-item-in-folder', (_event, fullPath) => shell.showItemInFolder(fullPath));
@@ -138,9 +147,12 @@ if (!gotTheLock) {
     });
 
     // Auto-updater (skips initialization in dev mode)
-    new UpdaterService(win);
+    new UpdaterService(win, logService);
 
+    setLogService(logService);
     installHooks();
+
+    logService.info('app', 'CCT started — v' + app.getVersion());
 
     // Customize native application menu
     const menu = Menu.getApplicationMenu();

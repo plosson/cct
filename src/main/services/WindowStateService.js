@@ -16,10 +16,13 @@ const DEFAULTS = {
   sidebarWidth: 220,
   sidebarMode: 'pinned',
   fontSize: 14,
+  debugPaneHeight: 200,
+  debugPaneOpen: false,
 };
 
 class WindowStateService {
-  constructor() {
+  constructor(logService) {
+    this._logService = logService || null;
     this._filePath = path.join(app.getPath('userData'), 'window-state.json');
     this._state = { ...DEFAULTS };
     this._window = null;
@@ -33,8 +36,9 @@ class WindowStateService {
       const data = JSON.parse(fs.readFileSync(this._filePath, 'utf8'));
       this._state = { ...DEFAULTS, ...data };
       fileExists = true;
-    } catch {
+    } catch (e) {
       this._state = { ...DEFAULTS };
+      if (this._logService) this._logService.warn('window', 'Failed to load window state: ' + (e.message || e));
     }
     this._validateBounds();
     // Create file with defaults if it doesn't exist
@@ -66,8 +70,8 @@ class WindowStateService {
       const dir = path.dirname(this._filePath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(this._filePath, JSON.stringify(this._state, null, 2));
-    } catch {
-      // Ignore write errors (e.g. during shutdown)
+    } catch (e) {
+      if (this._logService) this._logService.warn('window', 'Failed to save window state: ' + (e.message || e));
     }
   }
 
@@ -129,6 +133,24 @@ class WindowStateService {
 
   set fontSize(value) {
     this._state.fontSize = value;
+    this._debouncedSave();
+  }
+
+  get debugPaneHeight() {
+    return this._state.debugPaneHeight;
+  }
+
+  set debugPaneHeight(value) {
+    this._state.debugPaneHeight = value;
+    this._debouncedSave();
+  }
+
+  get debugPaneOpen() {
+    return this._state.debugPaneOpen;
+  }
+
+  set debugPaneOpen(value) {
+    this._state.debugPaneOpen = value;
     this._debouncedSave();
   }
 

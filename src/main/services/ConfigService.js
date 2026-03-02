@@ -30,7 +30,8 @@ const CONFIG_SCHEMA = {
 };
 
 class ConfigService {
-  constructor() {
+  constructor(logService) {
+    this._logService = logService || null;
     this._globalPath = path.join(app.getPath('userData'), 'config.json');
     this._global = {};
     this._projectCache = new Map(); // projectPath -> config object
@@ -47,8 +48,9 @@ class ConfigService {
   _loadGlobal() {
     try {
       this._global = JSON.parse(fs.readFileSync(this._globalPath, 'utf8'));
-    } catch {
+    } catch (e) {
       this._global = {};
+      if (this._logService) this._logService.warn('config', 'Failed to load global config: ' + (e.message || e));
     }
   }
 
@@ -76,8 +78,10 @@ class ConfigService {
     return { ...this._global };
   }
 
-  /** Bulk-set global config values (empty/null/undefined values are unset) */
+  /** Bulk-set global config values — replaces all global config with the given values.
+   *  Only known schema keys are kept; empty/null/undefined values are dropped. */
   setGlobalAll(values) {
+    this._global = {};
     this._applyValues(this._global, values);
     this._saveGlobal();
   }
@@ -95,7 +99,7 @@ class ConfigService {
     let config = {};
     try {
       config = JSON.parse(fs.readFileSync(this._projectConfigPath(projectPath), 'utf8'));
-    } catch {
+    } catch (e) {
       config = {};
     }
     this._projectCache.set(projectPath, config);
@@ -115,9 +119,10 @@ class ConfigService {
     return { ...this._loadProject(projectPath) };
   }
 
-  /** Bulk-set per-project config values (empty/null/undefined values are unset) */
+  /** Bulk-set per-project config values — replaces all project config with the given values.
+   *  Only known schema keys are kept; empty/null/undefined values are dropped. */
   setProjectAll(projectPath, values) {
-    const config = this._loadProject(projectPath);
+    const config = {};
     this._applyValues(config, values);
     this._saveProject(projectPath, config);
   }

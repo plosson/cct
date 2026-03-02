@@ -8,8 +8,9 @@ const { app, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 
 class UpdaterService {
-  constructor(mainWindow) {
+  constructor(mainWindow, logService) {
     this._window = mainWindow;
+    this._logService = logService || null;
 
     if (!app.isPackaged) return;
 
@@ -17,6 +18,7 @@ class UpdaterService {
     autoUpdater.autoInstallOnAppQuit = true;
 
     autoUpdater.on('update-available', (info) => {
+      if (this._logService) this._logService.info('updater', 'Update available: v' + info.version);
       this._send('update-available', { version: info.version, releaseNotes: info.releaseNotes });
     });
 
@@ -25,10 +27,12 @@ class UpdaterService {
     });
 
     autoUpdater.on('update-downloaded', (info) => {
+      if (this._logService) this._logService.info('updater', 'Update downloaded: v' + info.version);
       this._send('update-downloaded', { version: info.version });
     });
 
     autoUpdater.on('error', (err) => {
+      if (this._logService) this._logService.error('updater', 'Update error: ' + (err?.message || String(err)));
       this._send('update-error', { message: err?.message || String(err) });
     });
 

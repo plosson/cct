@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('electron_api', {
     getFontSize: () => ipcRenderer.invoke('get-font-size'),
     setFontSize: (size) => ipcRenderer.send('set-font-size', size),
     getConfigPath: () => ipcRenderer.invoke('get-window-state-path'),
+    getDebugPaneHeight: () => ipcRenderer.invoke('get-debug-pane-height'),
+    setDebugPaneHeight: (h) => ipcRenderer.send('set-debug-pane-height', h),
+    getDebugPaneOpen: () => ipcRenderer.invoke('get-debug-pane-open'),
+    setDebugPaneOpen: (open) => ipcRenderer.send('set-debug-pane-open', open),
   },
 
   contextMenu: {
@@ -81,5 +85,11 @@ contextBridge.exposeInMainWorld('electron_api', {
     setProject: (projectPath, values) => ipcRenderer.invoke('config-set-project', { projectPath, values }),
     resolve: (key, projectPath) => ipcRenderer.invoke('config-resolve', { key, projectPath }),
     resolveAll: (projectPath) => ipcRenderer.invoke('config-resolve-all', projectPath),
-  }
+  },
+
+  log: {
+    getHistory: () => ipcRenderer.invoke('log-get-history'),
+    clear: () => ipcRenderer.send('log-clear'),
+    onEntry: createListener('log-entry'),
+  },
 });
