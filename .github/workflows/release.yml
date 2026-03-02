@@ -33,18 +33,10 @@ jobs:
       - name: Build renderer
         run: npm run build:renderer
 
-      - name: Build and publish zip (auto-updater)
+      - name: Build and publish (zip + dmg)
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 15
-          command: npx electron-builder --mac zip --arm64 --publish always --config electron-builder.config.js
-
-      - name: Build and publish DMG (first install)
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 20
-          max_attempts: 3
-          retry_wait_seconds: 15
-          command: npx electron-builder --mac dmg --arm64 --publish always --config electron-builder.config.js
+          command: npx electron-builder --mac zip dmg --arm64 --publish always --config electron-builder.config.js
