@@ -53,3 +53,28 @@ test('3 - debug pane exists in DOM and is collapsed by default', async () => {
   expect(pane).not.toBeNull();
   expect(pane.height).toBe(0);
 });
+
+test('4 - Cmd+J toggles debug pane open and closed', async () => {
+  // Initially collapsed
+  let height = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').offsetHeight);
+  expect(height).toBe(0);
+
+  // Toggle open
+  await window.keyboard.press('Meta+j');
+  await window.waitForTimeout(100);
+
+  height = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').offsetHeight);
+  expect(height).toBeGreaterThan(0);
+
+  const handleVisible = await window.evaluate(() =>
+    document.querySelector('[data-testid="debug-pane-resize-handle"]').classList.contains('visible')
+  );
+  expect(handleVisible).toBe(true);
+
+  // Toggle closed
+  await window.keyboard.press('Meta+j');
+  await window.waitForTimeout(100);
+
+  height = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').offsetHeight);
+  expect(height).toBe(0);
+});

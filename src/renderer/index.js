@@ -63,6 +63,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+7': 'goToTab7',
   'Meta+8': 'goToTab8',
   'Meta+9': 'goToLastTab',
+  'Meta+j': 'toggleDebugPane',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -1512,6 +1513,29 @@ function initSidebarResize() {
   });
 }
 
+// ── Debug pane toggle ────────────────────────────────────────
+
+function toggleDebugPane() {
+  debugPaneOpen = !debugPaneOpen;
+  if (debugPaneOpen) {
+    debugPaneEl.style.height = debugPaneHeight + 'px';
+    debugPaneEl.classList.add('open');
+    debugPaneResizeHandle.classList.add('visible');
+  } else {
+    debugPaneEl.style.height = '0';
+    debugPaneEl.classList.remove('open');
+    debugPaneResizeHandle.classList.remove('visible');
+  }
+  if (api.windowState) {
+    api.windowState.setDebugPaneOpen(debugPaneOpen);
+  }
+  // Refit active terminal since available space changed
+  if (activeId) {
+    const session = sessions.get(activeId);
+    if (session) session.fitAddon.fit();
+  }
+}
+
 // ── Test helpers ─────────────────────────────────────────────
 
 window._cctGetBufferText = (targetId) => {
@@ -1722,6 +1746,7 @@ async function init() {
   actions.set('closeOtherTabs', () => { if (activeId !== null) closeOtherTabs(activeId); });
   actions.set('openSettings', openSettings);
   actions.set('showShortcutHelp', showShortcutHelp);
+  actions.set('toggleDebugPane', toggleDebugPane);
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
   }
