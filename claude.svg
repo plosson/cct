@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" width="128" height="128">
+  <g fill="#D97757">
+    <!-- Top bar -->
+    <rect x="10" y="0"  width="120" height="20" rx="3"/>
+    <!-- Left arm -->
+    <rect x="0"   y="18" width="22"  height="24" rx="3"/>
+    <!-- Middle section -->
+    <rect x="40"  y="18" width="60"  height="24" rx="3"/>
+    <!-- Right arm -->
+    <rect x="118" y="18" width="22"  height="24" rx="3"/>
+    <!-- Bridge row -->
+    <rect x="0"   y="38" width="140" height="14" rx="3"/>
+    <!-- Body -->
+    <rect x="10"  y="48" width="120" height="32" rx="3"/>
+    <!-- Legs -->
+    <rect x="10"  y="78" width="12"  height="22" rx="3"/>
+    <rect x="30"  y="78" width="12"  height="22" rx="3"/>
+    <rect x="98"  y="78" width="12"  height="22" rx="3"/>
+    <rect x="118" y="78" width="12"  height="22" rx="3"/>
+  </g>
+</svg>

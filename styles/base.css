@@ -921,6 +921,40 @@ html, body {
   user-select: none;
 }
 
+.empty-state-sessions {
+  display: flex;
+  gap: 16px;
+}
+
+.ess-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 32px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+.ess-card:hover { background: var(--bg-hover); }
+
+.ess-icon svg { width: 40px; height: 40px; }
+
+.ess-label { font-size: 13px; }
+
+.ess-kbd {
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: inherit;
+}
+
 /* Debug pane */
 .debug-pane-resize-handle {
   height: 4px;

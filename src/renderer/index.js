@@ -170,8 +170,22 @@ function getEmptyStateMessage() {
 
 function updateEmptyState() {
   const message = getEmptyStateMessage();
-  emptyStateEl.style.display = message ? 'flex' : 'none';
-  if (message) emptyStateEl.textContent = message;
+  if (!message) {
+    emptyStateEl.style.display = 'none';
+    return;
+  }
+  emptyStateEl.style.display = 'flex';
+  const msgEl = emptyStateEl.querySelector('.empty-state-msg');
+  const sessionsEl = emptyStateEl.querySelector('.empty-state-sessions');
+  const isNoSessions = selectedProjectPath && countSessionsForProject(selectedProjectPath) === 0;
+  if (isNoSessions) {
+    msgEl.style.display = 'none';
+    sessionsEl.style.display = 'flex';
+  } else {
+    msgEl.textContent = message;
+    msgEl.style.display = '';
+    sessionsEl.style.display = 'none';
+  }
 }
 
 // ── Sidebar ──────────────────────────────────────────────────
@@ -1976,6 +1990,9 @@ async function init() {
   });
 
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
+
+  document.querySelector('.ess-card[data-action="claude"]').addEventListener('click', () => createSession('claude'));
+  document.querySelector('.ess-card[data-action="terminal"]').addEventListener('click', () => createSession('terminal'));
 
   initSidebarResize();
   initDebugPaneResize();

@@ -26,7 +26,35 @@
       <div class="sidebar-resize-handle" data-testid="sidebar-resize-handle"></div>
       <div class="main-area">
         <div id="terminals" class="terminals-container">
-          <div class="empty-state" data-testid="empty-state">Add a project to get started</div>
+          <div class="empty-state" data-testid="empty-state">
+            <span class="empty-state-msg">Add a project to get started</span>
+            <div class="empty-state-sessions" style="display:none">
+              <button class="ess-card" data-action="claude">
+                <span class="ess-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" fill="#D97757">
+                  <rect x="10" y="0"  width="120" height="20" rx="3"/>
+                  <rect x="0"   y="18" width="22"  height="24" rx="3"/>
+                  <rect x="40"  y="18" width="60"  height="24" rx="3"/>
+                  <rect x="118" y="18" width="22"  height="24" rx="3"/>
+                  <rect x="0"   y="38" width="140" height="14" rx="3"/>
+                  <rect x="10"  y="48" width="120" height="32" rx="3"/>
+                  <rect x="10"  y="78" width="12"  height="22" rx="3"/>
+                  <rect x="30"  y="78" width="12"  height="22" rx="3"/>
+                  <rect x="98"  y="78" width="12"  height="22" rx="3"/>
+                  <rect x="118" y="78" width="12"  height="22" rx="3"/>
+                </svg></span>
+                <span class="ess-label">Open Claude Code</span>
+                <kbd class="ess-kbd">⌘N</kbd>
+              </button>
+              <button class="ess-card" data-action="terminal">
+                <span class="ess-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="currentColor">
+                  <polyline points="10,35 35,50 10,65" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                  <rect x="42" y="62" width="38" height="9" rx="2"/>
+                </svg></span>
+                <span class="ess-label">Open Terminal</span>
+                <kbd class="ess-kbd">⌘T</kbd>
+              </button>
+            </div>
+          </div>
         </div>
         <div class="debug-pane-resize-handle" data-testid="debug-pane-resize-handle"></div>
         <div class="debug-pane" data-testid="debug-pane">
