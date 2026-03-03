@@ -289,6 +289,19 @@ html, body {
   color: var(--text-primary);
 }
 
+.sidebar-project-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.sidebar-project-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
 .sidebar-project-name {
   flex: 1;
   overflow: hidden;
@@ -746,6 +759,24 @@ html, body {
   padding: 2px 8px;
   min-width: 40px;
   text-align: center;
+}
+
+.status-bar-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.status-bar-shortcuts kbd {
+  background: var(--kbd-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-family: inherit;
+  color: var(--text-dim);
 }
 
 .status-bar-version {

@@ -202,7 +202,15 @@ function renderSidebar() {
 
     const sessionCount = countSessionsForProject(project.path);
 
+    const color = getProjectColor(project.name);
+    const folderColor = `hsl(${color.hue}, ${color.s}%, ${color.l + 10}%)`;
+
     el.innerHTML = `
+      <span class="sidebar-project-icon" style="color: ${folderColor}">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.3a1.5 1.5 0 0 1 1.1.5L8.6 3.5H13A1.5 1.5 0 0 1 14.5 5v7.5A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3z"/>
+        </svg>
+      </span>
       <span class="sidebar-project-name">${project.name}</span>
       <span class="sidebar-project-count" data-testid="session-count">${sessionCount}</span>
       <button class="sidebar-project-remove" data-testid="remove-project-btn">&times;</button>
