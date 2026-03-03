@@ -7,19 +7,29 @@ const path = require('path');
 const fs = require('fs');
 
 
-// Fix PATH on macOS — apps launched from Finder have a minimal PATH.
-// Must be synchronous so process.env.PATH is set before any PTY spawns.
+// Fix env on macOS — apps launched from Finder have a minimal environment.
+// Capture the full login-shell environment so PTYs inherit the right PATH, etc.
+// Must be synchronous so process.env is set before any PTY spawns.
 if (process.platform === 'darwin') {
   try {
     const { execFileSync } = require('child_process');
     const userShell = process.env.SHELL || '/bin/zsh';
-    const shellPath = execFileSync(userShell, ['-lc', 'echo $PATH'], {
+    const output = execFileSync(userShell, ['-lc', 'env -0'], {
       encoding: 'utf8',
       timeout: 5000,
-    }).trim();
-    if (shellPath) process.env.PATH = shellPath;
+    });
+    for (const entry of output.split('\0')) {
+      const idx = entry.indexOf('=');
+      if (idx > 0) {
+        const key = entry.slice(0, idx);
+        // Preserve Electron-set vars (like ELECTRON_RUN_AS_NODE)
+        if (!key.startsWith('ELECTRON') && key !== '_') {
+          process.env[key] = entry.slice(idx + 1);
+        }
+      }
+    }
   } catch {
-    // Fall back to minimal PATH if shell execution fails
+    // Fall back to minimal env if shell execution fails
   }
 }
 
