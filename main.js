@@ -98,11 +98,11 @@ if (!gotTheLock) {
     registerLogIPC(logService);
 
     windowStateService = new WindowStateService(logService);
-    const win = createMainWindow(windowStateService);
+    const configService = new ConfigService(logService);
+    const win = createMainWindow(windowStateService, configService);
     terminalService = new TerminalService(win, logService);
     setTerminalService(terminalService);
     const projectConfigService = new ProjectConfigService();
-    const configService = new ConfigService(logService);
     registerTerminalIPC(terminalService, projectConfigService, configService);
 
     projectStore = new ProjectStore(logService);

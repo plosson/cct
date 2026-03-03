@@ -27,6 +27,13 @@ const CONFIG_SCHEMA = {
     default: '',
     description: 'Command to spawn terminal sessions (empty = default shell)',
   },
+  theme: {
+    label: 'Theme',
+    type: 'select',
+    options: ['system', 'dark', 'light'],
+    default: 'system',
+    description: 'App color theme (system follows OS preference)',
+  },
 };
 
 class ConfigService {

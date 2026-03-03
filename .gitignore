@@ -6,3 +6,4 @@ playwright-report/
 *.dmg
 *.zip
 .DS_Store
+.cct/

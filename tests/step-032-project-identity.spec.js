@@ -82,7 +82,7 @@ test('2 - different project names get different palette indices', async () => {
   expect(result).toBeGreaterThanOrEqual(3);
 });
 
-test('3 - titlebar shows project name when project is selected', async () => {
+test('3 - tabs are integrated into the titlebar', async () => {
   const tmpDir = await addTempProject('titlebar');
 
   // Click the project to select it
@@ -90,54 +90,53 @@ test('3 - titlebar shows project name when project is selected', async () => {
   await projectItem.click();
   await window.waitForTimeout(300);
 
-  const titlebarName = window.locator('[data-testid="titlebar-project-name"]');
-  await expect(titlebarName).toBeVisible({ timeout: 5000 });
+  // Tab bar should be the titlebar-drag-region itself
+  const tabBar = window.locator('[data-testid="tab-bar"]');
+  await expect(tabBar).toBeVisible({ timeout: 5000 });
 
-  // Should contain the folder name (last segment of path)
-  const text = await titlebarName.textContent();
-  expect(text.toLowerCase()).toContain('titlebar');
+  // The titlebar should contain .titlebar-tabs
+  const titlebarTabs = window.locator('.titlebar-tabs');
+  await expect(titlebarTabs).toBeVisible();
 });
 
-test('4 - titlebar shows monogram with project initial', async () => {
-  const monogram = window.locator('[data-testid="titlebar-monogram"]');
-  await expect(monogram).toBeVisible();
-  const text = await monogram.textContent();
-  // Should be a single uppercase letter
-  expect(text).toMatch(/^[A-Z]$/);
+test('4 - new tab button is in the titlebar', async () => {
+  const newTabBtn = window.locator('[data-testid="new-tab-btn"]');
+  await expect(newTabBtn).toBeVisible();
 });
 
-test('5 - CSS custom properties are set when project is selected', async () => {
-  const accent = await window.evaluate(() => {
-    return getComputedStyle(document.documentElement).getPropertyValue('--project-accent').trim();
-  });
-  expect(accent).toMatch(/^hsl\(/);
-});
-
-test('6 - titlebar has tinted background', async () => {
+test('5 - titlebar uses neutral background (no per-project tint)', async () => {
   const bg = await window.evaluate(() => {
     return getComputedStyle(document.querySelector('.titlebar-drag-region')).backgroundColor;
   });
-  // Should NOT be transparent or the default #1a1a2e (rgb(26, 26, 46))
+  // Should be the bg-surface color, not transparent
   expect(bg).not.toBe('rgba(0, 0, 0, 0)');
-  expect(bg).not.toBe('rgb(26, 26, 46)');
 });
 
-test('7 - different projects get color from their name', async () => {
-  // Verify that the getProjectColor function produces different colors for different names
+test('6 - active tab has subtle background, no bottom border accent', async () => {
+  // The active tab should NOT have a colored bottom border
+  const result = await window.evaluate(() => {
+    const tab = document.querySelector('.tab-item.active');
+    if (!tab) return { hasTab: false };
+    const style = getComputedStyle(tab);
+    return {
+      hasTab: true,
+      borderBottom: style.borderBottomColor,
+      borderBottomStyle: style.borderBottomStyle,
+    };
+  });
+  // No active tab is fine if no sessions, but if there is one, no accent border
+  if (result.hasTab) {
+    // border-bottom should be 'none' or transparent (not an accent color)
+    expect(result.borderBottomStyle).toBe('none');
+  }
+});
+
+test('7 - getProjectColor utility still works', async () => {
   const result = await window.evaluate(() => {
     const { getProjectColor } = window._cctProjectColors;
-    // Use names that are known to hash to different palette indices
     const c1 = getProjectColor('alpha');
     const c2 = getProjectColor('beta');
     return { hue1: c1.hue, hue2: c2.hue, different: c1.index !== c2.index };
   });
-  // These specific names hash to different palette indices
   expect(result.different).toBe(true);
-});
-
-test('8 - titlebar is empty when no project is selected', async () => {
-  await clearAllProjects();
-
-  const titlebarName = window.locator('[data-testid="titlebar-project-name"]');
-  await expect(titlebarName).toHaveText('', { timeout: 5000 });
 });

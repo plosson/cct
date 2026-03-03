@@ -5,6 +5,112 @@
   font-style: normal;
 }
 
+/* ── Theme tokens ─────────────────────────────────────────────── */
+
+:root, [data-theme="dark"] {
+  --bg-app: #1a1714;
+  --bg-surface: #231f1a;
+  --bg-overlay: #2a2520;
+  --bg-deep: #15120f;
+  --border: #3a3530;
+  --border-strong: #4a4540;
+  --text-primary: #e8e0d4;
+  --text-secondary: #c8c0b4;
+  --text-dim: #8a8078;
+  --text-faint: #6a6258;
+  --text-muted: #524a42;
+  --text-subtle: #a89e94;
+  --accent: #d4943c;
+  --accent-bg: rgba(212, 148, 60, 0.1);
+  --accent-border: rgba(212, 148, 60, 0.2);
+  --accent-hover: rgba(212, 148, 60, 0.15);
+  --claude-accent: #e8913e;
+  --claude-accent-bg: rgba(232, 145, 62, 0.2);
+  --danger: #e85450;
+  --warn: #e5c07b;
+  --error: #e06c75;
+  --debug-source: #8a7a6a;
+  --hover-bg: rgba(255, 255, 255, 0.05);
+  --active-bg: rgba(255, 255, 255, 0.08);
+  --kbd-bg: rgba(255, 255, 255, 0.07);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --overlay-bg: rgba(0, 0, 0, 0.4);
+  --bell-flash: rgba(255, 200, 50, 0.3);
+  --selection-bg: rgba(212, 148, 60, 0.25);
+  --tab-hover-text: #c0b8ac;
+}
+
+[data-theme="light"] {
+  --bg-app: #f5f5f7;
+  --bg-surface: #e8e8ec;
+  --bg-overlay: #ffffff;
+  --bg-deep: #dcdce0;
+  --border: #c8c8cc;
+  --border-strong: #b0b0b4;
+  --text-primary: #1a1a1a;
+  --text-secondary: #333;
+  --text-dim: #666;
+  --text-faint: #888;
+  --text-muted: #aaa;
+  --text-subtle: #555;
+  --accent: #0066cc;
+  --accent-bg: rgba(0, 102, 204, 0.08);
+  --accent-border: rgba(0, 102, 204, 0.2);
+  --accent-hover: rgba(0, 102, 204, 0.12);
+  --claude-accent: #c47520;
+  --claude-accent-bg: rgba(196, 117, 32, 0.15);
+  --danger: #d32f2f;
+  --warn: #b8860b;
+  --error: #c62828;
+  --debug-source: #7070a0;
+  --hover-bg: rgba(0, 0, 0, 0.04);
+  --active-bg: rgba(0, 0, 0, 0.08);
+  --kbd-bg: rgba(0, 0, 0, 0.06);
+  --shadow: rgba(0, 0, 0, 0.15);
+  --overlay-bg: rgba(0, 0, 0, 0.25);
+  --bell-flash: rgba(255, 200, 50, 0.3);
+  --selection-bg: rgba(0, 102, 204, 0.2);
+  --tab-hover-text: #555;
+}
+
+/* Auto mode: follow OS preference when no data-theme is set */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg-app: #f5f5f7;
+    --bg-surface: #e8e8ec;
+    --bg-overlay: #ffffff;
+    --bg-deep: #dcdce0;
+    --border: #c8c8cc;
+    --border-strong: #b0b0b4;
+    --text-primary: #1a1a1a;
+    --text-secondary: #333;
+    --text-dim: #666;
+    --text-faint: #888;
+    --text-muted: #aaa;
+    --text-subtle: #555;
+    --accent: #0066cc;
+    --accent-bg: rgba(0, 102, 204, 0.08);
+    --accent-border: rgba(0, 102, 204, 0.2);
+    --accent-hover: rgba(0, 102, 204, 0.12);
+    --claude-accent: #c47520;
+    --claude-accent-bg: rgba(196, 117, 32, 0.15);
+    --danger: #d32f2f;
+    --warn: #b8860b;
+    --error: #c62828;
+    --debug-source: #7070a0;
+    --hover-bg: rgba(0, 0, 0, 0.04);
+    --active-bg: rgba(0, 0, 0, 0.08);
+    --kbd-bg: rgba(0, 0, 0, 0.06);
+    --shadow: rgba(0, 0, 0, 0.15);
+    --overlay-bg: rgba(0, 0, 0, 0.25);
+    --bell-flash: rgba(255, 200, 50, 0.3);
+    --selection-bg: rgba(0, 102, 204, 0.2);
+    --tab-hover-text: #555;
+  }
+}
+
+/* ── Reset ────────────────────────────────────────────────────── */
+
 * {
   margin: 0;
   padding: 0;
@@ -15,9 +121,10 @@ html, body {
   height: 100%;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #1a1a2e;
-  color: #e0e0e0;
+  background: var(--bg-app);
+  color: var(--text-primary);
 }
+
 
 .app {
   height: 100%;
@@ -31,38 +138,18 @@ html, body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: var(--project-accent-dim, transparent);
-  transition: background-color 0.2s ease;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding-left: 78px;
 }
 
-.titlebar-project {
+.titlebar-tabs {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  flex: 1;
+  height: 100%;
+  overflow-x: auto;
   -webkit-app-region: no-drag;
-  pointer-events: none;
-}
-
-.titlebar-monogram {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  background: var(--project-accent, #555);
-  flex-shrink: 0;
-}
-
-.titlebar-project-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e0e0e0;
-  letter-spacing: 0.3px;
 }
 
 /* App body — horizontal split */
@@ -89,8 +176,8 @@ html, body {
   width: 220px;
   min-width: 180px;
   flex-shrink: 0;
-  background: #16162a;
-  border-right: 1px solid #2a2a4a;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -113,7 +200,7 @@ html, body {
 }
 
 .app-body.sidebar-autohide .sidebar.sidebar-revealed {
-  border-right-color: #2a2a4a;
+  border-right-color: var(--border);
 }
 
 .app-body.sidebar-autohide .sidebar-resize-handle {
@@ -130,24 +217,23 @@ html, body {
   justify-content: space-between;
   padding: 0 12px;
   height: 36px;
-  background: var(--project-accent-bg, transparent);
-  border-bottom: 1px solid var(--project-accent-border, #2a2a4a);
+  background: transparent;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  transition: background-color 0.2s ease;
 }
 
 .sidebar-title {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #888;
+  color: var(--text-dim);
   font-weight: 600;
 }
 
 .sidebar-add-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-dim);
   font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
@@ -155,7 +241,7 @@ html, body {
 }
 
 .sidebar-add-btn:hover {
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .sidebar-projects {
@@ -171,18 +257,18 @@ html, body {
   padding: 6px 12px;
   cursor: pointer;
   font-size: 13px;
-  color: #ccc;
+  color: var(--text-secondary);
   user-select: none;
 }
 
 .sidebar-project:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 .sidebar-project.selected {
-  background: var(--project-accent-dim, rgba(255, 255, 255, 0.1));
-  color: #e0e0e0;
-  border-left: 3px solid var(--project-accent, #58a6ff);
+  background: var(--active-bg);
+  color: var(--text-primary);
+  border-left: 3px solid var(--accent);
 }
 
 .sidebar-project-name {
@@ -194,7 +280,7 @@ html, body {
 
 .sidebar-project-count {
   font-size: 11px;
-  color: #666;
+  color: var(--text-faint);
   margin: 0 8px;
   min-width: 16px;
   text-align: center;
@@ -203,7 +289,7 @@ html, body {
 .sidebar-project-remove {
   background: none;
   border: none;
-  color: #666;
+  color: var(--text-faint);
   font-size: 12px;
   cursor: pointer;
   padding: 0 2px;
@@ -216,7 +302,7 @@ html, body {
 }
 
 .sidebar-project-remove:hover {
-  color: #ff6b6b;
+  color: var(--danger);
 }
 
 /* Sidebar project activity indicator */
@@ -226,7 +312,7 @@ html, body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #58a6ff;
+  background: var(--accent);
   margin-left: 6px;
   vertical-align: middle;
 }
@@ -244,7 +330,7 @@ html, body {
 
 .sidebar-resize-handle:hover,
 .sidebar-resize-handle.dragging {
-  background: #3a3a5a;
+  background: var(--border-strong);
 }
 
 /* Main area — right side of sidebar */
@@ -253,52 +339,41 @@ html, body {
   flex-direction: column;
   flex: 1;
   overflow: hidden;
+  background: var(--bg-app);
 }
 
-/* Tab bar */
-.tab-bar {
-  display: flex;
-  align-items: center;
-  height: 36px;
-  background: var(--project-accent-bg, #16162a);
-  border-bottom: 1px solid var(--project-accent-border, #2a2a4a);
-  flex-shrink: 0;
-  padding: 0 8px;
-  -webkit-app-region: drag;
-  transition: background-color 0.2s ease;
-}
-
-.tab-bar-tabs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  overflow-x: auto;
-  flex: 1;
-  -webkit-app-region: no-drag;
-}
-
+/* Tab items (Warp-style: stretch, dividers, bottom-border active) */
 .tab-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 4px 12px;
-  border-radius: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+  height: 100%;
   cursor: pointer;
   font-size: 12px;
-  color: #888;
+  color: var(--text-dim);
   white-space: nowrap;
   user-select: none;
   -webkit-app-region: no-drag;
+  border-right: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.tab-item:last-child {
+  border-right: none;
 }
 
 .tab-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #bbb;
+  background: var(--hover-bg);
+  color: var(--tab-hover-text);
 }
 
 .tab-item.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
+  background: var(--active-bg);
+  color: var(--text-primary);
 }
 
 .tab-icon {
@@ -311,13 +386,13 @@ html, body {
 }
 
 .tab-icon-claude {
-  background: rgba(232, 145, 62, 0.2);
-  color: #e8913e;
+  background: var(--claude-accent-bg);
+  color: var(--claude-accent);
 }
 
 .tab-icon-terminal {
-  background: rgba(88, 166, 255, 0.2);
-  color: #58a6ff;
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .tab-close {
@@ -334,7 +409,7 @@ html, body {
 
 .tab-close:hover {
   opacity: 1;
-  color: #ff6b6b;
+  color: var(--danger);
 }
 
 /* Tab activity indicator */
@@ -344,7 +419,7 @@ html, body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #58a6ff;
+  background: var(--accent);
   margin-left: 6px;
   vertical-align: middle;
 }
@@ -355,16 +430,16 @@ html, body {
 }
 
 @keyframes tab-bell-flash {
-  0% { background: rgba(255, 200, 50, 0.3); }
+  0% { background: var(--bell-flash); }
   100% { background: transparent; }
 }
 
 /* Tab rename input */
 .tab-rename-input {
-  background: #16162a;
-  border: 1px solid #58a6ff;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
   border-radius: 3px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 12px;
   font-family: inherit;
   padding: 1px 4px;
@@ -378,27 +453,28 @@ html, body {
 }
 
 .tab-item.drop-before {
-  box-shadow: inset 2px 0 0 #58a6ff;
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .tab-item.drop-after {
-  box-shadow: inset -2px 0 0 #58a6ff;
+  box-shadow: inset -2px 0 0 var(--accent);
 }
 
 .tab-new-btn {
   background: none;
   border: none;
-  color: #888;
-  font-size: 18px;
+  color: var(--text-dim);
+  font-size: 16px;
   cursor: pointer;
-  padding: 2px 8px;
+  padding: 0 10px;
   line-height: 1;
   flex-shrink: 0;
+  height: 100%;
   -webkit-app-region: no-drag;
 }
 
 .tab-new-btn:hover {
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 /* Terminal panels */
@@ -406,6 +482,7 @@ html, body {
   position: relative;
   flex: 1;
   overflow: hidden;
+  background: var(--bg-app);
 }
 
 .terminal-panel {
@@ -415,6 +492,7 @@ html, body {
   right: 0;
   bottom: 0;
   display: none;
+  background: var(--terminal-bg, var(--bg-app));
 }
 
 .terminal-panel.active {
@@ -428,7 +506,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--overlay-bg);
   z-index: 1000;
   display: flex;
   justify-content: center;
@@ -436,13 +514,13 @@ html, body {
 }
 
 .overlay-panel {
-  background: #1e1e3a;
-  border: 1px solid #3a3a5a;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
   width: 100%;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 32px var(--shadow);
   animation: overlay-drop-in 0.1s ease-out;
   align-self: flex-start;
 }
@@ -467,15 +545,15 @@ html, body {
   padding: 10px 14px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #3a3a5a;
-  color: #e0e0e0;
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-primary);
   font-size: 14px;
   font-family: inherit;
   outline: none;
 }
 
 .project-picker-input::placeholder {
-  color: #666;
+  color: var(--text-faint);
 }
 
 .project-picker-list {
@@ -488,19 +566,19 @@ html, body {
   padding: 8px 14px;
   cursor: pointer;
   font-size: 13px;
-  color: #ccc;
+  color: var(--text-secondary);
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
 .project-picker-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 .project-picker-item.selected {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
+  background: var(--active-bg);
+  color: var(--text-primary);
 }
 
 .project-picker-item-name {
@@ -509,7 +587,7 @@ html, body {
 
 .project-picker-item-path {
   font-size: 11px;
-  color: #666;
+  color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -521,8 +599,8 @@ html, body {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  background: #1e1e3a;
-  border-bottom: 1px solid #3a3a5a;
+  background: var(--bg-overlay);
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
 }
 
@@ -530,29 +608,29 @@ html, body {
   flex: 1;
   max-width: 300px;
   padding: 4px 8px;
-  background: #16162a;
-  border: 1px solid #3a3a5a;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 12px;
   font-family: inherit;
   outline: none;
 }
 
 .search-bar-input:focus {
-  border-color: #58a6ff;
+  border-color: var(--accent);
 }
 
 .search-bar-count {
   font-size: 11px;
-  color: #888;
+  color: var(--text-dim);
   min-width: 60px;
 }
 
 .search-bar-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-dim);
   font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
@@ -561,8 +639,8 @@ html, body {
 }
 
 .search-bar-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
+  background: var(--active-bg);
+  color: var(--text-primary);
 }
 
 .search-bar-close {
@@ -574,12 +652,12 @@ html, body {
   display: flex;
   align-items: center;
   height: 24px;
-  background: #16162a;
-  border-top: 1px solid #2a2a4a;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
   padding: 0 12px;
   flex-shrink: 0;
   font-size: 11px;
-  color: #888;
+  color: var(--text-dim);
   gap: 12px;
   user-select: none;
 }
@@ -608,9 +686,9 @@ html, body {
 .shortcut-help-title {
   font-size: 14px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
   padding: 12px 16px;
-  border-bottom: 1px solid #3a3a5a;
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
 }
 
@@ -629,15 +707,15 @@ html, body {
 }
 
 .shortcut-help-label {
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .shortcut-help-key {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 12px;
-  color: #e0e0e0;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid #3a3a5a;
+  color: var(--text-primary);
+  background: var(--kbd-bg);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   padding: 2px 8px;
   min-width: 40px;
@@ -645,7 +723,7 @@ html, body {
 }
 
 .status-bar-version {
-  color: #555;
+  color: var(--text-muted);
   font-size: 10px;
 }
 
@@ -656,17 +734,17 @@ html, body {
   justify-content: center;
   gap: 8px;
   padding: 4px 12px;
-  background: rgba(88, 166, 255, 0.1);
-  border-bottom: 1px solid rgba(88, 166, 255, 0.2);
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--accent-border);
   font-size: 12px;
-  color: #58a6ff;
+  color: var(--accent);
   cursor: pointer;
   flex-shrink: 0;
   user-select: none;
 }
 
 .update-banner:hover {
-  background: rgba(88, 166, 255, 0.15);
+  background: var(--accent-hover);
 }
 
 /* Settings overlay (Cmd+,) */
@@ -683,7 +761,7 @@ html, body {
 .settings-title {
   font-size: 14px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
   padding: 12px 16px 0;
   flex-shrink: 0;
 }
@@ -692,7 +770,7 @@ html, body {
   display: flex;
   gap: 0;
   padding: 8px 16px 0;
-  border-bottom: 1px solid #3a3a5a;
+  border-bottom: 1px solid var(--border-strong);
   flex-shrink: 0;
 }
 
@@ -700,7 +778,7 @@ html, body {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: #888;
+  color: var(--text-dim);
   font-size: 13px;
   padding: 6px 16px;
   cursor: pointer;
@@ -708,16 +786,16 @@ html, body {
 }
 
 .settings-tab:hover:not(:disabled) {
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .settings-tab.active {
-  color: #e0e0e0;
-  border-bottom-color: var(--project-accent, #58a6ff);
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
 }
 
 .settings-tab:disabled {
-  color: #555;
+  color: var(--text-muted);
   cursor: default;
 }
 
@@ -735,13 +813,13 @@ html, body {
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .settings-description {
   font-size: 11px;
-  color: #888;
+  color: var(--text-dim);
   margin-bottom: 6px;
 }
 
@@ -751,31 +829,38 @@ html, body {
   gap: 6px;
 }
 
-.settings-input {
+.settings-input,
+.settings-select {
   flex: 1;
   padding: 6px 10px;
-  background: #16162a;
-  border: 1px solid #3a3a5a;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 13px;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   outline: none;
 }
 
-.settings-input:focus {
-  border-color: #58a6ff;
+.settings-select {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
+}
+
+.settings-input:focus,
+.settings-select:focus {
+  border-color: var(--accent);
 }
 
 .settings-input::placeholder {
-  color: #555;
+  color: var(--text-muted);
 }
 
 .settings-clear-btn {
   background: none;
-  border: 1px solid #3a3a5a;
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
-  color: #888;
+  color: var(--text-dim);
   font-size: 14px;
   cursor: pointer;
   padding: 4px 8px;
@@ -783,8 +868,8 @@ html, body {
 }
 
 .settings-clear-btn:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .settings-actions {
@@ -792,7 +877,7 @@ html, body {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #3a3a5a;
+  border-top: 1px solid var(--border-strong);
   margin-top: 8px;
 }
 
@@ -803,11 +888,11 @@ html, body {
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  border: 1px solid #3a3a5a;
+  border: 1px solid var(--border-strong);
 }
 
 .settings-save-btn {
-  background: var(--project-accent, #58a6ff);
+  background: var(--accent);
   color: #fff;
   border-color: transparent;
 }
@@ -818,11 +903,11 @@ html, body {
 
 .settings-cancel-btn {
   background: transparent;
-  color: #ccc;
+  color: var(--text-secondary);
 }
 
 .settings-cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover-bg);
 }
 
 /* Empty state */
@@ -831,7 +916,7 @@ html, body {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #666;
+  color: var(--text-faint);
   font-size: 14px;
   user-select: none;
 }
@@ -853,7 +938,7 @@ html, body {
 
 .debug-pane-resize-handle:hover,
 .debug-pane-resize-handle.dragging {
-  background: #3a3a5a;
+  background: var(--border-strong);
 }
 
 .debug-pane {
@@ -862,13 +947,13 @@ html, body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #12122a;
+  background: var(--bg-deep);
   border-top: none;
 }
 
 .debug-pane.open {
   overflow: visible;
-  border-top: 1px solid #2a2a4a;
+  border-top: 1px solid var(--border);
 }
 
 .debug-pane-header {
@@ -876,22 +961,22 @@ html, body {
   align-items: center;
   height: 28px;
   padding: 0 12px;
-  background: #16162a;
-  border-bottom: 1px solid #2a2a4a;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   gap: 8px;
   font-size: 11px;
-  color: #888;
+  color: var(--text-dim);
   user-select: none;
 }
 
 .debug-pane-title {
   font-weight: 600;
-  color: #aaa;
+  color: var(--text-subtle);
 }
 
 .debug-pane-count {
-  color: #666;
+  color: var(--text-faint);
   font-size: 10px;
 }
 
@@ -901,8 +986,8 @@ html, body {
 
 .debug-pane-clear-btn {
   background: none;
-  border: 1px solid #3a3a5a;
-  color: #888;
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
   font-size: 10px;
   padding: 1px 8px;
   border-radius: 3px;
@@ -910,8 +995,8 @@ html, body {
 }
 
 .debug-pane-clear-btn:hover {
-  color: #ccc;
-  border-color: #555;
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
 }
 
 .debug-pane-entries {
@@ -932,12 +1017,12 @@ html, body {
 }
 
 .debug-entry-time {
-  color: #555;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .debug-entry-source {
-  color: #6a6a9a;
+  color: var(--debug-source);
   flex-shrink: 0;
   min-width: 60px;
 }
@@ -947,13 +1032,27 @@ html, body {
 }
 
 .debug-entry.level-info .debug-entry-message {
-  color: #888;
+  color: var(--text-dim);
 }
 
 .debug-entry.level-warn .debug-entry-message {
-  color: #e5c07b;
+  color: var(--warn);
 }
 
 .debug-entry.level-error .debug-entry-message {
-  color: #e06c75;
+  color: var(--error);
+}
+
+/* ── xterm.js scrollbar: native macOS overlay look ───────────── */
+
+.xterm .xterm-scrollable-element > .scrollbar.vertical {
+  width: 7px !important;
+  right: 1px !important;
+  left: auto !important;
+}
+
+.xterm .xterm-scrollable-element > .scrollbar > .slider {
+  border-radius: 4px;
+  width: 5px !important;
+  left: 1px !important;
 }

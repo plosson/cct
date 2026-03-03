@@ -169,7 +169,7 @@ test('8 - Cmd+F again focuses existing search bar', async () => {
   await window.waitForTimeout(100);
 
   // Click somewhere else to unfocus
-  await window.click('.tab-bar');
+  await window.click('[data-testid="tab-bar"]');
   await window.waitForTimeout(100);
 
   // Press Cmd+F again — should refocus existing search bar

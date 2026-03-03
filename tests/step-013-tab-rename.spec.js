@@ -113,7 +113,7 @@ test('6 - blur commits the rename', async () => {
   await input.fill('Blur Rename');
 
   // Click elsewhere to blur
-  await window.click('.tab-bar');
+  await window.click('[data-testid="tab-bar"]');
   await window.waitForTimeout(100);
 
   await expect(label).toHaveText('Blur Rename');
