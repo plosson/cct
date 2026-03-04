@@ -138,7 +138,6 @@ if (!gotTheLock) {
     registerLogIPC(logService);
 
     const soundThemeService = new SoundThemeService(logService);
-    soundThemeService.installBuiltInThemes();
 
     // Handle claudiu-sound:// protocol — serves mp3 files from themes directory
     protocol.handle('claudiu-sound', (request) => {

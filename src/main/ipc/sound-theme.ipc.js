@@ -11,6 +11,16 @@ const { ipcMain, dialog } = require('electron');
  * @param {import('../services/ConfigService').ConfigService} configService
  */
 function registerSoundThemeIPC(soundThemeService, configService) {
+  /** After a COW fork, update config to point to the new theme directory */
+  function updateConfigAfterFork(projectPath, newDirName) {
+    if (projectPath) {
+      configService.setProjectAll(projectPath, {
+        ...configService.getProject(projectPath), soundTheme: newDirName,
+      });
+    } else {
+      configService.setGlobalAll({ ...configService.getGlobal(), soundTheme: newDirName });
+    }
+  }
   ipcMain.handle('sound-theme-list', () => {
     return soundThemeService.listThemes();
   });
@@ -82,14 +92,7 @@ function registerSoundThemeIPC(soundThemeService, configService) {
       return { success: false, error: 'No theme active' };
     }
     const uploadResult = soundThemeService.uploadSoundToTheme(themeName, eventName, result.filePaths[0]);
-    // If forked, update config to point to the new theme
-    if (uploadResult.forked) {
-      if (projectPath) {
-        configService.setProjectAll(projectPath, { ...configService.getProject(projectPath), soundTheme: uploadResult.dirName });
-      } else {
-        configService.setGlobalAll({ ...configService.getGlobal(), soundTheme: uploadResult.dirName });
-      }
-    }
+    if (uploadResult.forked) updateConfigAfterFork(projectPath, uploadResult.dirName);
     return uploadResult;
   });
 
@@ -99,14 +102,7 @@ function registerSoundThemeIPC(soundThemeService, configService) {
       return { success: false, error: 'No theme active' };
     }
     const result = soundThemeService.saveTrimData(themeName, eventName, trimStart, trimEnd);
-    // If forked, update config to point to the new theme
-    if (result.forked) {
-      if (projectPath) {
-        configService.setProjectAll(projectPath, { ...configService.getProject(projectPath), soundTheme: result.dirName });
-      } else {
-        configService.setGlobalAll({ ...configService.getGlobal(), soundTheme: result.dirName });
-      }
-    }
+    if (result.forked) updateConfigAfterFork(projectPath, result.dirName);
     return result;
   });
 

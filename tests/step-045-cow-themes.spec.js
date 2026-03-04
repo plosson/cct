@@ -153,10 +153,10 @@ test('8 - removeSound works on custom theme', async () => {
   expect(fs.existsSync(path.join(forkedDir, 'session-end.mp3'))).toBe(false);
 });
 
-test('9 - upload to built-in theme forks then accepts new sound', async () => {
-  // Upload IPC opens a native dialog (can't automate), so we test the
-  // combined fork-then-modify workflow: fork via IPC, then verify a new
-  // audio file can be placed and theme.json updated in the custom copy.
+test('9 - simulated upload: fork + manual file → sound accessible via getSounds', async () => {
+  // Upload IPC opens a native dialog (can't automate), so we simulate:
+  // fork via IPC, place a file on disk, update theme.json, then verify
+  // the new event is accessible via getSounds() with a claudiu-sound:// URL.
   const forkedDir = path.join(env.CLAUDIU_USER_DATA, 'themes', 'default-custom');
   if (fs.existsSync(forkedDir)) fs.rmSync(forkedDir, { recursive: true, force: true });
 
@@ -174,7 +174,16 @@ test('9 - upload to built-in theme forks then accepts new sound', async () => {
   themeJson.events.CustomEvent = 'CustomEvent.mp3';
   fs.writeFileSync(themeJsonPath, JSON.stringify(themeJson, null, 2));
 
-  // Verify the custom theme now includes the new event
+  // Point config to the forked theme so getSounds resolves it
+  await window.evaluate(() => window.electron_api.appConfig.setGlobal({ soundTheme: 'default-custom' }));
+
+  // Verify via getSounds that the new event appears with the custom protocol URL
+  const sounds = await window.evaluate(() => window.electron_api.soundThemes.getSounds());
+  expect(sounds).toBeTruthy();
+  expect(sounds.CustomEvent).toBeDefined();
+  expect(sounds.CustomEvent.url).toBe('claudiu-sound://default-custom/CustomEvent.mp3');
+
+  // Also verify via list()
   const themes = await window.evaluate(() => window.electron_api.soundThemes.list());
   const custom = themes.find(t => t.dirName === 'default-custom');
   expect(custom).toBeDefined();
@@ -222,4 +231,55 @@ test('13 - Export button visible', async () => {
   // The export button is in the install row
   const exportBtn = window.locator('button:has-text("Export as ZIP")');
   await expect(exportBtn).toBeVisible();
+});
+
+// ── H5 — Additional IPC / Validation Tests ──────────────────
+
+test('14 - removeTheme deletes custom theme', async () => {
+  // Close settings if open
+  const closeBtn = window.locator('[data-testid="settings-close"]');
+  if (await closeBtn.isVisible()) await closeBtn.click();
+
+  // Ensure default-custom exists
+  const forkedDir = path.join(env.CLAUDIU_USER_DATA, 'themes', 'default-custom');
+  if (!fs.existsSync(forkedDir)) {
+    await window.evaluate(() => window.electron_api.soundThemes.fork('default'));
+  }
+  expect(fs.existsSync(forkedDir)).toBe(true);
+
+  const result = await window.evaluate(() => window.electron_api.soundThemes.remove('default-custom'));
+  expect(result.success).toBe(true);
+
+  // Directory should be gone
+  expect(fs.existsSync(forkedDir)).toBe(false);
+
+  // list() should not include it
+  const themes = await window.evaluate(() => window.electron_api.soundThemes.list());
+  expect(themes.find(t => t.dirName === 'default-custom')).toBeUndefined();
+});
+
+test('15 - validation rejects path traversal in dirName', async () => {
+  const forkResult = await window.evaluate(() => window.electron_api.soundThemes.fork('..'));
+  expect(forkResult.success).toBe(false);
+  expect(forkResult.error).toContain('Invalid');
+
+  const removeResult = await window.evaluate(() =>
+    window.electron_api.soundThemes.removeSound('..', 'SessionStart')
+  );
+  expect(removeResult.success).toBe(false);
+  expect(removeResult.error).toContain('Invalid');
+});
+
+test('16 - validation rejects invalid eventName', async () => {
+  // Ensure a writable theme exists
+  const forkedDir = path.join(env.CLAUDIU_USER_DATA, 'themes', 'default-custom');
+  if (!fs.existsSync(forkedDir)) {
+    await window.evaluate(() => window.electron_api.soundThemes.fork('default'));
+  }
+
+  const result = await window.evaluate(() =>
+    window.electron_api.soundThemes.removeSound('default-custom', '../etc')
+  );
+  expect(result.success).toBe(false);
+  expect(result.error).toContain('Invalid');
 });

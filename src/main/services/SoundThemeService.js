@@ -77,40 +77,6 @@ class SoundThemeService {
     if (this._logService) this._logService.info('sound-theme', 'Seeded default theme');
   }
 
-  /**
-   * Copy built-in themes from app resources to userData if not already present.
-   * In dev mode, falls back to the project root's themes/ directory.
-   */
-  installBuiltInThemes() {
-    const builtInNames = ['default'];
-
-    for (const name of builtInNames) {
-      const destDir = path.join(this._themesDir, name);
-      if (fs.existsSync(destDir)) continue; // already installed
-
-      // Locate the bundled theme: packaged app uses resourcesPath, dev uses project root
-      let srcDir = path.join(process.resourcesPath, 'themes', name);
-      if (!fs.existsSync(srcDir)) {
-        // Dev fallback: SoundThemeService.js is in src/main/services/, project root is 3 levels up
-        srcDir = path.join(__dirname, '..', '..', '..', 'themes', name);
-      }
-      if (!fs.existsSync(srcDir)) {
-        this._log('warn', `Built-in theme "${name}" not found in resources`);
-        continue;
-      }
-
-      this._copyDirSync(srcDir, destDir);
-      // Mark as built-in
-      const jsonPath = path.join(destDir, 'theme.json');
-      try {
-        const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-        raw.builtIn = true;
-        fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
-      } catch { /* theme.json missing or unreadable — skip */ }
-      this._log('info', `Installed built-in theme "${name}"`);
-    }
-  }
-
   /** Check if a theme is built-in (read-only) */
   isBuiltIn(dirName) {
     const meta = this._readThemeJson(dirName);
@@ -123,6 +89,7 @@ class SoundThemeService {
    * @returns {{success: boolean, dirName?: string, error?: string}}
    */
   forkTheme(dirName) {
+    if (!this._validateDirName(dirName)) return { success: false, error: 'Invalid theme name' };
     const srcDir = path.join(this._themesDir, dirName);
     if (!fs.existsSync(srcDir)) return { success: false, error: 'Theme not found' };
 
@@ -323,6 +290,7 @@ class SoundThemeService {
    * @returns {{success: boolean, error?: string}}
    */
   removeTheme(dirName) {
+    if (!this._validateDirName(dirName)) return { success: false, error: 'Invalid theme name' };
     const themeDir = path.join(this._themesDir, dirName);
     if (!fs.existsSync(themeDir)) {
       return { success: false, error: 'Theme not found' };
@@ -396,6 +364,8 @@ class SoundThemeService {
    * @returns {{success: boolean, dirName: string, forked: boolean, error?: string}}
    */
   uploadSoundToTheme(dirName, eventName, sourceFilePath) {
+    if (!this._validateDirName(dirName)) return { success: false, error: 'Invalid theme name' };
+    if (!this._validateEventName(eventName)) return { success: false, error: 'Invalid event name' };
     const { dirName: targetDir, forked } = this.ensureWritable(dirName);
     const ext = path.extname(sourceFilePath) || '.mp3';
     const destFileName = `${eventName}${ext}`;
@@ -431,6 +401,8 @@ class SoundThemeService {
    * @returns {{success: boolean, error?: string}}
    */
   removeSoundFromTheme(dirName, eventName) {
+    if (!this._validateDirName(dirName)) return { success: false, error: 'Invalid theme name' };
+    if (!this._validateEventName(eventName)) return { success: false, error: 'Invalid event name' };
     if (this.isBuiltIn(dirName)) {
       return { success: false, error: 'Cannot remove sounds from built-in themes' };
     }
@@ -468,6 +440,7 @@ class SoundThemeService {
    * @returns {Promise<{success: boolean, error?: string}>}
    */
   exportThemeAsZip(dirName, outputPath) {
+    if (!this._validateDirName(dirName)) return Promise.resolve({ success: false, error: 'Invalid theme name' });
     return new Promise((resolve) => {
       const themeDir = path.join(this._themesDir, dirName);
       if (!fs.existsSync(themeDir)) {
@@ -531,6 +504,8 @@ class SoundThemeService {
    * @param {number} trimEnd - End time in seconds
    */
   saveTrimData(themeDirName, eventName, trimStart, trimEnd) {
+    if (!this._validateDirName(themeDirName)) return { success: false, error: 'Invalid theme name' };
+    if (!this._validateEventName(eventName)) return { success: false, error: 'Invalid event name' };
     const { dirName: targetDir, forked } = this.ensureWritable(themeDirName);
     const result = this._modifyThemeEvent(targetDir, eventName, (item) => {
       const filename = typeof item === 'string' ? item : item.file;
@@ -550,6 +525,8 @@ class SoundThemeService {
    * @param {string} eventName - Hook event name
    */
   removeTrimData(themeDirName, eventName) {
+    if (!this._validateDirName(themeDirName)) return { success: false, error: 'Invalid theme name' };
+    if (!this._validateEventName(eventName)) return { success: false, error: 'Invalid event name' };
     const result = this._modifyThemeEvent(themeDirName, eventName, (item) => {
       return typeof item === 'object' ? item.file : item;
     });
@@ -583,6 +560,18 @@ class SoundThemeService {
     } catch {
       return null;
     }
+  }
+
+  /** Validate a theme directory name (reject path traversal and empty values) */
+  _validateDirName(dirName) {
+    if (!dirName || typeof dirName !== 'string') return false;
+    return !/[\/\\\0]/.test(dirName) && dirName !== '.' && dirName !== '..';
+  }
+
+  /** Validate a hook event name (alphanumeric, hyphens, underscores only) */
+  _validateEventName(eventName) {
+    if (!eventName || typeof eventName !== 'string') return false;
+    return /^[A-Za-z0-9_-]+$/.test(eventName);
   }
 
   /** Sanitize a theme name into a safe directory name */
