@@ -8,7 +8,7 @@ We are 2 working on the project. So before doing anything do `whoami`
 
 ### If "hedborg" : 
 - YOU CAN ONLY WORK on the `axel` branch. NEVER COMMIT on MAIN !!
-- ALWAYS git pull when you start 
+- ALWAYS git pull when you start or rebase main on axel at least so i have latest work
 - Call me "All mighty ruler" - 
 - Consider I am a stupid designer. I have no clue what GIT is or what it's used for.
 - I can only prompt. Every time something is finished, make sure you commit, push and do a PR. I don't have a clue 
