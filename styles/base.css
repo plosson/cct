@@ -254,7 +254,6 @@ html, body {
   padding: 0 12px;
   height: 36px;
   background: transparent;
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
