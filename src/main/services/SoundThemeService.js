@@ -18,6 +18,7 @@ class SoundThemeService {
     this._logService = logService || null;
     this._themesDir = path.join(app.getPath('userData'), 'themes');
     this._ensureThemesDir();
+    this._seedDefaultTheme();
   }
 
   /** Log a message if a log service is available */
@@ -29,6 +30,33 @@ class SoundThemeService {
     if (!fs.existsSync(this._themesDir)) {
       fs.mkdirSync(this._themesDir, { recursive: true });
     }
+  }
+
+  /**
+   * Copy the bundled default theme to {userData}/themes/default/ if not present.
+   * Bundled assets live in assets/themes/default/ relative to the app root.
+   */
+  _seedDefaultTheme() {
+    const destDir = path.join(this._themesDir, 'default');
+    if (fs.existsSync(path.join(destDir, 'theme.json'))) return; // already seeded
+
+    // Locate bundled assets — works both in dev and packaged app
+    const appRoot = app.isPackaged
+      ? path.join(process.resourcesPath, 'app')
+      : path.join(__dirname, '..', '..', '..');
+    const srcDir = path.join(appRoot, 'assets', 'themes', 'default');
+
+    if (!fs.existsSync(path.join(srcDir, 'theme.json'))) {
+      if (this._logService) this._logService.warn('sound-theme', 'Bundled default theme not found at ' + srcDir);
+      return;
+    }
+
+    fs.mkdirSync(destDir, { recursive: true });
+    const files = fs.readdirSync(srcDir);
+    for (const file of files) {
+      fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+    }
+    if (this._logService) this._logService.info('sound-theme', 'Seeded default theme');
   }
 
   /**
