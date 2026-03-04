@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 90000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-022-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-022-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a terminal session
@@ -53,12 +53,12 @@ test.afterAll(async () => {
 test('1 - terminal has content after typing a command', async () => {
   // Type some output into the terminal
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     window.electron_api.terminal.input({ id, data: 'echo CLEAR_TEST_CONTENT\n' });
   });
   await window.waitForTimeout(500);
 
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   expect(text).toContain('CLEAR_TEST_CONTENT');
 });
 
@@ -66,7 +66,7 @@ test('2 - Cmd+K clears the terminal buffer', async () => {
   await window.keyboard.press('Meta+k');
   await window.waitForTimeout(300);
 
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   // After clear, the old content should be gone from the scrollback
   expect(text).not.toContain('CLEAR_TEST_CONTENT');
 });
@@ -74,12 +74,12 @@ test('2 - Cmd+K clears the terminal buffer', async () => {
 test('3 - terminal is still functional after clear', async () => {
   // Type new content to verify terminal works after clear
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     window.electron_api.terminal.input({ id, data: 'echo AFTER_CLEAR\n' });
   });
   await window.waitForTimeout(500);
 
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   expect(text).toContain('AFTER_CLEAR');
 });
 

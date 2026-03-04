@@ -1,10 +1,10 @@
 /**
  * Step 036 — npm start auto-opens CWD as project
  *
- * When CCT is launched via `npm start` from a project directory,
+ * When Claudiu is launched via `npm start` from a project directory,
  * the working directory should be auto-added and selected as a project.
  *
- * This mirrors `cct .` behaviour but via the npm start script which
+ * This mirrors `claudiu .` behaviour but via the npm start script which
  * passes $PWD as an extra arg to electron: `electron . $PWD`
  */
 
@@ -27,7 +27,7 @@ test('1 - launching without a project path arg does NOT auto-select any project'
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
   await window.waitForTimeout(600); // give CLI open delay time to fire
 
-  const selected = await window.evaluate(() => window._cctSelectedProject());
+  const selected = await window.evaluate(() => window._claudiuSelectedProject());
   // With no arg, nothing should be auto-selected
   expect(selected).toBeFalsy();
 
@@ -45,7 +45,7 @@ test('2 - launching with CWD as extra arg auto-adds and selects the project', as
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
   await window.waitForTimeout(1000); // wait for delayed open-project IPC
 
-  const selected = await window.evaluate(() => window._cctSelectedProject());
+  const selected = await window.evaluate(() => window._claudiuSelectedProject());
   expect(selected).toBe(cwd);
 });
 

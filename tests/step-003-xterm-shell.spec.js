@@ -20,13 +20,13 @@ test.beforeAll(async () => {
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Create a temp project so we can spawn a session
-  const tmpDir = path.join(os.tmpdir(), `cct-test-003-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `claudiu-test-003-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a session in the project
@@ -68,19 +68,19 @@ test('can type and see echo output', async () => {
   const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
   // Type a command
-  await textarea.pressSequentially('echo HELLO_CCT', { delay: 30 });
+  await textarea.pressSequentially('echo HELLO_CLAUDIU', { delay: 30 });
   await window.keyboard.press('Enter');
   // Wait for output to appear in xterm buffer (canvas-rendered, use buffer API)
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
-    expect(text).toContain('HELLO_CCT');
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
+    expect(text).toContain('HELLO_CLAUDIU');
   }).toPass({ timeout: 5000 });
 });
 
-test('xterm buffer text contains HELLO_CCT', async () => {
+test('xterm buffer text contains HELLO_CLAUDIU', async () => {
   // Verify the output from the previous echo is still visible in the buffer
-  const text = await window.evaluate(() => window._cctGetBufferText());
-  expect(text).toContain('HELLO_CCT');
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
+  expect(text).toContain('HELLO_CLAUDIU');
 });
 
 test('exit closes the PTY and removes the tab', async () => {

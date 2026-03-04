@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   }
   await window.evaluate(async () => {
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   });
 });
 
@@ -45,12 +45,12 @@ test.afterAll(async () => {
 });
 
 async function addTempProject(suffix = '') {
-  const tmpDir = path.join(os.tmpdir(), `cct-test-status${suffix}-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `claudiu-test-status${suffix}-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   }, tmpDir);
   return tmpDir;
 }

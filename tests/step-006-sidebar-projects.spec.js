@@ -43,28 +43,28 @@ async function clearAllProjects() {
   }
   await window.evaluate(async () => {
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   });
 }
 
-/** Helper: read and parse .cct/sessions.json for the first project in the sidebar */
+/** Helper: read and parse .claudiu/sessions.json for the first project in the sidebar */
 async function readSessionsConfig() {
   const projectPath = await window.locator('[data-testid="project-item"]').first()
     .getAttribute('data-project-path');
-  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+  const sessionsPath = path.join(projectPath, '.claudiu', 'sessions.json');
   return { projectPath, sessionsPath, config: JSON.parse(fs.readFileSync(sessionsPath, 'utf8')) };
 }
 
 /** Helper: create a temp dir and add it as a project */
 async function addTempProject(suffix = '') {
-  const tmpDir = path.join(os.tmpdir(), `cct-test-project${suffix}-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `claudiu-test-project${suffix}-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   tmpDirs.push(tmpDir);
 
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   }, tmpDir);
 
   return tmpDir;
@@ -120,7 +120,7 @@ test('4 - click project selects it, then + creates session in that folder', asyn
   await window.keyboard.press('Enter');
 
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toContain(projectPath);
   }).toPass({ timeout: 5000 });
 });
@@ -234,9 +234,9 @@ test('12 - config file contains expected JSON entries', async () => {
   expect(config.projects[0]).toHaveProperty('name');
 });
 
-// ── Per-project .cct/sessions.json + env vars ────────────────
+// ── Per-project .claudiu/sessions.json + env vars ────────────────
 
-test('13 - creating a session produces .cct/sessions.json in project folder', async () => {
+test('13 - creating a session produces .claudiu/sessions.json in project folder', async () => {
   // Select the existing project and create a session
   const projectItem = window.locator('[data-testid="project-item"]').first();
   await projectItem.click();
@@ -247,9 +247,9 @@ test('13 - creating a session produces .cct/sessions.json in project folder', as
 
   // Get the project path
   const projectPath = await projectItem.getAttribute('data-project-path');
-  const sessionsPath = path.join(projectPath, '.cct', 'sessions.json');
+  const sessionsPath = path.join(projectPath, '.claudiu', 'sessions.json');
 
-  // .cct/sessions.json should exist
+  // .claudiu/sessions.json should exist
   expect(fs.existsSync(sessionsPath)).toBe(true);
 });
 
@@ -274,26 +274,26 @@ test('15 - session entry has id, terminalId, type, createdAt', async () => {
   expect(new Date(session.createdAt).toISOString()).toBe(session.createdAt);
 });
 
-test('16 - CCT_PROJECT_ID env var is set in terminal', async () => {
+test('16 - CLAUDIU_PROJECT_ID env var is set in terminal', async () => {
   const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
-  await textarea.pressSequentially('echo $CCT_PROJECT_ID', { delay: 30 });
+  await textarea.pressSequentially('echo $CLAUDIU_PROJECT_ID', { delay: 30 });
   await window.keyboard.press('Enter');
 
   const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toMatch(uuidRegex);
   }).toPass({ timeout: 5000 });
 });
 
-test('17 - CCT_SESSION_ID env var is set in terminal', async () => {
+test('17 - CLAUDIU_SESSION_ID env var is set in terminal', async () => {
   const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
-  await textarea.pressSequentially('echo $CCT_SESSION_ID', { delay: 30 });
+  await textarea.pressSequentially('echo $CLAUDIU_SESSION_ID', { delay: 30 });
   await window.keyboard.press('Enter');
 
   const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toMatch(uuidRegex);
   }).toPass({ timeout: 5000 });
 });
@@ -380,8 +380,8 @@ test('20 - Cmd+E opens the project picker overlay', async () => {
 
 test('21 - picker shows projects in MRU order (current project first)', async () => {
   // Get MRU order
-  const mru = await window.evaluate(() => window._cctProjectMRU());
-  const selectedPath = await window.evaluate(() => window._cctSelectedProject());
+  const mru = await window.evaluate(() => window._claudiuProjectMRU());
+  const selectedPath = await window.evaluate(() => window._claudiuSelectedProject());
 
   // Current project should be first in MRU
   expect(mru[0]).toBe(selectedPath);
@@ -400,7 +400,7 @@ test('21 - picker shows projects in MRU order (current project first)', async ()
 });
 
 test('22 - ArrowDown + Enter selects a different project', async () => {
-  const selectedBefore = await window.evaluate(() => window._cctSelectedProject());
+  const selectedBefore = await window.evaluate(() => window._claudiuSelectedProject());
 
   // Open picker, press Down once (to select the second/previous project), then Enter
   await window.keyboard.press('Meta+e');
@@ -415,12 +415,12 @@ test('22 - ArrowDown + Enter selects a different project', async () => {
   await expect(overlay).not.toBeVisible();
 
   // Selected project should have changed
-  const selectedAfter = await window.evaluate(() => window._cctSelectedProject());
+  const selectedAfter = await window.evaluate(() => window._claudiuSelectedProject());
   expect(selectedAfter).not.toBe(selectedBefore);
 });
 
 test('23 - Escape closes the picker without changing selection', async () => {
-  const selectedBefore = await window.evaluate(() => window._cctSelectedProject());
+  const selectedBefore = await window.evaluate(() => window._claudiuSelectedProject());
 
   await window.keyboard.press('Meta+e');
   await window.waitForTimeout(200);
@@ -434,7 +434,7 @@ test('23 - Escape closes the picker without changing selection', async () => {
   await window.waitForTimeout(200);
 
   // Selection should not have changed
-  const selectedAfter = await window.evaluate(() => window._cctSelectedProject());
+  const selectedAfter = await window.evaluate(() => window._claudiuSelectedProject());
   expect(selectedAfter).toBe(selectedBefore);
 });
 
@@ -447,7 +447,7 @@ test('24 - typing filters the project list', async () => {
   await expect(items).toHaveCount(2);
 
   // Type a filter that matches only one project name
-  // Project names are based on directory names: cct-test-project-picker-a-<timestamp> and cct-test-project-picker-b-<timestamp>
+  // Project names are based on directory names: claudiu-test-project-picker-a-<timestamp> and claudiu-test-project-picker-b-<timestamp>
   const input = window.locator('[data-testid="project-picker-input"]');
   await input.fill('picker-a');
   await window.waitForTimeout(200);
@@ -480,8 +480,8 @@ test('25 - Cmd+E again closes the picker (toggle)', async () => {
 
 // ── Cleanup / persistence tests ─────────────────────────────
 
-test('26 - removing project from sidebar does NOT delete .cct/ dir', async () => {
-  // Ensure we have a session so .cct/ gets created
+test('26 - removing project from sidebar does NOT delete .claudiu/ dir', async () => {
+  // Ensure we have a session so .claudiu/ gets created
   const projectItem = window.locator('[data-testid="project-item"]').first();
   await projectItem.click();
   await window.waitForTimeout(300);
@@ -489,9 +489,9 @@ test('26 - removing project from sidebar does NOT delete .cct/ dir', async () =>
   await window.waitForSelector('.xterm', { timeout: 10000 });
 
   const projectPath = await projectItem.getAttribute('data-project-path');
-  const cctDir = path.join(projectPath, '.cct');
+  const cctDir = path.join(projectPath, '.claudiu');
 
-  // .cct should exist after creating a session
+  // .claudiu should exist after creating a session
   expect(fs.existsSync(cctDir)).toBe(true);
 
   // Close the session first
@@ -504,7 +504,7 @@ test('26 - removing project from sidebar does NOT delete .cct/ dir', async () =>
   await removeBtn.click();
   await window.waitForTimeout(500);
 
-  // .cct/ directory should still exist
+  // .claudiu/ directory should still exist
   expect(fs.existsSync(cctDir)).toBe(true);
   const config = JSON.parse(fs.readFileSync(path.join(cctDir, 'sessions.json'), 'utf8'));
   expect(config.projectId).toBeTruthy();
@@ -601,8 +601,8 @@ test('29 - sessions are restored on app restart', async () => {
 // ── Claude Code HTTP hooks ────────────────────────────────────
 
 test('30 - hooks are installed for all 17 events', async () => {
-  // Hooks are written to CCT_USER_DATA/claude-settings.json in test mode
-  const settingsPath = path.join(testEnv.CCT_USER_DATA, 'claude-settings.json');
+  // Hooks are written to CLAUDIU_USER_DATA/claude-settings.json in test mode
+  const settingsPath = path.join(testEnv.CLAUDIU_USER_DATA, 'claude-settings.json');
   expect(fs.existsSync(settingsPath)).toBe(true);
 
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -628,7 +628,7 @@ test('30 - hooks are installed for all 17 events', async () => {
 
     const ourHook = arr.find(entry =>
       entry.hooks && entry.hooks.some(h =>
-        h.type === 'http' && h.headers && h.headers['X-CCT-Hook'] === 'true'
+        h.type === 'http' && h.headers && h.headers['X-Claudiu-Hook'] === 'true'
       )
     );
     expect(ourHook).toBeTruthy();
@@ -645,7 +645,7 @@ test('30 - hooks are installed for all 17 events', async () => {
 
     const ourHook = arr.find(entry =>
       entry.hooks && entry.hooks.some(h =>
-        h.type === 'command' && h.command && h.command.includes('X-CCT-Hook')
+        h.type === 'command' && h.command && h.command.includes('X-Claudiu-Hook')
       )
     );
     expect(ourHook).toBeTruthy();
@@ -654,7 +654,7 @@ test('30 - hooks are installed for all 17 events', async () => {
 
 test('31 - hook server accepts POST and returns 200', async () => {
   // Extract the port from the installed hooks
-  const settingsPath = path.join(testEnv.CCT_USER_DATA, 'claude-settings.json');
+  const settingsPath = path.join(testEnv.CLAUDIU_USER_DATA, 'claude-settings.json');
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   const hookEntry = settings.hooks.SessionStart[0];
   const url = hookEntry.hooks.find(h => h.type === 'http').url;

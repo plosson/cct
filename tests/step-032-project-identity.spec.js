@@ -42,19 +42,19 @@ async function clearAllProjects() {
   }
   await window.evaluate(async () => {
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   });
 }
 
 async function addTempProject(name) {
-  const tmpDir = path.join(os.tmpdir(), `cct-test-${name}-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `claudiu-test-${name}-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   tmpDirs.push(tmpDir);
 
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   }, tmpDir);
 
   return tmpDir;
@@ -62,7 +62,7 @@ async function addTempProject(name) {
 
 test('1 - getProjectColor returns consistent color for same name', async () => {
   const result = await window.evaluate(() => {
-    const { getProjectColor } = window._cctProjectColors;
+    const { getProjectColor } = window._claudiuProjectColors;
     const c1 = getProjectColor('siteio');
     const c2 = getProjectColor('siteio');
     return { same: c1.hue === c2.hue, hasHue: typeof c1.hue === 'number' };
@@ -73,7 +73,7 @@ test('1 - getProjectColor returns consistent color for same name', async () => {
 
 test('2 - different project names get different palette indices', async () => {
   const result = await window.evaluate(() => {
-    const { getProjectColor } = window._cctProjectColors;
+    const { getProjectColor } = window._claudiuProjectColors;
     const names = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta'];
     const indices = names.map(n => getProjectColor(n).index);
     // At least 3 distinct indices out of 6 names (with 12-color palette)
@@ -133,7 +133,7 @@ test('6 - active tab has subtle background, no bottom border accent', async () =
 
 test('7 - getProjectColor utility still works', async () => {
   const result = await window.evaluate(() => {
-    const { getProjectColor } = window._cctProjectColors;
+    const { getProjectColor } = window._claudiuProjectColors;
     const c1 = getProjectColor('alpha');
     const c2 = getProjectColor('beta');
     return { hue1: c1.hue, hue2: c2.hue, different: c1.index !== c2.index };

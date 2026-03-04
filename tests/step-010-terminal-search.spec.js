@@ -21,13 +21,13 @@ test.beforeAll(async () => {
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Create a temp project, select it, and create a terminal session
-  const tmpDir = path.join(os.tmpdir(), `cct-test-010-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `claudiu-test-010-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a terminal session
@@ -41,7 +41,7 @@ test.beforeAll(async () => {
 
   // Wait for output
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toContain('SEARCH_TARGET_UNIQUE_42');
   }).toPass({ timeout: 5000 });
 });

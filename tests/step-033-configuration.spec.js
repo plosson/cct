@@ -17,11 +17,11 @@ let projectDir;
 test.beforeAll(async () => {
   env = launchEnv();
   // Create a temp project directory
-  projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cct-test-project-'));
+  projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudiu-test-project-'));
 
   // Pre-seed a project so we have something to configure
-  const projectsFile = path.join(env.CCT_USER_DATA, 'projects.json');
-  fs.mkdirSync(env.CCT_USER_DATA, { recursive: true });
+  const projectsFile = path.join(env.CLAUDIU_USER_DATA, 'projects.json');
+  fs.mkdirSync(env.CLAUDIU_USER_DATA, { recursive: true });
   fs.writeFileSync(projectsFile, JSON.stringify({
     projects: [{ path: projectDir, name: path.basename(projectDir) }]
   }));
@@ -94,7 +94,7 @@ test('6 - saving global config persists to config.json', async () => {
 
   // Verify config.json was written
   await window.waitForTimeout(300);
-  const configPath = path.join(env.CCT_USER_DATA, 'config.json');
+  const configPath = path.join(env.CLAUDIU_USER_DATA, 'config.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   expect(config.claudeCommand).toBe('my-custom-claude');
 });
@@ -129,7 +129,7 @@ test('8 - project tab shows project-specific settings', async () => {
   await window.keyboard.press('Escape');
 });
 
-test('9 - saving project config persists to .cct/config.json', async () => {
+test('9 - saving project config persists to .claudiu/config.json', async () => {
   await window.keyboard.press('Meta+,');
   await window.waitForSelector('[data-testid="settings-overlay"]', { timeout: 3000 });
 
@@ -143,23 +143,23 @@ test('9 - saving project config persists to .cct/config.json', async () => {
   await window.locator('[data-testid="settings-save-btn"]').click();
   await expect(window.locator('[data-testid="settings-overlay"]')).not.toBeAttached({ timeout: 3000 });
 
-  // Verify .cct/config.json in project directory
+  // Verify .claudiu/config.json in project directory
   await window.waitForTimeout(300);
-  const configPath = path.join(projectDir, '.cct', 'config.json');
+  const configPath = path.join(projectDir, '.claudiu', 'config.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   expect(config.claudeCommand).toBe('project-claude');
 });
 
 test('10 - config-resolve returns project override over global', async () => {
   const resolved = await window.evaluate(() =>
-    window.electron_api.appConfig.resolve('claudeCommand', window._cctSelectedProject())
+    window.electron_api.appConfig.resolve('claudeCommand', window._claudiuSelectedProject())
   );
   expect(resolved).toBe('project-claude');
 });
 
 test('11 - config-resolve falls back to global when no project override', async () => {
   const resolved = await window.evaluate(() =>
-    window.electron_api.appConfig.resolve('terminalCommand', window._cctSelectedProject())
+    window.electron_api.appConfig.resolve('terminalCommand', window._claudiuSelectedProject())
   );
   // terminalCommand has no project or global override, should return schema default (empty string)
   expect(resolved).toBe('');
@@ -176,13 +176,13 @@ test('12 - cancel button closes without saving', async () => {
   await expect(window.locator('[data-testid="settings-overlay"]')).not.toBeAttached({ timeout: 3000 });
 
   // Verify global config still has old value
-  const config = JSON.parse(fs.readFileSync(path.join(env.CCT_USER_DATA, 'config.json'), 'utf8'));
+  const config = JSON.parse(fs.readFileSync(path.join(env.CLAUDIU_USER_DATA, 'config.json'), 'utf8'));
   expect(config.claudeCommand).toBe('my-custom-claude');
 });
 
 test('13 - clearing a global config value removes it from config.json', async () => {
   // Precondition: claudeCommand is set from test 6
-  const configPath = path.join(env.CCT_USER_DATA, 'config.json');
+  const configPath = path.join(env.CLAUDIU_USER_DATA, 'config.json');
   let config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   expect(config.claudeCommand).toBe('my-custom-claude');
 

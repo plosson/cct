@@ -26,9 +26,9 @@ test('a window is created', async () => {
   expect(window).toBeTruthy();
 });
 
-test('window title contains CCT', async () => {
+test('window title contains Claudiu', async () => {
   const title = await window.title();
-  expect(title).toContain('CCT');
+  expect(title).toContain('Claudiu');
 });
 
 test('screenshot is non-empty', async () => {

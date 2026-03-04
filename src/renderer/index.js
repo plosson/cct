@@ -13,7 +13,7 @@ import { getProjectColor } from './projectColors.js';
 const api = window.electron_api;
 
 // Expose for testing
-window._cctProjectColors = { getProjectColor };
+window._claudiuProjectColors = { getProjectColor };
 
 const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId, type, createdAt }
 let activeId = null;
@@ -1786,7 +1786,7 @@ function clearDebugPane() {
 
 // ── Test helpers ─────────────────────────────────────────────
 
-window._cctGetBufferText = (targetId) => {
+window._claudiuGetBufferText = (targetId) => {
   const session = sessions.get(targetId || activeId);
   if (!session) return '';
   const buf = session.terminal.buffer.active;
@@ -1798,17 +1798,17 @@ window._cctGetBufferText = (targetId) => {
   return text;
 };
 
-window._cctActiveTabId = () => activeId;
-window._cctSelectedProject = () => selectedProjectPath;
-window._cctProjectMRU = () => [...projectMRU];
-window._cctCloseOtherTabs = (keepId) => closeOtherTabs(keepId);
-window._cctCloseAllTabs = (projectPath) => closeAllTabs(projectPath || selectedProjectPath);
-window._cctDuplicateTab = (tabId) => {
+window._claudiuActiveTabId = () => activeId;
+window._claudiuSelectedProject = () => selectedProjectPath;
+window._claudiuProjectMRU = () => [...projectMRU];
+window._claudiuCloseOtherTabs = (keepId) => closeOtherTabs(keepId);
+window._claudiuCloseAllTabs = (projectPath) => closeAllTabs(projectPath || selectedProjectPath);
+window._claudiuDuplicateTab = (tabId) => {
   const session = sessions.get(tabId);
   if (!session) return;
   createSession(session.type);
 };
-window._cctGetTabContextMenuItems = (tabId) => {
+window._claudiuGetTabContextMenuItems = (tabId) => {
   const session = sessions.get(tabId);
   if (!session) return null;
   const projectSessions = sessionsForProject(session.projectPath);
@@ -1820,12 +1820,12 @@ window._cctGetTabContextMenuItems = (tabId) => {
   ];
 };
 
-window._cctGetTabOrder = () => {
+window._claudiuGetTabOrder = () => {
   return [...tabBarTabs.children]
     .filter(el => el.style.display !== 'none')
     .map(el => el.querySelector('.tab-label')?.textContent || '');
 };
-window._cctGetProjectContextMenuItems = (projectPath) => {
+window._claudiuGetProjectContextMenuItems = (projectPath) => {
   return [
     { label: 'Reveal in Finder', action: 'revealInFinder' },
     { label: 'Copy Path', action: 'copyPath' },
@@ -1833,15 +1833,15 @@ window._cctGetProjectContextMenuItems = (projectPath) => {
     { label: 'Remove Project', action: 'remove' },
   ];
 };
-window._cctIsSidebarVisible = () => sidebarMode === 'pinned' || sidebarRevealed;
-window._cctGetSidebarMode = () => sidebarMode;
-window._cctProjectActivity = () => [...projectActivity];
-window._cctGetSessionsForProject = (projectPath) => {
+window._claudiuIsSidebarVisible = () => sidebarMode === 'pinned' || sidebarRevealed;
+window._claudiuGetSidebarMode = () => sidebarMode;
+window._claudiuProjectActivity = () => [...projectActivity];
+window._claudiuGetSessionsForProject = (projectPath) => {
   return sessionsForProject(projectPath).map(([id]) => id);
 };
 
 // Reload projects from store and re-render sidebar (used by tests)
-window._cctReloadProjects = (projectList) => {
+window._claudiuReloadProjects = (projectList) => {
   refreshProjectList(projectList);
   if (selectedProjectPath && !projects.some(p => p.path === selectedProjectPath)) {
     selectedProjectPath = null;
@@ -1851,10 +1851,10 @@ window._cctReloadProjects = (projectList) => {
 };
 
 // Select a project programmatically (used by tests)
-window._cctSelectProject = (projectPath) => {
+window._claudiuSelectProject = (projectPath) => {
   selectProject(projectPath);
 };
-window._cctAddDebugEntry = addDebugEntry;
+window._claudiuAddDebugEntry = addDebugEntry;
 
 // ── Keybindings ──────────────────────────────────────────────
 

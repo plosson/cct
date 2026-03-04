@@ -21,13 +21,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-021-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-021-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create two terminal tabs
@@ -54,7 +54,7 @@ test.afterAll(async () => {
 test('1 - background tab gets tab-bell class when bell is triggered', async () => {
   // Tab 2 is active, send bell to tab 1 (background)
   const tab1Id = await window.evaluate(() => {
-    const ids = window._cctGetSessionsForProject(window._cctSelectedProject());
+    const ids = window._claudiuGetSessionsForProject(window._claudiuSelectedProject());
     return ids[0]; // first tab (background since tab 2 is active)
   });
 
@@ -79,7 +79,7 @@ test('2 - tab-bell class is removed after animation', async () => {
 
 test('3 - active tab does not get tab-bell class on bell', async () => {
   // Tab 2 is active, send bell to tab 2 (active)
-  const activeId = await window.evaluate(() => window._cctActiveTabId());
+  const activeId = await window.evaluate(() => window._claudiuActiveTabId());
 
   await window.evaluate((id) => {
     window.electron_api.terminal.input({ id, data: 'printf "\\a"\n' });

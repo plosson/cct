@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-020-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-020-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 });
 
@@ -51,16 +51,16 @@ test('1 - context menu includes Duplicate option', async () => {
   await window.waitForTimeout(500);
   await expect(window.locator('[data-testid="tab"]')).toHaveCount(1, { timeout: 5000 });
 
-  const tabId = await window.evaluate(() => window._cctActiveTabId());
-  const items = await window.evaluate((id) => window._cctGetTabContextMenuItems(id), tabId);
+  const tabId = await window.evaluate(() => window._claudiuActiveTabId());
+  const items = await window.evaluate((id) => window._claudiuGetTabContextMenuItems(id), tabId);
   const duplicateItem = items.find(i => i.action === 'duplicate');
   expect(duplicateItem).toBeTruthy();
   expect(duplicateItem.label).toBe('Duplicate');
 });
 
 test('2 - duplicating a terminal tab creates a new terminal tab', async () => {
-  const tabId = await window.evaluate(() => window._cctActiveTabId());
-  await window.evaluate((id) => window._cctDuplicateTab(id), tabId);
+  const tabId = await window.evaluate(() => window._claudiuActiveTabId());
+  await window.evaluate((id) => window._claudiuDuplicateTab(id), tabId);
   await window.waitForTimeout(500);
 
   await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 5000 });
@@ -90,8 +90,8 @@ test('6 - duplicate a claude-type tab creates a claude tab', async () => {
   await expect(window.locator('[data-testid="tab"]')).toHaveCount(3, { timeout: 5000 });
 
   // Duplicate the claude tab
-  const claudeTabId = await window.evaluate(() => window._cctActiveTabId());
-  await window.evaluate((id) => window._cctDuplicateTab(id), claudeTabId);
+  const claudeTabId = await window.evaluate(() => window._claudiuActiveTabId());
+  await window.evaluate((id) => window._claudiuDuplicateTab(id), claudeTabId);
   await window.waitForTimeout(500);
 
   await expect(window.locator('[data-testid="tab"]')).toHaveCount(4, { timeout: 5000 });

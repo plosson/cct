@@ -1,6 +1,6 @@
 /**
  * Step 034 — Command-Line Invocation
- * Launch CCT with a project path: `cct .` or `cct /path/to/project`
+ * Launch Claudiu with a project path: `claudiu .` or `claudiu /path/to/project`
  * Tests both first-instance (fresh launch with path arg) and
  * the open-project IPC channel used by second-instance.
  */
@@ -19,7 +19,7 @@ let projectDir;
 test.beforeAll(async () => {
   env = launchEnv();
   // Create a temp project directory
-  projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cct-test-cli-'));
+  projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudiu-test-cli-'));
 });
 
 test.afterAll(async () => {
@@ -41,7 +41,7 @@ test('1 - launching with project path auto-adds and selects the project', async 
   await window.waitForTimeout(1000);
 
   // The project should be added and selected
-  const selectedProject = await window.evaluate(() => window._cctSelectedProject());
+  const selectedProject = await window.evaluate(() => window._claudiuSelectedProject());
   expect(selectedProject).toBe(projectDir);
 });
 
@@ -54,14 +54,14 @@ test('2 - project appears in the sidebar', async () => {
 });
 
 test('3 - project is persisted in projects.json', async () => {
-  const projectsFile = path.join(env.CCT_USER_DATA, 'projects.json');
+  const projectsFile = path.join(env.CLAUDIU_USER_DATA, 'projects.json');
   const data = JSON.parse(fs.readFileSync(projectsFile, 'utf8'));
   expect(data.projects.some(p => p.path === projectDir)).toBe(true);
 });
 
 test('4 - open-project IPC selects an existing project', async () => {
   // Create a second project directory
-  const secondDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cct-test-cli-2-'));
+  const secondDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudiu-test-cli-2-'));
 
   // Add it via IPC (simulates what main process does)
   await window.evaluate(async (dir) => {
@@ -71,11 +71,11 @@ test('4 - open-project IPC selects an existing project', async () => {
   // Simulate the open-project message by reloading projects and selecting
   await window.evaluate(async (dir) => {
     const fresh = await window.electron_api.projects.list();
-    window._cctReloadProjects(fresh);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(fresh);
+    window._claudiuSelectProject(dir);
   }, secondDir);
 
-  const selected = await window.evaluate(() => window._cctSelectedProject());
+  const selected = await window.evaluate(() => window._claudiuSelectedProject());
   expect(selected).toBe(secondDir);
 
   // Clean up
@@ -92,25 +92,25 @@ test('5 - projects.onOpen listener is exposed in preload', async () => {
 
 test('6 - parseProjectPath ignores flags and invalid paths', async () => {
   // Launch a second instance with only flags — should not crash or change project
-  const currentProject = await window.evaluate(() => window._cctSelectedProject());
+  const currentProject = await window.evaluate(() => window._claudiuSelectedProject());
 
   // The first project (from test 1) should still be available
-  const projectsFile = path.join(env.CCT_USER_DATA, 'projects.json');
+  const projectsFile = path.join(env.CLAUDIU_USER_DATA, 'projects.json');
   const data = JSON.parse(fs.readFileSync(projectsFile, 'utf8'));
   expect(data.projects.length).toBeGreaterThanOrEqual(1);
 });
 
-test('7 - bin/cct script exists and is executable', async () => {
-  const binPath = path.join(appPath, 'bin', 'cct');
+test('7 - bin/claudiu script exists and is executable', async () => {
+  const binPath = path.join(appPath, 'bin', 'claudiu');
   const stat = fs.statSync(binPath);
   expect(stat.isFile()).toBe(true);
   // Check executable bit (owner execute)
   expect(stat.mode & 0o111).toBeGreaterThan(0);
 });
 
-test('8 - bin/cct script contains open -a for packaged app', async () => {
-  const binPath = path.join(appPath, 'bin', 'cct');
+test('8 - bin/claudiu script contains open -a for packaged app', async () => {
+  const binPath = path.join(appPath, 'bin', 'claudiu');
   const content = fs.readFileSync(binPath, 'utf8');
   expect(content).toContain('open -a');
-  expect(content).toContain('CCT');
+  expect(content).toContain('Claudiu');
 });

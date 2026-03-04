@@ -21,13 +21,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-014-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-014-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a terminal session
@@ -51,7 +51,7 @@ test.afterAll(async () => {
 
 test('1 - initial font size is 14', async () => {
   const fontSize = await window.evaluate(() => {
-    const activeId = window._cctActiveTabId();
+    const activeId = window._claudiuActiveTabId();
     // Access the xterm terminal instance to get its font size
     const textarea = document.querySelector('.terminal-panel.active .xterm-helper-textarea');
     // Get font size from the terminal's options

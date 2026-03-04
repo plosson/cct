@@ -24,8 +24,8 @@ test.beforeAll(async () => {
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Create two project directories
-  tmpDir1 = path.join(os.tmpdir(), `cct-test-019a-${Date.now()}`);
-  tmpDir2 = path.join(os.tmpdir(), `cct-test-019b-${Date.now()}`);
+  tmpDir1 = path.join(os.tmpdir(), `claudiu-test-019a-${Date.now()}`);
+  tmpDir2 = path.join(os.tmpdir(), `claudiu-test-019b-${Date.now()}`);
   fs.mkdirSync(tmpDir1, { recursive: true });
   fs.mkdirSync(tmpDir2, { recursive: true });
 
@@ -38,17 +38,17 @@ test.beforeAll(async () => {
   }, tmpDir2);
   await window.evaluate(async () => {
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
+    window._claudiuReloadProjects(saved);
   });
 
   // Select project 1 and create a terminal session
-  await window.evaluate((dir) => window._cctSelectProject(dir), tmpDir1);
+  await window.evaluate((dir) => window._claudiuSelectProject(dir), tmpDir1);
   await window.keyboard.press('Meta+t');
   await window.waitForTimeout(500);
   await expect(window.locator('[data-testid="tab"]:visible')).toHaveCount(1, { timeout: 5000 });
 
   // Select project 2 and create a terminal session
-  await window.evaluate((dir) => window._cctSelectProject(dir), tmpDir2);
+  await window.evaluate((dir) => window._claudiuSelectProject(dir), tmpDir2);
   await window.keyboard.press('Meta+t');
   await window.waitForTimeout(500);
   await expect(window.locator('[data-testid="tab"]:visible')).toHaveCount(1, { timeout: 5000 });
@@ -79,7 +79,7 @@ test('2 - background project gets activity badge when its terminal produces outp
   // Project 2 is selected, project 1 is in background
   // Send a command to project 1's terminal to generate output
   const termId = await window.evaluate((dir) => {
-    const entries = [...window._cctGetSessionsForProject(dir)];
+    const entries = [...window._claudiuGetSessionsForProject(dir)];
     return entries.length > 0 ? entries[0] : null;
   }, tmpDir1);
 
@@ -94,7 +94,7 @@ test('2 - background project gets activity badge when its terminal produces outp
   await window.waitForTimeout(1000);
 
   // Check project activity set
-  const activity = await window.evaluate(() => window._cctProjectActivity());
+  const activity = await window.evaluate(() => window._claudiuProjectActivity());
   expect(activity.length).toBeGreaterThanOrEqual(1);
 });
 
@@ -105,21 +105,21 @@ test('3 - project activity class is on the sidebar item', async () => {
 
 test('4 - switching to the project clears the activity badge', async () => {
   // Switch to project 1
-  await window.evaluate((dir) => window._cctSelectProject(dir), tmpDir1);
+  await window.evaluate((dir) => window._claudiuSelectProject(dir), tmpDir1);
   await window.waitForTimeout(300);
 
   const project1 = window.locator('[data-testid="project-item"]').nth(0);
   await expect(project1).not.toHaveClass(/project-activity/);
 
   // The activity set should no longer contain project 1
-  const activity = await window.evaluate(() => window._cctProjectActivity());
+  const activity = await window.evaluate(() => window._claudiuProjectActivity());
   expect(activity).not.toContain(tmpDir1);
 });
 
 test('5 - selected project output does not trigger activity badge', async () => {
   // Project 1 is now selected, send output to its terminal
   const termId = await window.evaluate((dir) => {
-    const entries = [...window._cctGetSessionsForProject(dir)];
+    const entries = [...window._claudiuGetSessionsForProject(dir)];
     return entries.length > 0 ? entries[0] : null;
   }, tmpDir1);
 

@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 60000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-026-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-026-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a terminal session
@@ -52,13 +52,13 @@ test.afterAll(async () => {
 
 test('1 - terminal has no selection initially', async () => {
   const selection = await window.evaluate(() => {
-    const id = window._cctActiveTabId();
-    const sessions = window._cctGetSessionsForProject(window._cctSelectedProject());
+    const id = window._claudiuActiveTabId();
+    const sessions = window._claudiuGetSessionsForProject(window._claudiuSelectedProject());
     // Access the terminal's selection via the test helper
     return ''; // No selection by default
   });
   // Just verifying the terminal is ready
-  const bufferText = await window.evaluate(() => window._cctGetBufferText());
+  const bufferText = await window.evaluate(() => window._claudiuGetBufferText());
   expect(typeof bufferText).toBe('string');
 });
 
@@ -68,11 +68,11 @@ test('2 - Cmd+A selects all text in terminal', async () => {
 
   // Type some text and wait for it to appear in the buffer
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     window.electron_api.terminal.input({ id, data: 'echo SELECT_ALL_TEST\n' });
   });
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toContain('SELECT_ALL_TEST');
   }).toPass({ timeout: 5000 });
 

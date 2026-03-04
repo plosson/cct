@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 60000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-027-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-027-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 });
 
@@ -46,9 +46,9 @@ test.afterAll(async () => {
 });
 
 test('1 - sidebar starts in pinned mode', async () => {
-  const mode = await window.evaluate(() => window._cctGetSidebarMode());
+  const mode = await window.evaluate(() => window._claudiuGetSidebarMode());
   expect(mode).toBe('pinned');
-  const visible = await window.evaluate(() => window._cctIsSidebarVisible());
+  const visible = await window.evaluate(() => window._claudiuIsSidebarVisible());
   expect(visible).toBe(true);
 });
 
@@ -61,10 +61,10 @@ test('3 - Cmd+B switches to autohide', async () => {
   await window.keyboard.press('Meta+b');
   await window.waitForTimeout(200);
 
-  const mode = await window.evaluate(() => window._cctGetSidebarMode());
+  const mode = await window.evaluate(() => window._claudiuGetSidebarMode());
   expect(mode).toBe('autohide');
 
-  const visible = await window.evaluate(() => window._cctIsSidebarVisible());
+  const visible = await window.evaluate(() => window._claudiuIsSidebarVisible());
   expect(visible).toBe(false);
 });
 
@@ -77,13 +77,13 @@ test('5 - Cmd+B pins the sidebar again', async () => {
   await window.keyboard.press('Meta+b');
   await window.waitForTimeout(200);
 
-  const mode = await window.evaluate(() => window._cctGetSidebarMode());
+  const mode = await window.evaluate(() => window._claudiuGetSidebarMode());
   expect(mode).toBe('pinned');
 
   const sidebar = window.locator('[data-testid="sidebar"]');
   await expect(sidebar).toBeVisible();
 
-  const visible = await window.evaluate(() => window._cctIsSidebarVisible());
+  const visible = await window.evaluate(() => window._claudiuIsSidebarVisible());
   expect(visible).toBe(true);
 });
 

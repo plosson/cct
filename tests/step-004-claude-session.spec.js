@@ -13,25 +13,25 @@ let electronApp;
 let window;
 
 test.beforeAll(async () => {
-  // Launch with CCT_COMMAND=claude to spawn a Claude Code session
+  // Launch with CLAUDIU_COMMAND=claude to spawn a Claude Code session
   electronApp = await electron.launch({
     args: [appPath],
-    env: launchEnv({ CCT_COMMAND: 'claude' })
+    env: launchEnv({ CLAUDIU_COMMAND: 'claude' })
   });
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Create a temp project and select it
-  const tmpDir = path.join(os.tmpdir(), `cct-test-004-${Date.now()}`);
+  const tmpDir = path.join(os.tmpdir(), `claudiu-test-004-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
-  // Create a session (will spawn claude due to CCT_COMMAND)
+  // Create a session (will spawn claude due to CLAUDIU_COMMAND)
   await window.click('[data-testid="new-tab-btn"]');
   // Claude may take longer to start than a shell
   await window.waitForSelector('.xterm', { timeout: 15000 });
@@ -68,14 +68,14 @@ test('screenshot shows Claude TUI (not raw escape codes)', async () => {
   expect(screenshot.byteLength).toBeGreaterThan(0);
 
   // Verify buffer does NOT contain raw escape code sequences
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   const rawEscapeCount = (text.match(/\\x1b\[|\\u001b\[|\x1b\[/g) || []).length;
   expect(rawEscapeCount).toBeLessThan(5);
 });
 
 test('terminal buffer contains Claude UI markers', async () => {
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     const hasClaudeMarker = text.includes('>') ||
       text.toLowerCase().includes('claude') ||
       text.includes('tips') ||
@@ -97,14 +97,14 @@ test('send /help and verify buffer updates', async () => {
   const textarea = window.locator('.terminal-panel.active .xterm-helper-textarea');
   await textarea.focus();
 
-  const beforeText = await window.evaluate(() => window._cctGetBufferText());
+  const beforeText = await window.evaluate(() => window._claudiuGetBufferText());
 
   await textarea.pressSequentially('/help', { delay: 50 });
   await window.keyboard.press('Enter');
 
   // Wait for buffer to change — Claude's TUI redraws the screen
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).not.toBe(beforeText);
   }).toPass({ timeout: 15000 });
 });

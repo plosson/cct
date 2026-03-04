@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 60000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-028-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-028-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 });
 
@@ -47,7 +47,7 @@ test.afterAll(async () => {
 
 test('1 - project context menu items are correct', async () => {
   const items = await window.evaluate((dir) => {
-    return window._cctGetProjectContextMenuItems(dir);
+    return window._claudiuGetProjectContextMenuItems(dir);
   }, tmpDir);
 
   expect(items).toHaveLength(4);

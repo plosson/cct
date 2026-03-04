@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 90000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-031-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-031-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create 3 terminal sessions
@@ -58,7 +58,7 @@ test('1 - three tabs exist initially', async () => {
 
 test('2 - Cmd+Shift+W closes all tabs except active', async () => {
   // Active tab is the 3rd one (last created)
-  const activeId = await window.evaluate(() => window._cctActiveTabId());
+  const activeId = await window.evaluate(() => window._claudiuActiveTabId());
   expect(activeId).toBeTruthy();
 
   await window.keyboard.press('Meta+Shift+W');
@@ -68,7 +68,7 @@ test('2 - Cmd+Shift+W closes all tabs except active', async () => {
   await expect(window.locator('[data-testid="tab"]')).toHaveCount(1, { timeout: 5000 });
 
   // The remaining tab should be the one that was active
-  const stillActiveId = await window.evaluate(() => window._cctActiveTabId());
+  const stillActiveId = await window.evaluate(() => window._claudiuActiveTabId());
   expect(stillActiveId).toBe(activeId);
 });
 

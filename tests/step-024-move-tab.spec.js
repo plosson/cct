@@ -23,13 +23,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 60000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-024-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-024-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create 3 terminal sessions to have enough tabs for reordering
@@ -54,7 +54,7 @@ test.afterAll(async () => {
 });
 
 test('1 - three tabs exist with correct initial order', async () => {
-  const order = await window.evaluate(() => window._cctGetTabOrder());
+  const order = await window.evaluate(() => window._claudiuGetTabOrder());
   expect(order).toHaveLength(3);
   // Tab 3 should be active (last created)
   const activeLabel = await window.locator('[data-testid="tab"].active .tab-label').textContent();
@@ -63,26 +63,26 @@ test('1 - three tabs exist with correct initial order', async () => {
 
 test('2 - Cmd+Shift+Left moves active tab left', async () => {
   // Active tab is tab 3 (index 2). After move left, it should be at index 1.
-  const beforeOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const beforeOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   const activeLabel = beforeOrder[2]; // tab 3
 
   await window.keyboard.press('Meta+Shift+ArrowLeft');
   await window.waitForTimeout(200);
 
-  const afterOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const afterOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   expect(afterOrder[1]).toBe(activeLabel);
   expect(afterOrder).toHaveLength(3);
 });
 
 test('3 - Cmd+Shift+Right moves active tab right', async () => {
   // After test 2, active tab is at index 1. Move right puts it back at index 2.
-  const beforeOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const beforeOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   const activeLabel = beforeOrder[1]; // the tab we moved
 
   await window.keyboard.press('Meta+Shift+ArrowRight');
   await window.waitForTimeout(200);
 
-  const afterOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const afterOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   expect(afterOrder[2]).toBe(activeLabel);
 });
 
@@ -91,26 +91,26 @@ test('4 - move left wraps first tab to last position', async () => {
   await window.keyboard.press('Meta+1');
   await window.waitForTimeout(200);
 
-  const beforeOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const beforeOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   const firstLabel = beforeOrder[0];
 
   await window.keyboard.press('Meta+Shift+ArrowLeft');
   await window.waitForTimeout(200);
 
-  const afterOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const afterOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   // First tab should now be last
   expect(afterOrder[afterOrder.length - 1]).toBe(firstLabel);
 });
 
 test('5 - move right wraps last tab to first position', async () => {
   // After test 4, the tab we moved is now last. Move right should wrap to first.
-  const beforeOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const beforeOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   const lastLabel = beforeOrder[beforeOrder.length - 1];
 
   await window.keyboard.press('Meta+Shift+ArrowRight');
   await window.waitForTimeout(200);
 
-  const afterOrder = await window.evaluate(() => window._cctGetTabOrder());
+  const afterOrder = await window.evaluate(() => window._claudiuGetTabOrder());
   expect(afterOrder[0]).toBe(lastLabel);
 });
 

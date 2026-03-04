@@ -23,13 +23,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 60000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-023-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-023-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a terminal session
@@ -61,7 +61,7 @@ test('1 - clipboard API is available via preload', async () => {
 });
 
 test('2 - writeText and readText round-trip', async () => {
-  const testString = 'CCT_CLIPBOARD_TEST_' + Date.now();
+  const testString = 'CLAUDIU_CLIPBOARD_TEST_' + Date.now();
   await window.evaluate((s) => window.electron_api.clipboard.writeText(s), testString);
   const result = await window.evaluate(() => window.electron_api.clipboard.readText());
   expect(result).toBe(testString);
@@ -74,21 +74,21 @@ test('3 - Cmd+Shift+V pastes clipboard into terminal', async () => {
   await window.keyboard.press('Meta+Shift+V');
   await window.waitForTimeout(500);
 
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   expect(text).toContain(pasteText);
 });
 
 test('4 - Cmd+Shift+C copies selection (programmatic test)', async () => {
   // Write a known string then select it
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     window.electron_api.terminal.input({ id, data: 'echo COPY_TEST_STRING\n' });
   });
   await window.waitForTimeout(500);
 
   // Use xterm.js selectAll() then copy
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     // We can't easily select specific text, but we can test the pipeline
     // by writing to clipboard directly via the API
     window.electron_api.clipboard.writeText('COPY_VERIFICATION');

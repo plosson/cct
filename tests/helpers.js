@@ -1,5 +1,5 @@
 /**
- * Shared test helpers for CCT Playwright tests
+ * Shared test helpers for Claudiu Playwright tests
  */
 const path = require('path');
 const fs = require('fs');
@@ -12,11 +12,11 @@ const appPath = path.join(__dirname, '..');
  * Each call creates a unique temp directory so parallel workers don't collide.
  */
 function launchEnv(extra = {}) {
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'cct-test-'));
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'claudiu-test-'));
   return {
     ...process.env,
-    CCT_COMMAND: process.env.SHELL || '/bin/zsh',
-    CCT_USER_DATA: userData,
+    CLAUDIU_COMMAND: process.env.SHELL || '/bin/zsh',
+    CLAUDIU_USER_DATA: userData,
     ...extra,
   };
 }

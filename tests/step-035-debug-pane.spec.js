@@ -117,7 +117,7 @@ test('7 - log entries appear in the debug pane', async () => {
 
   // Add a test log entry via test helper
   await window.evaluate(() => {
-    window._cctAddDebugEntry({ timestamp: Date.now(), level: 'info', source: 'test', message: 'Hello from test' });
+    window._claudiuAddDebugEntry({ timestamp: Date.now(), level: 'info', source: 'test', message: 'Hello from test' });
   });
 
   const entries = await window.evaluate(() =>
@@ -134,7 +134,7 @@ test('7 - log entries appear in the debug pane', async () => {
 test('8 - clear button removes all entries', async () => {
   // Add an entry first
   await window.evaluate(() => {
-    window._cctAddDebugEntry({ timestamp: Date.now(), level: 'warn', source: 'test', message: 'Warning entry' });
+    window._claudiuAddDebugEntry({ timestamp: Date.now(), level: 'warn', source: 'test', message: 'Warning entry' });
   });
 
   // Click clear

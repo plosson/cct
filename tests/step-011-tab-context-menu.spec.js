@@ -24,13 +24,13 @@ test.beforeAll(async () => {
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
   // Create a temp project and select it
-  tmpDir = path.join(os.tmpdir(), `cct-test-011-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-011-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 });
 
@@ -63,8 +63,8 @@ test('1 - tab has contextmenu listener', async () => {
 
   // Verify context menu items are generated correctly
   const items = await window.evaluate(() => {
-    const activeId = window._cctActiveTabId();
-    return window._cctGetTabContextMenuItems(activeId);
+    const activeId = window._claudiuActiveTabId();
+    return window._claudiuGetTabContextMenuItems(activeId);
   });
 
   expect(items).toHaveLength(4);
@@ -76,8 +76,8 @@ test('1 - tab has contextmenu listener', async () => {
 
 test('2 - Close Others is disabled with only one tab', async () => {
   const items = await window.evaluate(() => {
-    const activeId = window._cctActiveTabId();
-    return window._cctGetTabContextMenuItems(activeId);
+    const activeId = window._claudiuActiveTabId();
+    return window._claudiuGetTabContextMenuItems(activeId);
   });
 
   const closeOthers = items.find(i => i.action === 'closeOthers');
@@ -90,8 +90,8 @@ test('3 - Close Others is enabled with multiple tabs', async () => {
   await expect(tabs).toHaveCount(2, { timeout: 5000 });
 
   const items = await window.evaluate(() => {
-    const activeId = window._cctActiveTabId();
-    return window._cctGetTabContextMenuItems(activeId);
+    const activeId = window._claudiuActiveTabId();
+    return window._claudiuGetTabContextMenuItems(activeId);
   });
 
   const closeOthers = items.find(i => i.action === 'closeOthers');
@@ -106,8 +106,8 @@ test('4 - closeOtherTabs keeps only the specified tab', async () => {
 
   // Keep the active tab, close others
   await window.evaluate(() => {
-    const keepId = window._cctActiveTabId();
-    window._cctCloseOtherTabs(keepId);
+    const keepId = window._claudiuActiveTabId();
+    window._claudiuCloseOtherTabs(keepId);
   });
   await window.waitForTimeout(500);
 
@@ -122,7 +122,7 @@ test('5 - closeAllTabs closes every tab in the project', async () => {
   await expect(tabs).toHaveCount(3, { timeout: 5000 });
 
   await window.evaluate(() => {
-    window._cctCloseAllTabs();
+    window._claudiuCloseAllTabs();
   });
   await window.waitForTimeout(500);
 
@@ -149,16 +149,16 @@ test('7 - closeOtherTabs activates the kept tab', async () => {
   });
 
   // Close others, keeping the first tab
-  await window.evaluate((id) => window._cctCloseOtherTabs(id), firstTabId);
+  await window.evaluate((id) => window._claudiuCloseOtherTabs(id), firstTabId);
   await window.waitForTimeout(500);
 
   await expect(tabs).toHaveCount(1, { timeout: 3000 });
 
   // The kept tab should be active
-  const activeTabId = await window.evaluate(() => window._cctActiveTabId());
+  const activeTabId = await window.evaluate(() => window._claudiuActiveTabId());
   expect(activeTabId).toBe(firstTabId);
 
   // Clean up
-  await window.evaluate(() => window._cctCloseAllTabs());
+  await window.evaluate(() => window._claudiuCloseAllTabs());
   await window.waitForTimeout(300);
 });

@@ -21,13 +21,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow();
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 10000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-018-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-018-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create 3 tabs

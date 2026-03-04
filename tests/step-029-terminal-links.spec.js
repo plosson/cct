@@ -22,13 +22,13 @@ test.beforeAll(async () => {
   window = await electronApp.firstWindow({ timeout: 90000 });
   await window.waitForSelector('[data-testid="sidebar"]', { timeout: 15000 });
 
-  tmpDir = path.join(os.tmpdir(), `cct-test-029-${Date.now()}`);
+  tmpDir = path.join(os.tmpdir(), `claudiu-test-029-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
   await window.evaluate(async (dir) => {
     await window.electron_api.projects.addPath(dir);
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects(saved);
-    window._cctSelectProject(dir);
+    window._claudiuReloadProjects(saved);
+    window._claudiuSelectProject(dir);
   }, tmpDir);
 
   // Create a terminal session
@@ -59,12 +59,12 @@ test('1 - shell.openExternal API is available', async () => {
 
 test('2 - terminal contains a URL after echoing one', async () => {
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     window.electron_api.terminal.input({ id, data: 'echo https://example.com\\n' });
   });
   await window.waitForTimeout(500);
 
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   expect(text).toContain('https://example.com');
 });
 
@@ -82,11 +82,11 @@ test('3 - terminal has link elements (xterm-link-layer exists)', async () => {
 test('4 - web links addon is loaded in terminal', async () => {
   // Write another URL and verify the terminal DOM has the expected structure
   await window.evaluate(() => {
-    const id = window._cctActiveTabId();
+    const id = window._claudiuActiveTabId();
     window.electron_api.terminal.input({ id, data: 'echo https://github.com/test\\n' });
   });
   await window.waitForTimeout(500);
 
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   expect(text).toContain('https://github.com/test');
 });
