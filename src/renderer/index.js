@@ -1668,13 +1668,15 @@ async function renderSettingsTab(panelEl) {
     for (const t of themes) {
       const opt = document.createElement('option');
       opt.value = t.dirName;
-      opt.textContent = t.name;
+      opt.textContent = t.builtIn ? `${t.name} (built-in)` : t.name;
       themeSelect.appendChild(opt);
     }
 
     const isProject = settingsScope === 'project';
     const values = isProject ? editProject : editGlobal;
     const currentTheme = values.soundTheme !== undefined ? values.soundTheme : (editGlobal.soundTheme || schema.soundTheme.default || 'none');
+    const currentThemeMeta = themes.find(t => t.dirName === currentTheme);
+    const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
     themeSelect.value = currentTheme;
 
     themeSelect.addEventListener('change', () => {
@@ -1684,6 +1686,84 @@ async function renderSettingsTab(panelEl) {
     themeInputRow.appendChild(themeSelect);
     themeRow.appendChild(themeInputRow);
     wrapper.appendChild(themeRow);
+
+    // Theme management buttons (Duplicate / Rename / Delete)
+    const themeManageRow = document.createElement('div');
+    themeManageRow.className = 'settings-row settings-theme-install-row';
+
+    const duplicateBtn = document.createElement('button');
+    duplicateBtn.className = 'settings-btn-secondary';
+    duplicateBtn.textContent = 'Duplicate';
+    duplicateBtn.disabled = currentTheme === 'none';
+    duplicateBtn.addEventListener('click', async () => {
+      const srcDir = themeSelect.value;
+      if (!srcDir || srcDir === 'none') return;
+      const srcMeta = themes.find(t => t.dirName === srcDir);
+      const baseName = srcMeta ? srcMeta.name.replace(/ \(built-in\)$/, '') : srcDir;
+      const newName = prompt('Name for the duplicated theme:', baseName + ' Copy');
+      if (!newName) return;
+      const result = await api.soundThemes.duplicate(srcDir, newName);
+      if (result.success) {
+        values.soundTheme = result.dirName;
+        const newThemes = await api.soundThemes.list();
+        themes.length = 0;
+        themes.push(...newThemes);
+        resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+        renderActiveSection();
+      } else {
+        alert('Duplicate failed: ' + (result.error || 'Unknown error'));
+      }
+    });
+    themeManageRow.appendChild(duplicateBtn);
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'settings-btn-secondary';
+    renameBtn.textContent = 'Rename';
+    renameBtn.disabled = isCurrentBuiltIn || currentTheme === 'none';
+    renameBtn.addEventListener('click', async () => {
+      const dirName = themeSelect.value;
+      if (!dirName || dirName === 'none') return;
+      const meta = themes.find(t => t.dirName === dirName);
+      const newName = prompt('New name:', meta ? meta.name : dirName);
+      if (!newName) return;
+      const result = await api.soundThemes.rename(dirName, newName);
+      if (result.success) {
+        values.soundTheme = result.dirName;
+        const newThemes = await api.soundThemes.list();
+        themes.length = 0;
+        themes.push(...newThemes);
+        resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+        renderActiveSection();
+      } else {
+        alert('Rename failed: ' + (result.error || 'Unknown error'));
+      }
+    });
+    themeManageRow.appendChild(renameBtn);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'settings-btn-secondary settings-btn-danger';
+    deleteBtn.textContent = 'Delete';
+    deleteBtn.disabled = isCurrentBuiltIn || currentTheme === 'none';
+    deleteBtn.addEventListener('click', async () => {
+      const dirName = themeSelect.value;
+      if (!dirName || dirName === 'none') return;
+      const meta = themes.find(t => t.dirName === dirName);
+      if (!confirm(`Delete theme "${meta ? meta.name : dirName}"? This cannot be undone.`)) return;
+      const result = await api.soundThemes.remove(dirName);
+      if (result.success) {
+        values.soundTheme = 'default';
+        const newThemes = await api.soundThemes.list();
+        themes.length = 0;
+        themes.push(...newThemes);
+        resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+        renderActiveSection();
+      } else {
+        alert('Delete failed: ' + (result.error || 'Unknown error'));
+      }
+    });
+    themeManageRow.appendChild(deleteBtn);
+
+    wrapper.appendChild(themeManageRow);
 
     // Theme install buttons
     const installRow = document.createElement('div');
@@ -1741,6 +1821,28 @@ async function renderSettingsTab(panelEl) {
     installRow.appendChild(exportBtn);
     wrapper.appendChild(installRow);
 
+    // Save theme setting (above the event table so it stays visible)
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'settings-actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'settings-save-btn';
+    saveBtn.dataset.testid = 'settings-sound-save-btn';
+    saveBtn.textContent = 'Save Sound Settings';
+    saveBtn.addEventListener('click', async () => {
+      if (isProject && selectedProjectPath) {
+        await api.appConfig.setProject(selectedProjectPath, editProject);
+      } else {
+        await api.appConfig.setGlobal(editGlobal);
+      }
+      // Reload sound cache
+      await loadSoundTheme();
+      saveBtn.textContent = 'Saved!';
+      setTimeout(() => { saveBtn.textContent = 'Save Sound Settings'; }, 1500);
+    });
+    actionsDiv.appendChild(saveBtn);
+    wrapper.appendChild(actionsDiv);
+
     // Event sound table
     const tableHeading = document.createElement('h4');
     tableHeading.className = 'settings-subsection-title';
@@ -1749,7 +1851,9 @@ async function renderSettingsTab(panelEl) {
 
     const tableDesc = document.createElement('div');
     tableDesc.className = 'settings-description';
-    tableDesc.textContent = 'Upload custom sounds per event. Modifying a built-in theme creates a custom copy automatically.';
+    tableDesc.textContent = isCurrentBuiltIn
+      ? 'Built-in themes are read-only. Duplicate to customize sounds.'
+      : 'Upload custom sounds per event.';
     wrapper.appendChild(tableDesc);
 
     const table = document.createElement('div');
@@ -1760,9 +1864,6 @@ async function renderSettingsTab(panelEl) {
     headerRow.className = 'settings-sound-row settings-sound-header';
     headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">Source</span><span class="settings-sound-actions">Actions</span>';
     table.appendChild(headerRow);
-
-    const currentThemeMeta = themes.find(t => t.dirName === currentTheme);
-    const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
 
     for (const eventName of ALL_HOOK_EVENTS) {
       const entry = resolvedSoundMap && resolvedSoundMap[eventName];
@@ -1814,12 +1915,13 @@ async function renderSettingsTab(panelEl) {
         actionsCell.appendChild(playBtn);
       }
 
-      // Upload button
+      // Upload button (disabled for built-in themes)
       const uploadBtn = document.createElement('button');
       uploadBtn.className = 'settings-btn-icon';
       uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
-      uploadBtn.title = 'Upload custom sound';
+      uploadBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Upload custom sound';
       uploadBtn.textContent = '\u2191';
+      uploadBtn.disabled = isCurrentBuiltIn;
       uploadBtn.addEventListener('click', async () => {
         const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
         const result = await api.soundThemes.uploadSound(eventName, projectPath);
@@ -1839,13 +1941,14 @@ async function renderSettingsTab(panelEl) {
       });
       actionsCell.appendChild(uploadBtn);
 
-      // Trim button
+      // Trim button (disabled for built-in themes)
       if (entry) {
         const trimBtn = document.createElement('button');
         trimBtn.className = 'settings-btn-icon';
         trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
-        trimBtn.title = 'Trim sound';
+        trimBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Trim sound';
         trimBtn.textContent = '\u2702';
+        trimBtn.disabled = isCurrentBuiltIn;
         trimBtn.addEventListener('click', () => {
           openTrimUI(eventName, entry.url, wrapper, settingsScope, entry.trimStart, entry.trimEnd, async (trimResult) => {
             if (trimResult && trimResult.forked) {
@@ -1895,28 +1998,6 @@ async function renderSettingsTab(panelEl) {
     }
 
     wrapper.appendChild(table);
-
-    // Save theme setting
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'settings-actions';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'settings-save-btn';
-    saveBtn.dataset.testid = 'settings-sound-save-btn';
-    saveBtn.textContent = 'Save Sound Settings';
-    saveBtn.addEventListener('click', async () => {
-      if (isProject && selectedProjectPath) {
-        await api.appConfig.setProject(selectedProjectPath, editProject);
-      } else {
-        await api.appConfig.setGlobal(editGlobal);
-      }
-      // Reload sound cache
-      await loadSoundTheme();
-      saveBtn.textContent = 'Saved!';
-      setTimeout(() => { saveBtn.textContent = 'Save Sound Settings'; }, 1500);
-    });
-    actionsDiv.appendChild(saveBtn);
-    wrapper.appendChild(actionsDiv);
 
     contentArea.appendChild(wrapper);
   }

@@ -91,10 +91,9 @@ class ConfigService {
     return { ...this._global };
   }
 
-  /** Bulk-set global config values — replaces all global config with the given values.
-   *  Only known schema keys are kept; empty/null/undefined values are dropped. */
+  /** Bulk-set global config values — merges into existing global config.
+   *  Only known schema keys are kept; empty/null/undefined values unset the key. */
   setGlobalAll(values) {
-    this._global = {};
     this._applyValues(this._global, values);
     this._saveGlobal();
   }
@@ -138,10 +137,10 @@ class ConfigService {
     return { ...this._loadProject(projectPath) };
   }
 
-  /** Bulk-set per-project config values — replaces all project config with the given values.
-   *  Only known schema keys are kept; empty/null/undefined values are dropped. */
+  /** Bulk-set per-project config values — merges into existing project config.
+   *  Only known schema keys are kept; empty/null/undefined values unset the key. */
   setProjectAll(projectPath, values) {
-    const config = {};
+    const config = this._loadProject(projectPath);
     this._applyValues(config, values);
     this._saveProject(projectPath, config);
   }

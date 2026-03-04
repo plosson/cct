@@ -1,0 +1,9 @@
+{
+  "name": "Minimal",
+  "version": "1.0.0",
+  "author": "Claudiu",
+  "description": "Quiet theme — only notifies on task completion",
+  "events": {
+    "TaskCompleted": "task-completed.mp3"
+  }
+}

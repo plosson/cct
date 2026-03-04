@@ -51,6 +51,14 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     return soundThemeService.forkTheme(dirName);
   });
 
+  ipcMain.handle('sound-theme-duplicate', (_event, { dirName, newName }) => {
+    return soundThemeService.duplicateTheme(dirName, newName);
+  });
+
+  ipcMain.handle('sound-theme-rename', (_event, { dirName, newName }) => {
+    return soundThemeService.renameTheme(dirName, newName);
+  });
+
   ipcMain.handle('sound-theme-get-sounds', (_event, projectPath) => {
     const themeName = configService.resolve('soundTheme', projectPath);
     return soundThemeService.getResolvedSoundMap(themeName);

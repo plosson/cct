@@ -1,9 +1,0 @@
-{
-  "name": "Default",
-  "version": "1.0.0",
-  "author": "Claudiu",
-  "description": "Built-in default sound theme",
-  "events": {
-    "SessionStart": "adriana_cut.mp3"
-  }
-}

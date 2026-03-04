@@ -5,9 +5,7 @@ module.exports = {
     output: "dist",
     buildResources: "build"
   },
-  extraResources: [
-    { from: "themes/default", to: "themes/default" }
-  ],
+  extraResources: [],
   files: [
     "main.js",
     "index.html",

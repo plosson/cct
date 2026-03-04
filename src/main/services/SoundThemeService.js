@@ -17,7 +17,7 @@ class SoundThemeService {
     this._logService = logService || null;
     this._themesDir = path.join(app.getPath('userData'), 'themes');
     this._ensureThemesDir();
-    this._seedDefaultTheme();
+    this._seedBundledThemes();
     this._cleanupLegacyOverrides();
   }
 
@@ -44,37 +44,55 @@ class SoundThemeService {
   }
 
   /**
-   * Copy the bundled default theme to {userData}/themes/default/ if not present.
-   * Bundled assets live in assets/themes/default/ relative to the app root.
+   * Copy all bundled themes from assets/themes/ to {userData}/themes/.
+   * Each subdirectory with a valid theme.json is seeded if not already present.
    */
-  _seedDefaultTheme() {
-    const destDir = path.join(this._themesDir, 'default');
-    if (fs.existsSync(path.join(destDir, 'theme.json'))) return; // already seeded
-
-    // Locate bundled assets — works both in dev and packaged app
+  _seedBundledThemes() {
     const appRoot = app.isPackaged
       ? path.join(process.resourcesPath, 'app')
       : path.join(__dirname, '..', '..', '..');
-    const srcDir = path.join(appRoot, 'assets', 'themes', 'default');
+    const bundledDir = path.join(appRoot, 'assets', 'themes');
 
-    if (!fs.existsSync(path.join(srcDir, 'theme.json'))) {
-      if (this._logService) this._logService.warn('sound-theme', 'Bundled default theme not found at ' + srcDir);
+    let entries;
+    try {
+      entries = fs.readdirSync(bundledDir, { withFileTypes: true });
+    } catch {
+      this._log('warn', 'Bundled themes directory not found at ' + bundledDir);
       return;
     }
 
-    fs.mkdirSync(destDir, { recursive: true });
-    const files = fs.readdirSync(srcDir);
-    for (const file of files) {
-      fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith('.') || entry.name.startsWith('_')) continue;
+      const srcDir = path.join(bundledDir, entry.name);
+      if (!fs.existsSync(path.join(srcDir, 'theme.json'))) continue;
+
+      const destDir = path.join(this._themesDir, entry.name);
+      const destJson = path.join(destDir, 'theme.json');
+
+      if (fs.existsSync(destJson)) {
+        // Already seeded — ensure builtIn flag is set
+        try {
+          const raw = JSON.parse(fs.readFileSync(destJson, 'utf8'));
+          if (!raw.builtIn) {
+            raw.builtIn = true;
+            fs.writeFileSync(destJson, JSON.stringify(raw, null, 2), 'utf8');
+          }
+        } catch { /* ignore */ }
+        continue;
+      }
+
+      fs.mkdirSync(destDir, { recursive: true });
+      for (const file of fs.readdirSync(srcDir)) {
+        fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+      }
+      // Mark as built-in
+      try {
+        const raw = JSON.parse(fs.readFileSync(destJson, 'utf8'));
+        raw.builtIn = true;
+        fs.writeFileSync(destJson, JSON.stringify(raw, null, 2), 'utf8');
+      } catch { /* ignore */ }
+      this._log('info', `Seeded bundled theme "${entry.name}"`);
     }
-    // Mark as built-in
-    const jsonPath = path.join(destDir, 'theme.json');
-    try {
-      const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-      raw.builtIn = true;
-      fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
-    } catch { /* ignore */ }
-    if (this._logService) this._logService.info('sound-theme', 'Seeded default theme');
   }
 
   /** Check if a theme is built-in (read-only) */
@@ -302,6 +320,75 @@ class SoundThemeService {
     fs.rmSync(themeDir, { recursive: true, force: true });
     this._log('info', `Removed theme "${dirName}"`);
     return { success: true };
+  }
+
+  /**
+   * Duplicate a theme with a new display name.
+   * @param {string} srcDirName - Source theme directory name
+   * @param {string} newName - Display name for the duplicate
+   * @returns {{success: boolean, dirName?: string, error?: string}}
+   */
+  duplicateTheme(srcDirName, newName) {
+    if (!this._validateDirName(srcDirName)) return { success: false, error: 'Invalid theme name' };
+    if (!newName || typeof newName !== 'string' || !newName.trim()) return { success: false, error: 'Name is required' };
+
+    const srcDir = path.join(this._themesDir, srcDirName);
+    if (!fs.existsSync(srcDir)) return { success: false, error: 'Theme not found' };
+
+    const newDirName = this._sanitizeDirName(newName);
+    const destDir = path.join(this._themesDir, newDirName);
+    if (fs.existsSync(destDir)) return { success: false, error: `A theme named "${newDirName}" already exists` };
+
+    this._copyDirSync(srcDir, destDir);
+
+    // Update theme.json: set new name, remove builtIn
+    const jsonPath = path.join(destDir, 'theme.json');
+    try {
+      const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      raw.name = newName.trim();
+      delete raw.builtIn;
+      fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
+    } catch {
+      return { success: false, error: 'Failed to update theme.json' };
+    }
+
+    this._log('info', `Duplicated theme "${srcDirName}" → "${newDirName}"`);
+    return { success: true, dirName: newDirName };
+  }
+
+  /**
+   * Rename a custom (non-built-in) theme.
+   * @param {string} dirName - Current theme directory name
+   * @param {string} newName - New display name
+   * @returns {{success: boolean, dirName?: string, error?: string}}
+   */
+  renameTheme(dirName, newName) {
+    if (!this._validateDirName(dirName)) return { success: false, error: 'Invalid theme name' };
+    if (!newName || typeof newName !== 'string' || !newName.trim()) return { success: false, error: 'Name is required' };
+    if (this.isBuiltIn(dirName)) return { success: false, error: 'Cannot rename a built-in theme' };
+
+    const newDirName = this._sanitizeDirName(newName);
+    const srcDir = path.join(this._themesDir, dirName);
+    if (!fs.existsSync(srcDir)) return { success: false, error: 'Theme not found' };
+
+    if (newDirName !== dirName) {
+      const destDir = path.join(this._themesDir, newDirName);
+      if (fs.existsSync(destDir)) return { success: false, error: `A theme named "${newDirName}" already exists` };
+      fs.renameSync(srcDir, destDir);
+    }
+
+    // Update display name in theme.json
+    const jsonPath = path.join(this._themesDir, newDirName, 'theme.json');
+    try {
+      const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      raw.name = newName.trim();
+      fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
+    } catch {
+      return { success: false, error: 'Failed to update theme.json' };
+    }
+
+    this._log('info', `Renamed theme "${dirName}" → "${newDirName}" ("${newName.trim()}")`);
+    return { success: true, dirName: newDirName };
   }
 
   /**

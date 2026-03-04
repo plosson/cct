@@ -1098,6 +1098,20 @@ html, body {
   background: var(--hover-bg);
 }
 
+.settings-btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-btn-secondary.settings-btn-danger {
+  color: var(--danger, #e55);
+  border-color: var(--danger, #e55);
+}
+
+.settings-btn-secondary.settings-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger, #e55) 10%, transparent);
+}
+
 .settings-btn-icon {
   background: none;
   border: 1px solid var(--border);
