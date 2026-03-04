@@ -39,6 +39,9 @@ function createMainWindow(windowStateService, configService) {
     titleBarStyle: isMac ? 'hiddenInset' : undefined,
     trafficLightPosition: isMac ? { x: 12, y: 12 } : undefined,
     backgroundColor: resolveBackgroundColor(configService),
+    vibrancy: isMac ? 'under-window' : undefined,
+    visualEffectState: isMac ? 'active' : undefined,
+    transparent: isMac,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
