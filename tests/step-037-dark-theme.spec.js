@@ -34,9 +34,10 @@ test('dark theme uses neutral gray backgrounds (not warm brown)', async () => {
   });
 
   // Verify neutral gray colors (no warm brown tint)
-  expect(vars.bgApp).toBe('#1a1a1a');
-  expect(vars.bgSurface).toBe('#222222');
-  expect(vars.bgDeep).toBe('#141414');
+  // CSS uses rgba for macOS vibrancy transparency
+  expect(vars.bgApp).toBe('rgba(17, 17, 17, 0.85)');
+  expect(vars.bgSurface).toBe('rgba(25, 25, 25, 0.80)');
+  expect(vars.bgDeep).toBe('#0c0c0c');
   expect(vars.textPrimary).toBe('#d4d4d4');
 });
 
@@ -44,8 +45,8 @@ test('dark theme body renders with correct background', async () => {
   const bodyBg = await window.evaluate(() => {
     return getComputedStyle(document.body).backgroundColor;
   });
-  // rgb(26, 26, 26) = #1a1a1a
-  expect(bodyBg).toBe('rgb(26, 26, 26)');
+  // rgba(17, 17, 17, 0.85) renders as rgba in computed style
+  expect(bodyBg).toMatch(/rgba?\(17,\s*17,\s*17/);
 });
 
 test('dark theme has no warm brown colors', async () => {

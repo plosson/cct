@@ -438,8 +438,8 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   const projColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
   const projColorBg = `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.15)`;
   const icon = isClaude
-    ? `<span class="tab-icon" style="background:${projColorBg};color:${projColor}">${claudeSvg}</span>`
-    : `<span class="tab-icon" style="background:${projColorBg};color:${projColor}">${termSvg}</span>`;
+    ? `<span class="tab-icon tab-icon-claude" style="background:${projColorBg};color:${projColor}">${claudeSvg}</span>`
+    : `<span class="tab-icon tab-icon-terminal" style="background:${projColorBg};color:${projColor}">${termSvg}</span>`;
   const displayLabel = `${project.name} ${num}`;
   const dot = `<span class="tab-color-dot" style="background:${projColor}"></span>`;
 

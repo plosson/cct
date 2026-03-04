@@ -653,10 +653,10 @@ test('30 - hooks are installed for all 17 events', async () => {
 });
 
 test('31 - hook server accepts POST and returns 200', async () => {
-  // Extract the port from the installed hooks
+  // Extract the port from an HTTP hook event (SessionStart uses command hooks, not HTTP)
   const settingsPath = path.join(testEnv.CLAUDIU_USER_DATA, 'claude-settings.json');
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-  const hookEntry = settings.hooks.SessionStart[0];
+  const hookEntry = settings.hooks.Stop[0];
   const url = hookEntry.hooks.find(h => h.type === 'http').url;
 
   // POST to the hook server
