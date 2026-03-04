@@ -440,8 +440,16 @@ html, body {
   background: var(--bg-app);
   color: var(--text-primary);
   position: relative;
-  margin-bottom: -1px;
-  border-bottom: 1px solid var(--bg-app);
+}
+
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bg-app);
 }
 
 .tab-icon {
