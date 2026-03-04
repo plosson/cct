@@ -132,7 +132,7 @@ function applyThemeSetting(theme) {
   TERMINAL_OPTIONS.theme = xtermTheme;
   document.documentElement.style.setProperty('--terminal-bg', xtermTheme.background);
   for (const sess of sessions.values()) {
-    sess.terminal.options.theme = xtermTheme;
+    if (sess.terminal) sess.terminal.options.theme = xtermTheme;
   }
   // Update project accent colors for the new theme
   updateProjectIdentity();
@@ -286,9 +286,9 @@ function selectProject(projectPath) {
   if (mruIdx !== -1) projectMRU.splice(mruIdx, 1);
   projectMRU.unshift(projectPath);
 
-  // Show/hide tabs and panels for the selected project
+  // Show/hide tabs and panels for the selected project (settings tabs always visible)
   for (const [, s] of sessions.entries()) {
-    const belongsToProject = s.projectPath === projectPath;
+    const belongsToProject = s.projectPath === projectPath || s.type === 'settings';
     s.tabEl.style.display = belongsToProject ? '' : 'none';
     if (!belongsToProject) {
       s.panelEl.classList.remove('active');
@@ -604,9 +604,11 @@ function activateTab(id) {
   session.tabEl.classList.remove('tab-activity');
   activeId = id;
 
-  session.fitAddon.fit();
-  api.terminal.resize({ id, cols: session.terminal.cols, rows: session.terminal.rows });
-  session.terminal.focus();
+  if (session.terminal && session.fitAddon) {
+    session.fitAddon.fit();
+    api.terminal.resize({ id, cols: session.terminal.cols, rows: session.terminal.rows });
+    session.terminal.focus();
+  }
   updateStatusBar();
 }
 
@@ -617,7 +619,7 @@ function closeTab(id) {
 
   const projectPath = session.projectPath;
 
-  api.terminal.kill({ id });
+  if (session.type !== 'settings') api.terminal.kill({ id });
   session.cleanup();
   session.panelEl.remove();
   session.tabEl.remove();
@@ -1307,67 +1309,202 @@ function closeShortcutHelp() {
   refocusTerminal();
 }
 
-// ── Settings overlay (Cmd+,) ─────────────────────────────────
+// ── Settings tab (Cmd+,) ─────────────────────────────────────
 
-let settingsOverlay = null;
+/** Unique counter for settings pseudo-sessions (negative to avoid PTY id collisions) */
+let settingsIdCounter = -1000;
 
+/** All hook event names for the Sound & Hooks UI */
+const ALL_HOOK_EVENTS = [
+  'SessionStart', 'SessionEnd',
+  'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
+  'PermissionRequest', 'Notification',
+  'SubagentStart', 'SubagentStop',
+  'PreCompact', 'ConfigChange',
+  'UserPromptSubmit', 'Stop',
+  'TeammateIdle', 'TaskCompleted',
+  'WorktreeCreate', 'WorktreeRemove',
+];
+
+/**
+ * Find an existing settings tab for the current project (or global).
+ * Returns the session id or null.
+ */
+function findSettingsTab() {
+  for (const [id, s] of sessions.entries()) {
+    if (s.type === 'settings') return id;
+  }
+  return null;
+}
+
+/** Open (or focus) the settings tab */
 async function openSettings() {
-  if (settingsOverlay) { closeSettings(); return; }
+  // If a settings tab already exists, just focus it
+  const existing = findSettingsTab();
+  if (existing !== null) {
+    activateTab(existing);
+    return;
+  }
 
-  const [schema, globalConfig, projectConfig] = await Promise.all([
+  const id = settingsIdCounter--;
+
+  const panelEl = document.createElement('div');
+  panelEl.className = 'terminal-panel settings-tab-panel';
+  terminalsContainer.appendChild(panelEl);
+
+  // Build settings icon for tab
+  const settingsSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.4 3.4l.85.85M11.75 11.75l.85.85M3.4 12.6l.85-.85M11.75 4.25l.85-.85"/></svg>`;
+  const tabEl = document.createElement('div');
+  tabEl.className = 'tab-item';
+  tabEl.dataset.testid = 'tab';
+  tabEl.dataset.tabId = String(id);
+  tabEl.innerHTML = `<span class="tab-icon tab-icon-settings" style="background:var(--accent-bg);color:var(--accent)">${settingsSvg}</span><span class="tab-label" data-testid="tab-label">Settings</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
+  tabBarTabs.appendChild(tabEl);
+
+  tabEl.addEventListener('click', (e) => {
+    if (!e.target.closest('.tab-close')) activateTab(id);
+  });
+  tabEl.querySelector('.tab-close').addEventListener('click', () => closeTab(id));
+
+  const cleanup = () => {}; // no PTY to dispose
+
+  sessions.set(id, {
+    terminal: null, fitAddon: null, searchAddon: null,
+    panelEl, tabEl, cleanup,
+    projectPath: selectedProjectPath || '__global__',
+    sessionId: null, type: 'settings', createdAt: Date.now(),
+  });
+
+  // Render settings content into the panel
+  await renderSettingsTab(panelEl);
+  activateTab(id);
+  renderSidebar();
+}
+
+/** Render the full settings tab UI into a panel element */
+async function renderSettingsTab(panelEl) {
+  const [schema, globalConfig, projectConfig, themes, version] = await Promise.all([
     api.appConfig.getSchema(),
     api.appConfig.getGlobal(),
     selectedProjectPath ? api.appConfig.getProject(selectedProjectPath) : Promise.resolve(null),
+    api.soundThemes ? api.soundThemes.list() : Promise.resolve([]),
+    api.getVersion().catch(() => '?'),
   ]);
 
-  settingsOverlay = document.createElement('div');
-  settingsOverlay.className = 'overlay settings-overlay';
-  settingsOverlay.dataset.testid = 'settings-overlay';
+  let resolvedSoundMap = null;
+  if (api.soundThemes) {
+    resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+  }
 
-  const panel = document.createElement('div');
-  panel.className = 'overlay-panel settings-panel';
+  // State
+  let activeSection = 'general';
+  let settingsScope = 'global'; // 'global' or 'project'
+  const editGlobal = { ...globalConfig };
+  const editProject = projectConfig ? { ...projectConfig } : {};
 
-  // Title
-  const title = document.createElement('h2');
-  title.className = 'settings-title';
-  title.textContent = 'Settings';
-  panel.appendChild(title);
+  const container = document.createElement('div');
+  container.className = 'settings-container';
 
-  // Tab bar: Global / Project
-  const tabBar = document.createElement('div');
-  tabBar.className = 'settings-tabs';
+  // ── Scope toggle bar ───────────────────────────────────────
+  const scopeBar = document.createElement('div');
+  scopeBar.className = 'settings-scope-bar';
 
-  const globalTab = document.createElement('button');
-  globalTab.className = 'settings-tab active';
-  globalTab.dataset.testid = 'settings-tab-global';
-  globalTab.textContent = 'Global';
+  const scopeGlobalBtn = document.createElement('button');
+  scopeGlobalBtn.className = 'settings-scope-btn active';
+  scopeGlobalBtn.dataset.testid = 'settings-scope-global';
+  scopeGlobalBtn.textContent = 'All Projects';
 
-  const projectTab = document.createElement('button');
-  projectTab.className = 'settings-tab';
-  projectTab.dataset.testid = 'settings-tab-project';
-  const projectName = selectedProjectPath
+  const scopeProjectBtn = document.createElement('button');
+  scopeProjectBtn.className = 'settings-scope-btn';
+  scopeProjectBtn.dataset.testid = 'settings-scope-project';
+  const currentProjectName = selectedProjectPath
     ? projects.find(p => p.path === selectedProjectPath)?.name || 'Project'
     : 'Project';
-  projectTab.textContent = projectName;
-  projectTab.disabled = !selectedProjectPath;
+  scopeProjectBtn.textContent = currentProjectName;
+  scopeProjectBtn.disabled = !selectedProjectPath;
 
-  tabBar.appendChild(globalTab);
-  tabBar.appendChild(projectTab);
-  panel.appendChild(tabBar);
+  scopeBar.appendChild(scopeGlobalBtn);
+  scopeBar.appendChild(scopeProjectBtn);
+  container.appendChild(scopeBar);
 
-  // Content area
-  const content = document.createElement('div');
-  content.className = 'settings-content';
-  panel.appendChild(content);
+  scopeGlobalBtn.addEventListener('click', () => {
+    settingsScope = 'global';
+    scopeGlobalBtn.classList.add('active');
+    scopeProjectBtn.classList.remove('active');
+    renderActiveSection();
+  });
+  scopeProjectBtn.addEventListener('click', () => {
+    if (!selectedProjectPath) return;
+    settingsScope = 'project';
+    scopeProjectBtn.classList.add('active');
+    scopeGlobalBtn.classList.remove('active');
+    renderActiveSection();
+  });
 
-  let activeTab = 'global';
+  // ── Two-column layout ──────────────────────────────────────
+  const layout = document.createElement('div');
+  layout.className = 'settings-layout';
 
-  function renderSettingsContent() {
-    content.innerHTML = '';
-    const isProject = activeTab === 'project';
-    const values = isProject ? (projectConfig || {}) : globalConfig;
+  // Left nav
+  const nav = document.createElement('nav');
+  nav.className = 'settings-nav';
+  const sections = [
+    { id: 'general', label: 'General', icon: '⚙' },
+    { id: 'sounds', label: 'Sound & Hooks', icon: '🔊' },
+    { id: 'about', label: 'About', icon: 'ℹ' },
+  ];
+
+  for (const sec of sections) {
+    const btn = document.createElement('button');
+    btn.className = 'settings-nav-item' + (sec.id === activeSection ? ' active' : '');
+    btn.dataset.section = sec.id;
+    btn.dataset.testid = `settings-nav-${sec.id}`;
+    btn.textContent = sec.label;
+    btn.addEventListener('click', () => {
+      activeSection = sec.id;
+      nav.querySelectorAll('.settings-nav-item').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderActiveSection();
+    });
+    nav.appendChild(btn);
+  }
+  layout.appendChild(nav);
+
+  // Right content
+  const contentArea = document.createElement('div');
+  contentArea.className = 'settings-content';
+  layout.appendChild(contentArea);
+
+  container.appendChild(layout);
+  panelEl.appendChild(container);
+
+  // ── Section renderers ──────────────────────────────────────
+
+  function renderActiveSection() {
+    contentArea.innerHTML = '';
+    switch (activeSection) {
+      case 'general': renderGeneralSection(); break;
+      case 'sounds': renderSoundsSection(); break;
+      case 'about': renderAboutSection(); break;
+    }
+  }
+
+  function renderGeneralSection() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'settings-section';
+
+    const heading = document.createElement('h3');
+    heading.className = 'settings-section-title';
+    heading.textContent = 'General';
+    wrapper.appendChild(heading);
+
+    const isProject = settingsScope === 'project';
+    const values = isProject ? editProject : editGlobal;
 
     for (const [key, schemaDef] of Object.entries(schema)) {
+      // Skip soundTheme — that goes in the Sounds section
+      if (key === 'soundTheme') continue;
+
       const row = document.createElement('div');
       row.className = 'settings-row';
 
@@ -1400,7 +1537,7 @@ async function openSettings() {
 
         if (isProject) {
           const projectValue = values[key];
-          const globalValue = globalConfig[key] ?? schemaDef.default;
+          const globalValue = editGlobal[key] ?? schemaDef.default;
           select.value = projectValue !== undefined ? projectValue : globalValue;
 
           if (projectValue !== undefined) {
@@ -1410,7 +1547,7 @@ async function openSettings() {
             clearBtn.textContent = '\u00d7';
             clearBtn.title = 'Use global default';
             clearBtn.addEventListener('click', () => {
-              delete projectConfig[key];
+              delete editProject[key];
               select.value = globalValue;
               clearBtn.remove();
             });
@@ -1420,10 +1557,7 @@ async function openSettings() {
           select.value = values[key] !== undefined ? values[key] : schemaDef.default;
         }
 
-        select.addEventListener('change', () => {
-          values[key] = select.value;
-        });
-
+        select.addEventListener('change', () => { values[key] = select.value; });
         inputEl = select;
       } else {
         const input = document.createElement('input');
@@ -1433,7 +1567,7 @@ async function openSettings() {
 
         if (isProject) {
           const projectValue = values[key];
-          const globalValue = globalConfig[key] ?? schemaDef.default;
+          const globalValue = editGlobal[key] ?? schemaDef.default;
           input.value = projectValue !== undefined ? projectValue : '';
           input.placeholder = globalValue || schemaDef.default || '(default)';
 
@@ -1444,7 +1578,7 @@ async function openSettings() {
             clearBtn.textContent = '\u00d7';
             clearBtn.title = 'Use global default';
             clearBtn.addEventListener('click', () => {
-              delete projectConfig[key];
+              delete editProject[key];
               input.value = '';
               clearBtn.remove();
             });
@@ -1457,11 +1591,8 @@ async function openSettings() {
 
         input.addEventListener('input', () => {
           const trimmed = input.value.trim();
-          if (trimmed) {
-            values[key] = trimmed;
-          } else {
-            delete values[key];
-          }
+          if (trimmed) values[key] = trimmed;
+          else delete values[key];
         });
 
         inputEl = input;
@@ -1469,12 +1600,12 @@ async function openSettings() {
 
       inputRow.insertBefore(inputEl, inputRow.firstChild);
       row.appendChild(inputRow);
-      content.appendChild(row);
+      wrapper.appendChild(row);
     }
 
     // Save button
-    const actions = document.createElement('div');
-    actions.className = 'settings-actions';
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'settings-actions';
 
     const saveBtn = document.createElement('button');
     saveBtn.className = 'settings-save-btn';
@@ -1482,66 +1613,511 @@ async function openSettings() {
     saveBtn.textContent = 'Save';
     saveBtn.addEventListener('click', async () => {
       if (isProject && selectedProjectPath) {
-        await api.appConfig.setProject(selectedProjectPath, projectConfig);
+        await api.appConfig.setProject(selectedProjectPath, editProject);
       } else {
-        await api.appConfig.setGlobal(globalConfig);
+        await api.appConfig.setGlobal(editGlobal);
       }
-      // Apply theme immediately
       const resolvedTheme = await api.appConfig.resolve('theme', selectedProjectPath);
       applyThemeSetting(resolvedTheme || 'system');
-      closeSettings();
+      saveBtn.textContent = 'Saved!';
+      setTimeout(() => { saveBtn.textContent = 'Save'; }, 1500);
     });
 
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'settings-cancel-btn';
-    cancelBtn.dataset.testid = 'settings-cancel-btn';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.addEventListener('click', () => closeSettings());
-
-    actions.appendChild(cancelBtn);
-    actions.appendChild(saveBtn);
-    content.appendChild(actions);
+    actionsDiv.appendChild(saveBtn);
+    wrapper.appendChild(actionsDiv);
+    contentArea.appendChild(wrapper);
   }
 
-  globalTab.addEventListener('click', () => {
-    activeTab = 'global';
-    globalTab.classList.add('active');
-    projectTab.classList.remove('active');
-    renderSettingsContent();
-  });
+  function renderSoundsSection() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'settings-section';
 
-  projectTab.addEventListener('click', () => {
-    if (!selectedProjectPath) return;
-    activeTab = 'project';
-    projectTab.classList.add('active');
-    globalTab.classList.remove('active');
-    renderSettingsContent();
-  });
+    const heading = document.createElement('h3');
+    heading.className = 'settings-section-title';
+    heading.textContent = 'Sound & Hooks';
+    wrapper.appendChild(heading);
 
-  renderSettingsContent();
+    // Theme selector
+    const themeRow = document.createElement('div');
+    themeRow.className = 'settings-row';
 
-  settingsOverlay.appendChild(panel);
-  settingsOverlay.addEventListener('mousedown', (e) => {
-    if (e.target === settingsOverlay) closeSettings();
-  });
-  settingsOverlay.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      closeSettings();
+    const themeLabel = document.createElement('label');
+    themeLabel.className = 'settings-label';
+    themeLabel.textContent = 'Sound theme';
+    themeRow.appendChild(themeLabel);
+
+    const themeDesc = document.createElement('div');
+    themeDesc.className = 'settings-description';
+    themeDesc.textContent = 'Select a sound theme or "none" to disable all sounds';
+    themeRow.appendChild(themeDesc);
+
+    const themeInputRow = document.createElement('div');
+    themeInputRow.className = 'settings-input-row';
+
+    const themeSelect = document.createElement('select');
+    themeSelect.className = 'settings-select';
+    themeSelect.dataset.testid = 'settings-sound-theme-select';
+
+    const noneOpt = document.createElement('option');
+    noneOpt.value = 'none';
+    noneOpt.textContent = 'None';
+    themeSelect.appendChild(noneOpt);
+
+    for (const t of themes) {
+      const opt = document.createElement('option');
+      opt.value = t.dirName;
+      opt.textContent = t.name;
+      themeSelect.appendChild(opt);
     }
-  });
 
-  document.querySelector('.app').appendChild(settingsOverlay);
-  settingsOverlay.tabIndex = -1;
-  settingsOverlay.focus();
+    const isProject = settingsScope === 'project';
+    const values = isProject ? editProject : editGlobal;
+    const currentTheme = values.soundTheme !== undefined ? values.soundTheme : (editGlobal.soundTheme || 'none');
+    themeSelect.value = currentTheme;
+
+    themeSelect.addEventListener('change', () => {
+      values.soundTheme = themeSelect.value;
+    });
+
+    themeInputRow.appendChild(themeSelect);
+    themeRow.appendChild(themeInputRow);
+    wrapper.appendChild(themeRow);
+
+    // Theme install buttons
+    const installRow = document.createElement('div');
+    installRow.className = 'settings-row settings-theme-install-row';
+
+    const installZipBtn = document.createElement('button');
+    installZipBtn.className = 'settings-btn-secondary';
+    installZipBtn.textContent = 'Install from ZIP';
+    installZipBtn.addEventListener('click', async () => {
+      const result = await api.soundThemes.installFromZip();
+      if (result.success) {
+        // Refresh themes list
+        const newThemes = await api.soundThemes.list();
+        themes.length = 0;
+        themes.push(...newThemes);
+        renderActiveSection();
+      }
+    });
+
+    const installGhBtn = document.createElement('button');
+    installGhBtn.className = 'settings-btn-secondary';
+    installGhBtn.textContent = 'Install from GitHub';
+    installGhBtn.addEventListener('click', async () => {
+      const url = prompt('Enter GitHub repository URL:');
+      if (!url) return;
+      const result = await api.soundThemes.installFromGitHub(url);
+      if (result.success) {
+        const newThemes = await api.soundThemes.list();
+        themes.length = 0;
+        themes.push(...newThemes);
+        renderActiveSection();
+      } else {
+        alert('Failed: ' + (result.error || 'Unknown error'));
+      }
+    });
+
+    installRow.appendChild(installZipBtn);
+    installRow.appendChild(installGhBtn);
+    wrapper.appendChild(installRow);
+
+    // Event sound table
+    const tableHeading = document.createElement('h4');
+    tableHeading.className = 'settings-subsection-title';
+    tableHeading.textContent = 'Event Sounds';
+    wrapper.appendChild(tableHeading);
+
+    const tableDesc = document.createElement('div');
+    tableDesc.className = 'settings-description';
+    tableDesc.textContent = 'Upload custom sounds per event. Overrides are saved globally or per-project depending on scope.';
+    wrapper.appendChild(tableDesc);
+
+    const table = document.createElement('div');
+    table.className = 'settings-sound-table';
+
+    // Header row
+    const headerRow = document.createElement('div');
+    headerRow.className = 'settings-sound-row settings-sound-header';
+    headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">Source</span><span class="settings-sound-actions">Actions</span>';
+    table.appendChild(headerRow);
+
+    for (const eventName of ALL_HOOK_EVENTS) {
+      const row = document.createElement('div');
+      row.className = 'settings-sound-row';
+      row.dataset.testid = `settings-sound-row-${eventName}`;
+
+      const eventCell = document.createElement('span');
+      eventCell.className = 'settings-sound-event';
+      eventCell.textContent = eventName;
+      row.appendChild(eventCell);
+
+      const sourceCell = document.createElement('span');
+      sourceCell.className = 'settings-sound-source';
+      const hasSound = resolvedSoundMap && resolvedSoundMap[eventName];
+      sourceCell.textContent = hasSound ? 'Theme' : '—';
+      row.appendChild(sourceCell);
+
+      const actionsCell = document.createElement('span');
+      actionsCell.className = 'settings-sound-actions';
+
+      // Play button
+      if (hasSound) {
+        const playBtn = document.createElement('button');
+        playBtn.className = 'settings-btn-icon';
+        playBtn.dataset.testid = `settings-sound-play-${eventName}`;
+        playBtn.title = 'Play';
+        playBtn.textContent = '\u25B6';
+        playBtn.addEventListener('click', () => {
+          const url = resolvedSoundMap[eventName];
+          if (url) {
+            const a = new Audio(url);
+            a.play().catch(() => {});
+          }
+        });
+        actionsCell.appendChild(playBtn);
+      }
+
+      // Upload button
+      const uploadBtn = document.createElement('button');
+      uploadBtn.className = 'settings-btn-icon';
+      uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
+      uploadBtn.title = 'Upload custom sound';
+      uploadBtn.textContent = '\u2191'; // up arrow
+      uploadBtn.addEventListener('click', async () => {
+        if (!api.soundOverrides) return;
+        const scope = settingsScope === 'project' && selectedProjectPath
+          ? { type: 'project', projectPath: selectedProjectPath }
+          : { type: 'global' };
+        const result = await api.soundOverrides.upload(eventName, scope);
+        if (result && result.success) {
+          // Refresh the sound map
+          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+          renderActiveSection();
+        }
+      });
+      actionsCell.appendChild(uploadBtn);
+
+      // Trim button
+      if (hasSound) {
+        const trimBtn = document.createElement('button');
+        trimBtn.className = 'settings-btn-icon';
+        trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
+        trimBtn.title = 'Trim sound';
+        trimBtn.textContent = '\u2702'; // scissors
+        trimBtn.addEventListener('click', () => {
+          const url = resolvedSoundMap[eventName];
+          if (url) openTrimUI(eventName, url, wrapper, settingsScope, () => renderActiveSection());
+        });
+        actionsCell.appendChild(trimBtn);
+      }
+
+      row.appendChild(actionsCell);
+      table.appendChild(row);
+    }
+
+    wrapper.appendChild(table);
+
+    // Save theme setting
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'settings-actions';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'settings-save-btn';
+    saveBtn.dataset.testid = 'settings-sound-save-btn';
+    saveBtn.textContent = 'Save Sound Settings';
+    saveBtn.addEventListener('click', async () => {
+      if (isProject && selectedProjectPath) {
+        await api.appConfig.setProject(selectedProjectPath, editProject);
+      } else {
+        await api.appConfig.setGlobal(editGlobal);
+      }
+      // Reload sound cache
+      await loadSoundTheme();
+      saveBtn.textContent = 'Saved!';
+      setTimeout(() => { saveBtn.textContent = 'Save Sound Settings'; }, 1500);
+    });
+    actionsDiv.appendChild(saveBtn);
+    wrapper.appendChild(actionsDiv);
+
+    contentArea.appendChild(wrapper);
+  }
+
+  function renderAboutSection() {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'settings-section';
+
+    const heading = document.createElement('h3');
+    heading.className = 'settings-section-title';
+    heading.textContent = 'About';
+    wrapper.appendChild(heading);
+
+    const infoGrid = document.createElement('div');
+    infoGrid.className = 'settings-about-grid';
+    infoGrid.innerHTML = `
+      <div class="settings-about-row"><span class="settings-about-label">Version</span><span class="settings-about-value">${version}</span></div>
+      <div class="settings-about-row"><span class="settings-about-label">Electron</span><span class="settings-about-value">${navigator.userAgent.match(/Electron\/([^\s]+)/)?.[1] || '—'}</span></div>
+      <div class="settings-about-row"><span class="settings-about-label">Chrome</span><span class="settings-about-value">${navigator.userAgent.match(/Chrome\/([^\s]+)/)?.[1] || '—'}</span></div>
+      <div class="settings-about-row"><span class="settings-about-label">Platform</span><span class="settings-about-value">${navigator.platform}</span></div>
+    `;
+    wrapper.appendChild(infoGrid);
+
+    contentArea.appendChild(wrapper);
+  }
+
+  // Initial render
+  renderActiveSection();
 }
 
-function closeSettings() {
-  if (!settingsOverlay) return;
-  settingsOverlay.remove();
-  settingsOverlay = null;
-  refocusTerminal();
+// ── Audio Trim UI ────────────────────────────────────────────
+
+/**
+ * Open an inline trim editor for a sound event.
+ * Uses Web Audio API for waveform + OfflineAudioContext for export.
+ */
+function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
+  // Remove any existing trim UI
+  parentEl.querySelector('.trim-ui')?.remove();
+
+  const trimContainer = document.createElement('div');
+  trimContainer.className = 'trim-ui';
+  trimContainer.dataset.testid = `trim-ui-${eventName}`;
+
+  const titleBar = document.createElement('div');
+  titleBar.className = 'trim-ui-title';
+  titleBar.textContent = `Trim: ${eventName}`;
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'trim-ui-close';
+  closeBtn.textContent = '\u00d7';
+  closeBtn.addEventListener('click', () => trimContainer.remove());
+  titleBar.appendChild(closeBtn);
+  trimContainer.appendChild(titleBar);
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'trim-ui-canvas';
+  canvas.width = 600;
+  canvas.height = 100;
+  trimContainer.appendChild(canvas);
+
+  const controls = document.createElement('div');
+  controls.className = 'trim-ui-controls';
+
+  const startLabel = document.createElement('label');
+  startLabel.textContent = 'Start: ';
+  const startInput = document.createElement('input');
+  startInput.type = 'range';
+  startInput.min = '0';
+  startInput.max = '1000';
+  startInput.value = '0';
+  startInput.className = 'trim-ui-slider';
+  startLabel.appendChild(startInput);
+  controls.appendChild(startLabel);
+
+  const endLabel = document.createElement('label');
+  endLabel.textContent = 'End: ';
+  const endInput = document.createElement('input');
+  endInput.type = 'range';
+  endInput.min = '0';
+  endInput.max = '1000';
+  endInput.value = '1000';
+  endInput.className = 'trim-ui-slider';
+  endLabel.appendChild(endInput);
+  controls.appendChild(endLabel);
+
+  const timeDisplay = document.createElement('span');
+  timeDisplay.className = 'trim-ui-time';
+  controls.appendChild(timeDisplay);
+
+  trimContainer.appendChild(controls);
+
+  const btnRow = document.createElement('div');
+  btnRow.className = 'trim-ui-actions';
+
+  const previewBtn = document.createElement('button');
+  previewBtn.className = 'settings-btn-secondary';
+  previewBtn.textContent = 'Preview';
+  btnRow.appendChild(previewBtn);
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'settings-save-btn';
+  saveBtn.textContent = 'Save Trimmed';
+  btnRow.appendChild(saveBtn);
+
+  trimContainer.appendChild(btnRow);
+  parentEl.appendChild(trimContainer);
+
+  // Load and decode audio
+  let audioBuffer = null;
+  let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  fetch(audioUrl)
+    .then(r => r.arrayBuffer())
+    .then(buf => audioCtx.decodeAudioData(buf))
+    .then(decoded => {
+      audioBuffer = decoded;
+      drawWaveform(canvas, audioBuffer, 0, audioBuffer.duration);
+      updateTimeDisplay();
+    })
+    .catch(() => {
+      const ctx2d = canvas.getContext('2d');
+      ctx2d.fillStyle = 'var(--text-dim)';
+      ctx2d.fillText('Failed to load audio', 10, 50);
+    });
+
+  function getStartEnd() {
+    if (!audioBuffer) return { start: 0, end: 0 };
+    const duration = audioBuffer.duration;
+    const start = (parseInt(startInput.value) / 1000) * duration;
+    const end = (parseInt(endInput.value) / 1000) * duration;
+    return { start: Math.min(start, end), end: Math.max(start, end) };
+  }
+
+  function updateTimeDisplay() {
+    const { start, end } = getStartEnd();
+    timeDisplay.textContent = `${start.toFixed(2)}s — ${end.toFixed(2)}s`;
+    if (audioBuffer) drawWaveform(canvas, audioBuffer, start, end);
+  }
+
+  startInput.addEventListener('input', updateTimeDisplay);
+  endInput.addEventListener('input', updateTimeDisplay);
+
+  previewBtn.addEventListener('click', () => {
+    if (!audioBuffer) return;
+    const { start, end } = getStartEnd();
+    const previewCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = previewCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(previewCtx.destination);
+    source.start(0, start, end - start);
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    if (!audioBuffer || !api.soundOverrides) return;
+    const { start, end } = getStartEnd();
+
+    // Render trimmed audio to WAV
+    const sampleRate = audioBuffer.sampleRate;
+    const channels = audioBuffer.numberOfChannels;
+    const startSample = Math.floor(start * sampleRate);
+    const endSample = Math.floor(end * sampleRate);
+    const length = endSample - startSample;
+
+    if (length <= 0) return;
+
+    const offlineCtx = new OfflineAudioContext(channels, length, sampleRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0, start, end - start);
+
+    const rendered = await offlineCtx.startRendering();
+    const wavBlob = audioBufferToWav(rendered);
+
+    // Convert blob to base64 for IPC transfer
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result.split(',')[1];
+      const scopeObj = scope === 'project' && selectedProjectPath
+        ? { type: 'project', projectPath: selectedProjectPath }
+        : { type: 'global' };
+      await api.soundOverrides.saveFromBase64(eventName, base64, scopeObj);
+      await loadSoundTheme();
+      trimContainer.remove();
+      if (onSave) onSave();
+    };
+    reader.readAsDataURL(wavBlob);
+  });
+}
+
+/** Draw a waveform on canvas with optional highlight region */
+function drawWaveform(canvas, audioBuffer, highlightStart, highlightEnd) {
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const duration = audioBuffer.duration;
+  const data = audioBuffer.getChannelData(0);
+  const step = Math.max(1, Math.floor(data.length / width));
+
+  // Use CSS variables via computed style
+  const computedStyle = getComputedStyle(document.documentElement);
+  const dimColor = computedStyle.getPropertyValue('--text-muted').trim() || '#555';
+  const accentColor = computedStyle.getPropertyValue('--accent').trim() || '#d4943c';
+  const bgColor = computedStyle.getPropertyValue('--bg-surface').trim() || '#1a1a1a';
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, width, height);
+
+  for (let i = 0; i < width; i++) {
+    const idx = i * step;
+    let min = 0, max = 0;
+    for (let j = 0; j < step && idx + j < data.length; j++) {
+      const val = data[idx + j];
+      if (val < min) min = val;
+      if (val > max) max = val;
+    }
+    const time = (i / width) * duration;
+    const inRegion = time >= highlightStart && time <= highlightEnd;
+    ctx.fillStyle = inRegion ? accentColor : dimColor;
+    const barTop = ((1 - max) / 2) * height;
+    const barBottom = ((1 - min) / 2) * height;
+    ctx.fillRect(i, barTop, 1, barBottom - barTop || 1);
+  }
+
+  // Draw start/end markers
+  const startX = (highlightStart / duration) * width;
+  const endX = (highlightEnd / duration) * width;
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(startX, 0); ctx.lineTo(startX, height);
+  ctx.moveTo(endX, 0); ctx.lineTo(endX, height);
+  ctx.stroke();
+}
+
+/** Encode an AudioBuffer as a WAV Blob */
+function audioBufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+
+  const samples = buffer.length;
+  const dataSize = samples * blockAlign;
+  const bufferSize = 44 + dataSize;
+  const arrayBuffer = new ArrayBuffer(bufferSize);
+  const view = new DataView(arrayBuffer);
+
+  function writeString(offset, string) {
+    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+  }
+
+  writeString(0, 'RIFF');
+  view.setUint32(4, bufferSize - 8, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples; i++) {
+    for (let ch = 0; ch < numChannels; ch++) {
+      let sample = buffer.getChannelData(ch)[i];
+      sample = Math.max(-1, Math.min(1, sample));
+      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([arrayBuffer], { type: 'audio/wav' });
 }
 
 // ── Status bar ───────────────────────────────────────────────
@@ -1580,8 +2156,13 @@ function updateStatusBar() {
 
   const session = getActiveSession();
   if (session) {
-    statusSessionTypeEl.textContent = session.type === 'claude' ? 'Claude' : 'Terminal';
-    statusTerminalSizeEl.textContent = `${session.terminal.cols}\u00d7${session.terminal.rows}`;
+    if (session.type === 'settings') {
+      statusSessionTypeEl.textContent = 'Settings';
+      statusTerminalSizeEl.textContent = '';
+    } else {
+      statusSessionTypeEl.textContent = session.type === 'claude' ? 'Claude' : 'Terminal';
+      statusTerminalSizeEl.textContent = `${session.terminal.cols}\u00d7${session.terminal.rows}`;
+    }
     statusUptimeEl.textContent = formatUptime(Date.now() - session.createdAt);
     startUptimeTimer();
   } else {

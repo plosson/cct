@@ -39,8 +39,35 @@ function registerSoundThemeIPC(soundThemeService, configService) {
 
   ipcMain.handle('sound-theme-get-sounds', (_event, projectPath) => {
     const themeName = configService.resolve('soundTheme', projectPath);
-    if (!themeName || themeName === 'none') return null;
-    return soundThemeService.getSoundMap(themeName);
+    if (!themeName || themeName === 'none') {
+      // Still check for overrides even with no theme
+      return soundThemeService.getResolvedSoundMap(null, projectPath);
+    }
+    return soundThemeService.getResolvedSoundMap(themeName, projectPath);
+  });
+
+  // ── Sound Override IPC handlers ────────────────────────────
+
+  ipcMain.handle('sound-override-upload', async (event, { eventName, scope }) => {
+    const { BrowserWindow } = require('electron');
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(win, {
+      title: `Upload sound for ${eventName}`,
+      filters: [{ name: 'Audio files', extensions: ['mp3', 'wav', 'ogg', 'webm'] }],
+      properties: ['openFile'],
+    });
+    if (result.canceled || !result.filePaths.length) {
+      return { success: false, error: 'Cancelled' };
+    }
+    return soundThemeService.saveOverride(scope, eventName, result.filePaths[0]);
+  });
+
+  ipcMain.handle('sound-override-save-base64', (_event, { eventName, base64, scope }) => {
+    return soundThemeService.saveOverrideFromBase64(scope, eventName, base64);
+  });
+
+  ipcMain.handle('sound-override-remove', (_event, { eventName, scope }) => {
+    return soundThemeService.removeOverride(scope, eventName);
   });
 }
 
