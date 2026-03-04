@@ -80,23 +80,18 @@ class HookServerService {
     req.on('end', () => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('{}');
-
       this._processEvent(req.headers, body);
     });
   }
 
   /**
    * Process a hook event after responding 200.
+   * For SessionStart (command hook): CCT_SESSION_ID arrives via header, Claude's session_id in body.
+   * For all other events (HTTP hooks): only payload.session_id is available.
    */
   _processEvent(headers, body) {
-    const cctSessionId = headers['x-cct-session-id'];
-    const cctProjectId = headers['x-cct-project-id'];
-
-    // Ignore non-CCT sessions (missing headers or unexpanded env vars)
-    if (!cctSessionId || !cctProjectId ||
-        cctSessionId.startsWith('$') || cctProjectId.startsWith('$')) {
-      return;
-    }
+    // Only process hooks sent by CCT (ignore other tools' hooks)
+    if (headers['x-cct-hook'] !== 'true') return;
 
     let payload;
     try {
@@ -105,17 +100,21 @@ class HookServerService {
       return;
     }
 
-    const hookEvent = payload.hook_event_name || headers['x-hook-event'] || 'unknown';
+    const hookEvent = payload.hook_event_name || 'unknown';
+    const claudeSessionId = payload.session_id;
 
-    this._logService.info('hooks', `${hookEvent} — session=${cctSessionId.slice(0, 8)}`);
+    if (!claudeSessionId) return;
 
-    // Special handling: SessionStart — capture Claude's session ID
-    if (hookEvent === 'SessionStart' && payload.session_id) {
-      const updated = this._projectConfigService.updateClaudeSessionId(
-        cctSessionId, payload.session_id
-      );
-      if (updated) {
-        this._logService.info('hooks', `Linked Claude session ${payload.session_id} to CCT session ${cctSessionId}`);
+    this._logService.info('hooks', `${hookEvent} — claude=${claudeSessionId.slice(0, 8)}`);
+
+    // On SessionStart, link Claude's session_id to CCT's session via the header
+    if (hookEvent === 'SessionStart') {
+      const cctSessionId = headers['x-cct-session-id'];
+      if (cctSessionId) {
+        const updated = this._projectConfigService.updateClaudeSessionId(cctSessionId, claudeSessionId);
+        if (updated) {
+          this._logService.info('hooks', `Linked claude=${claudeSessionId.slice(0, 8)} → cct=${cctSessionId.slice(0, 8)}`);
+        }
       }
     }
 
@@ -123,8 +122,7 @@ class HookServerService {
     if (this._mainWindow && !this._mainWindow.isDestroyed()) {
       this._mainWindow.webContents.send('hook-event', {
         event: hookEvent,
-        cctSessionId,
-        cctProjectId,
+        claudeSessionId,
         payload,
       });
     }

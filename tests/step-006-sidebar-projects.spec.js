@@ -600,7 +600,7 @@ test('29 - sessions are restored on app restart', async () => {
 
 // ── Claude Code HTTP hooks ────────────────────────────────────
 
-test('30 - HTTP hooks are installed for all 17 events', async () => {
+test('30 - hooks are installed for all 17 events', async () => {
   // Hooks are written to CCT_USER_DATA/claude-settings.json in test mode
   const settingsPath = path.join(testEnv.CCT_USER_DATA, 'claude-settings.json');
   expect(fs.existsSync(settingsPath)).toBe(true);
@@ -608,17 +608,20 @@ test('30 - HTTP hooks are installed for all 17 events', async () => {
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   expect(settings.hooks).toBeTruthy();
 
-  const expectedEvents = [
-    'SessionStart', 'SessionEnd', 'PreToolUse', 'PostToolUse',
+  // Events using HTTP hooks
+  const httpEvents = [
+    'SessionEnd', 'PreToolUse', 'PostToolUse',
     'PostToolUseFailure', 'PermissionRequest', 'Notification',
     'SubagentStart', 'SubagentStop', 'PreCompact', 'ConfigChange',
     'UserPromptSubmit', 'Stop', 'TeammateIdle', 'TaskCompleted',
     'WorktreeCreate', 'WorktreeRemove',
   ];
 
-  for (const eventName of expectedEvents) {
-    expect(settings.hooks[eventName]).toBeTruthy();
+  // Events using command hooks (Claude Code doesn't support HTTP for these)
+  const commandEvents = ['SessionStart'];
 
+  for (const eventName of httpEvents) {
+    expect(settings.hooks[eventName]).toBeTruthy();
     const arr = Array.isArray(settings.hooks[eventName])
       ? settings.hooks[eventName]
       : [settings.hooks[eventName]];
@@ -630,13 +633,22 @@ test('30 - HTTP hooks are installed for all 17 events', async () => {
     );
     expect(ourHook).toBeTruthy();
 
-    // Verify URL points to localhost with a port
     const httpHook = ourHook.hooks.find(h => h.type === 'http');
     expect(httpHook.url).toMatch(/^http:\/\/localhost:\d+\/hooks$/);
+  }
 
-    // Verify session/project headers are present
-    expect(httpHook.headers['X-CCT-Session-Id']).toBe('$CCT_SESSION_ID');
-    expect(httpHook.headers['X-CCT-Project-Id']).toBe('$CCT_PROJECT_ID');
+  for (const eventName of commandEvents) {
+    expect(settings.hooks[eventName]).toBeTruthy();
+    const arr = Array.isArray(settings.hooks[eventName])
+      ? settings.hooks[eventName]
+      : [settings.hooks[eventName]];
+
+    const ourHook = arr.find(entry =>
+      entry.hooks && entry.hooks.some(h =>
+        h.type === 'command' && h.command && h.command.includes('X-CCT-Hook')
+      )
+    );
+    expect(ourHook).toBeTruthy();
   }
 });
 

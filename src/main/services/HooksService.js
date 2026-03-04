@@ -13,28 +13,20 @@ const CLAUDE_SETTINGS_PATH = process.env.CCT_USER_DATA
   ? path.join(process.env.CCT_USER_DATA, 'claude-settings.json')
   : path.join(os.homedir(), '.claude', 'settings.json');
 
-// All 17 Claude Code hook events
-const HOOK_DEFINITIONS = [
-  // Events with matcher support
-  { key: 'SessionStart', hasMatcher: true },
-  { key: 'SessionEnd', hasMatcher: true },
-  { key: 'PreToolUse', hasMatcher: true },
-  { key: 'PostToolUse', hasMatcher: true },
-  { key: 'PostToolUseFailure', hasMatcher: true },
-  { key: 'PermissionRequest', hasMatcher: true },
-  { key: 'Notification', hasMatcher: true },
-  { key: 'SubagentStart', hasMatcher: true },
-  { key: 'SubagentStop', hasMatcher: true },
-  { key: 'PreCompact', hasMatcher: true },
-  { key: 'ConfigChange', hasMatcher: true },
-  // Events without matcher support
-  { key: 'UserPromptSubmit', hasMatcher: false },
-  { key: 'Stop', hasMatcher: false },
-  { key: 'TeammateIdle', hasMatcher: false },
-  { key: 'TaskCompleted', hasMatcher: false },
-  { key: 'WorktreeCreate', hasMatcher: false },
-  { key: 'WorktreeRemove', hasMatcher: false },
+// Claude Code hook events — HTTP hooks work for all except SessionStart
+const HTTP_HOOK_EVENTS = [
+  'SessionEnd',
+  'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
+  'PermissionRequest', 'Notification',
+  'SubagentStart', 'SubagentStop',
+  'PreCompact', 'ConfigChange',
+  'UserPromptSubmit', 'Stop',
+  'TeammateIdle', 'TaskCompleted',
+  'WorktreeCreate', 'WorktreeRemove',
 ];
+
+// SessionStart requires a command hook (Claude Code skips HTTP hooks for it)
+const COMMAND_HOOK_EVENTS = ['SessionStart'];
 
 let _logService = null;
 
@@ -68,29 +60,38 @@ function writeClaudeSettings(settings) {
 }
 
 /**
- * Build a hook entry for a given hook definition
- * @param {object} hookDef
+ * Build an HTTP hook entry
  * @param {number} port — hook server port
  */
-function buildHookEntry(hookDef, port) {
-  const entry = {
+function buildHttpHookEntry(port) {
+  return {
     hooks: [
       {
         type: 'http',
         url: `http://localhost:${port}/hooks`,
         headers: {
           'X-CCT-Hook': 'true',
-          'X-CCT-Session-Id': '$CCT_SESSION_ID',
-          'X-CCT-Project-Id': '$CCT_PROJECT_ID',
         },
       }
     ],
-    allowedEnvVars: ['CCT_SESSION_ID', 'CCT_PROJECT_ID'],
   };
-  if (hookDef.hasMatcher) {
-    entry.matcher = '';
-  }
-  return entry;
+}
+
+/**
+ * Build a command hook entry that forwards stdin to the HTTP server.
+ * Used for events where Claude Code doesn't support HTTP hooks (e.g. SessionStart).
+ * @param {number} port — hook server port
+ */
+function buildCommandHookEntry(port) {
+  return {
+    hooks: [
+      {
+        type: 'command',
+        command: `curl -s -X POST http://localhost:${port}/hooks -H 'Content-Type: application/json' -H 'X-CCT-Hook: true' -H "X-CCT-Session-Id: $CCT_SESSION_ID" -d @-`,
+      }
+    ],
+    allowedEnvVars: ['CCT_SESSION_ID'],
+  };
 }
 
 /**
@@ -102,12 +103,14 @@ function asArray(value) {
 }
 
 /**
- * Check if a hook entry is one of ours (detected by X-CCT-Hook header)
+ * Check if a hook entry is one of ours.
+ * Detects HTTP hooks by X-CCT-Hook header, command hooks by the curl + X-CCT-Hook pattern.
  */
 function isOurHook(hookEntry) {
   if (!hookEntry || !hookEntry.hooks) return false;
   return hookEntry.hooks.some(h =>
-    h.type === 'http' && h.headers && h.headers['X-CCT-Hook'] === 'true'
+    (h.type === 'http' && h.headers && h.headers['X-CCT-Hook'] === 'true') ||
+    (h.type === 'command' && h.command && h.command.includes('X-CCT-Hook'))
   );
 }
 
@@ -124,16 +127,19 @@ function installHooks(port) {
       settings.hooks = {};
     }
 
-    for (const hookDef of HOOK_DEFINITIONS) {
-      const newEntry = buildHookEntry(hookDef, port);
+    const allEvents = [...HTTP_HOOK_EVENTS, ...COMMAND_HOOK_EVENTS];
+    for (const event of allEvents) {
+      const newEntry = COMMAND_HOOK_EVENTS.includes(event)
+        ? buildCommandHookEntry(port)
+        : buildHttpHookEntry(port);
       // Keep existing non-CCT hooks, replace any previous CCT hook (port may have changed)
-      const filtered = asArray(settings.hooks[hookDef.key]).filter(entry => !isOurHook(entry));
+      const filtered = asArray(settings.hooks[event]).filter(entry => !isOurHook(entry));
       filtered.push(newEntry);
-      settings.hooks[hookDef.key] = filtered;
+      settings.hooks[event] = filtered;
     }
 
     writeClaudeSettings(settings);
-    if (_logService) _logService.info('hooks', `Installed ${HOOK_DEFINITIONS.length} HTTP hooks on port ${port}`);
+    if (_logService) _logService.info('hooks', `Installed ${allEvents.length} hooks on port ${port}`);
     return { success: true };
   } catch (e) {
     if (_logService) _logService.error('hooks', 'Failed to install hooks: ' + e.message);
@@ -153,12 +159,13 @@ function removeHooks() {
       return { success: true };
     }
 
-    for (const hookDef of HOOK_DEFINITIONS) {
-      const filtered = asArray(settings.hooks[hookDef.key]).filter(entry => !isOurHook(entry));
+    const allEvents = [...HTTP_HOOK_EVENTS, ...COMMAND_HOOK_EVENTS];
+    for (const event of allEvents) {
+      const filtered = asArray(settings.hooks[event]).filter(entry => !isOurHook(entry));
       if (filtered.length === 0) {
-        delete settings.hooks[hookDef.key];
+        delete settings.hooks[event];
       } else {
-        settings.hooks[hookDef.key] = filtered;
+        settings.hooks[event] = filtered;
       }
     }
 
@@ -175,4 +182,4 @@ function removeHooks() {
   }
 }
 
-module.exports = { installHooks, removeHooks, setLogService, HOOK_DEFINITIONS };
+module.exports = { installHooks, removeHooks, setLogService, HTTP_HOOK_EVENTS, COMMAND_HOOK_EVENTS };

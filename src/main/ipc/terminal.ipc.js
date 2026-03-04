@@ -27,9 +27,7 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
     let projectId;
     const sessionId = crypto.randomUUID();
 
-    // For claude sessions, assign a stable Claude session ID for --resume support
     const isClaude = type === 'claude';
-    const claudeSessionId = isClaude ? (resumeId || crypto.randomUUID()) : undefined;
 
     // Resolve command from config hierarchy (project → global → default)
     // CCT_COMMAND env var overrides in test mode only (when CCT_USER_DATA is set)
@@ -55,16 +53,9 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
     }
     env.CCT_SESSION_ID = sessionId;
 
-    // Build args for claude: --session-id on first spawn, --resume on restore
-    // Only add these when actually spawning the claude binary, not when CCT_COMMAND overrides to a shell
     let args = params.args || [];
-    const isActuallyClaude = isClaude && (!command || command === 'claude');
-    if (isActuallyClaude && claudeSessionId) {
-      if (resumeId) {
-        args = ['--resume', claudeSessionId, ...args];
-      } else {
-        args = ['--session-id', claudeSessionId, ...args];
-      }
+    if (isClaude && resumeId) {
+      args = ['--resume', resumeId, ...args];
     }
 
     const onExit = ({ id }) => {
@@ -79,7 +70,7 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
 
     // Record session in .cct/sessions.json
     if (cwd && projectConfigService) {
-      projectConfigService.recordSession(cwd, sessionId, result.id, type, claudeSessionId);
+      projectConfigService.recordSession(cwd, sessionId, result.id, type, resumeId);
       sessionMap.set(result.id, { projectPath: cwd, sessionId });
     }
 

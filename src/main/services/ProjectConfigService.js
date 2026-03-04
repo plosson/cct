@@ -116,6 +116,7 @@ class ProjectConfigService {
     return false;
   }
 
+
   /**
    * Write config to .cct/sessions.json
    * @param {string} projectPath
