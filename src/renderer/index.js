@@ -1745,114 +1745,139 @@ async function renderSettingsTab(panelEl) {
     table.appendChild(headerRow);
 
     for (const eventName of ALL_HOOK_EVENTS) {
-      const row = document.createElement('div');
-      row.className = 'settings-sound-row';
-      row.dataset.testid = `settings-sound-row-${eventName}`;
+      const entries = resolvedSoundMap && resolvedSoundMap[eventName];
+      const hasSound = entries && entries.length > 0;
+      const isOverride = hasSound && entries[0].url.startsWith('claudiu-sound-override://');
 
-      const eventCell = document.createElement('span');
-      eventCell.className = 'settings-sound-event';
-      eventCell.textContent = eventName;
-      row.appendChild(eventCell);
+      // Render one sub-row per sound file (or a single row if none / single)
+      const fileCount = hasSound ? entries.length : 1;
+      for (let fi = 0; fi < fileCount; fi++) {
+        const entry = hasSound ? entries[fi] : null;
+        const row = document.createElement('div');
+        row.className = 'settings-sound-row';
+        row.dataset.testid = fi === 0 ? `settings-sound-row-${eventName}` : `settings-sound-row-${eventName}-${fi}`;
 
-      const sourceCell = document.createElement('span');
-      sourceCell.className = 'settings-sound-source';
-      const soundUrl = resolvedSoundMap && resolvedSoundMap[eventName];
-      const hasSound = !!soundUrl;
-      const isOverride = hasSound && soundUrl.startsWith('claudiu-sound-override://');
-      sourceCell.textContent = isOverride ? 'Override' : (hasSound ? 'Theme' : '—');
-      if (isOverride) sourceCell.classList.add('settings-sound-source-override');
-      row.appendChild(sourceCell);
+        const eventCell = document.createElement('span');
+        eventCell.className = 'settings-sound-event';
+        if (fi === 0) {
+          eventCell.textContent = eventName;
+          if (hasSound && fileCount > 1) {
+            const countBadge = document.createElement('span');
+            countBadge.className = 'settings-sound-count';
+            countBadge.textContent = ` (${fileCount})`;
+            eventCell.appendChild(countBadge);
+          }
+        } else {
+          // Indent sub-rows — show filename
+          const filename = entry ? entry.url.split('/').pop() : '';
+          eventCell.textContent = `  ${filename}`;
+          eventCell.classList.add('settings-sound-sub');
+        }
+        row.appendChild(eventCell);
 
-      const actionsCell = document.createElement('span');
-      actionsCell.className = 'settings-sound-actions';
+        const sourceCell = document.createElement('span');
+        sourceCell.className = 'settings-sound-source';
+        if (fi === 0) {
+          sourceCell.textContent = isOverride ? 'Override' : (hasSound ? 'Theme' : '\u2014');
+          if (isOverride) sourceCell.classList.add('settings-sound-source-override');
+        }
+        row.appendChild(sourceCell);
 
-      // Play button
-      if (hasSound) {
-        const playBtn = document.createElement('button');
-        playBtn.className = 'settings-btn-icon';
-        playBtn.dataset.testid = `settings-sound-play-${eventName}`;
-        playBtn.title = 'Play';
-        playBtn.textContent = '\u25B6';
-        playBtn.addEventListener('click', () => {
-          if (soundUrl) {
-            // Stop any previously playing preview
+        const actionsCell = document.createElement('span');
+        actionsCell.className = 'settings-sound-actions';
+
+        // Play button
+        if (entry) {
+          const playBtn = document.createElement('button');
+          playBtn.className = 'settings-btn-icon';
+          playBtn.dataset.testid = `settings-sound-play-${eventName}${fi > 0 ? `-${fi}` : ''}`;
+          playBtn.title = 'Play';
+          playBtn.textContent = '\u25B6';
+          playBtn.addEventListener('click', () => {
             if (window._settingsPreviewAudio) {
               window._settingsPreviewAudio.pause();
               window._settingsPreviewAudio.currentTime = 0;
             }
-            const a = new Audio(soundUrl);
+            const a = new Audio(entry.url);
+            if (entry.trimStart != null) a.currentTime = entry.trimStart;
+            if (entry.trimEnd != null) {
+              a.addEventListener('timeupdate', () => {
+                if (a.currentTime >= entry.trimEnd) a.pause();
+              });
+            }
             window._settingsPreviewAudio = a;
             a.play().catch(() => {});
-          }
-        });
-        actionsCell.appendChild(playBtn);
-      }
-
-      // Upload button
-      const uploadBtn = document.createElement('button');
-      uploadBtn.className = 'settings-btn-icon';
-      uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
-      uploadBtn.title = 'Upload custom sound';
-      uploadBtn.textContent = '\u2191'; // up arrow
-      uploadBtn.addEventListener('click', async () => {
-        if (!api.soundOverrides) return;
-        const scope = settingsScope === 'project' && selectedProjectPath
-          ? { type: 'project', projectPath: selectedProjectPath }
-          : { type: 'global' };
-        const result = await api.soundOverrides.upload(eventName, scope);
-        if (result && result.success) {
-          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
-          renderActiveSection();
+          });
+          actionsCell.appendChild(playBtn);
         }
-      });
-      actionsCell.appendChild(uploadBtn);
 
-      // Trim button
-      if (hasSound) {
-        const trimBtn = document.createElement('button');
-        trimBtn.className = 'settings-btn-icon';
-        trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
-        trimBtn.title = 'Trim sound';
-        trimBtn.textContent = '\u2702'; // scissors
-        trimBtn.addEventListener('click', () => {
-          if (soundUrl) openTrimUI(eventName, soundUrl, wrapper, settingsScope, () => renderActiveSection());
-        });
-        actionsCell.appendChild(trimBtn);
+        // Upload button (only on first row)
+        if (fi === 0) {
+          const uploadBtn = document.createElement('button');
+          uploadBtn.className = 'settings-btn-icon';
+          uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
+          uploadBtn.title = 'Upload custom sound';
+          uploadBtn.textContent = '\u2191';
+          uploadBtn.addEventListener('click', async () => {
+            if (!api.soundOverrides) return;
+            const scope = settingsScope === 'project' && selectedProjectPath
+              ? { type: 'project', projectPath: selectedProjectPath }
+              : { type: 'global' };
+            const result = await api.soundOverrides.upload(eventName, scope);
+            if (result && result.success) {
+              resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+              renderActiveSection();
+            }
+          });
+          actionsCell.appendChild(uploadBtn);
+        }
+
+        // Trim button (only for theme sounds, not overrides)
+        if (entry && !isOverride) {
+          const fileIndex = fi;
+          const trimBtn = document.createElement('button');
+          trimBtn.className = 'settings-btn-icon';
+          trimBtn.dataset.testid = `settings-sound-trim-${eventName}${fi > 0 ? `-${fi}` : ''}`;
+          trimBtn.title = 'Trim sound';
+          trimBtn.textContent = '\u2702';
+          trimBtn.addEventListener('click', () => {
+            openTrimUI(eventName, entry.url, wrapper, settingsScope, fileIndex, entry.trimStart, entry.trimEnd, () => renderActiveSection());
+          });
+          actionsCell.appendChild(trimBtn);
+        }
+
+        // Remove override button (only on first row for overrides)
+        if (fi === 0 && isOverride) {
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
+          removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
+          removeBtn.title = 'Remove override (revert to theme)';
+          removeBtn.textContent = '\u2715';
+          removeBtn.addEventListener('click', async () => {
+            if (!api.soundOverrides) return;
+            if (window._settingsPreviewAudio) {
+              window._settingsPreviewAudio.pause();
+              window._settingsPreviewAudio.currentTime = 0;
+              window._settingsPreviewAudio = null;
+            }
+            const trimPanel = document.querySelector('.trim-ui');
+            if (trimPanel) {
+              trimPanel.querySelector('.trim-ui-close')?.click();
+            }
+            const scope = settingsScope === 'project' && selectedProjectPath
+              ? { type: 'project', projectPath: selectedProjectPath }
+              : { type: 'global' };
+            await api.soundOverrides.remove(eventName, scope);
+            resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+            await loadSoundTheme();
+            renderActiveSection();
+          });
+          actionsCell.appendChild(removeBtn);
+        }
+
+        row.appendChild(actionsCell);
+        table.appendChild(row);
       }
-
-      // Remove override button
-      if (isOverride) {
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
-        removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
-        removeBtn.title = 'Remove override (revert to theme)';
-        removeBtn.textContent = '\u2715'; // x mark
-        removeBtn.addEventListener('click', async () => {
-          if (!api.soundOverrides) return;
-          // Stop any playing preview audio
-          if (window._settingsPreviewAudio) {
-            window._settingsPreviewAudio.pause();
-            window._settingsPreviewAudio.currentTime = 0;
-            window._settingsPreviewAudio = null;
-          }
-          // Close trim panel if open (which also stops its playback)
-          const trimPanel = document.querySelector('.trim-ui');
-          if (trimPanel) {
-            trimPanel.querySelector('.trim-ui-close')?.click();
-          }
-          const scope = settingsScope === 'project' && selectedProjectPath
-            ? { type: 'project', projectPath: selectedProjectPath }
-            : { type: 'global' };
-          await api.soundOverrides.remove(eventName, scope);
-          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
-          await loadSoundTheme();
-          renderActiveSection();
-        });
-        actionsCell.appendChild(removeBtn);
-      }
-
-      row.appendChild(actionsCell);
-      table.appendChild(row);
     }
 
     wrapper.appendChild(table);
@@ -1914,7 +1939,7 @@ async function renderSettingsTab(panelEl) {
  * Open a Voice Memos-style trim panel on the right side of settings.
  * Uses Web Audio API for waveform + OfflineAudioContext for export.
  */
-function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
+function openTrimUI(eventName, audioUrl, parentEl, scope, fileIndex, initTrimStart, initTrimEnd, onSave) {
   const settingsContent = parentEl.closest('.settings-content');
   if (!settingsContent) return;
 
@@ -1944,8 +1969,6 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
   let ws = null; // wavesurfer instance
   let wsRegions = null; // regions plugin
   let trimRegion = null;
-  let audioBuffer = null;
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
   function closeTrimPanel() {
     if (ws) { ws.destroy(); ws = null; }
@@ -2045,22 +2068,14 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
 
   ws.on('ready', () => {
     const duration = ws.getDuration();
-    // Create the trim region spanning the full audio
     trimRegion = wsRegions.addRegion({
-      start: 0,
-      end: duration,
+      start: initTrimStart != null ? initTrimStart : 0,
+      end: initTrimEnd != null ? initTrimEnd : duration,
       color: 'rgba(232, 167, 53, 0.15)',
       drag: false,
       resize: true,
     });
     updateTimeDisplay();
-
-    // Also decode the audio buffer for WAV export
-    fetch(audioUrl)
-      .then(r => r.arrayBuffer())
-      .then(buf => audioCtx.decodeAudioData(buf))
-      .then(decoded => { audioBuffer = decoded; })
-      .catch(() => {});
   });
 
   // Update time display when region is resized
@@ -2089,41 +2104,16 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
     }
   });
 
-  // ── Save trimmed audio ──
+  // ── Save trim metadata ──
   saveBtn.addEventListener('click', async () => {
-    if (!audioBuffer || !trimRegion || !api.soundOverrides) return;
+    if (!trimRegion || !api.soundThemes) return;
     const start = trimRegion.start;
     const end = trimRegion.end;
-
-    const sampleRate = audioBuffer.sampleRate;
-    const channels = audioBuffer.numberOfChannels;
-    const startSample = Math.floor(start * sampleRate);
-    const endSample = Math.floor(end * sampleRate);
-    const length = endSample - startSample;
-    if (length <= 0) return;
-
-    const offlineCtx = new OfflineAudioContext(channels, length, sampleRate);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start(0, start, end - start);
-
-    const rendered = await offlineCtx.startRendering();
-    const wavBlob = audioBufferToWav(rendered);
-
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result.split(',')[1];
-      const scopeObj = scope === 'project' && selectedProjectPath
-        ? { type: 'project', projectPath: selectedProjectPath }
-        : { type: 'global' };
-      await api.soundOverrides.saveFromBase64(eventName, base64, scopeObj);
-      resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
-      await loadSoundTheme();
-      closeTrimPanel();
-      if (onSave) onSave();
-    };
-    reader.readAsDataURL(wavBlob);
+    await api.soundThemes.saveTrim(eventName, fileIndex, start, end, selectedProjectPath);
+    resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+    await loadSoundTheme();
+    closeTrimPanel();
+    if (onSave) onSave();
   });
 
   // ── Cleanup when panel is removed externally (e.g. section switch) ──
@@ -2136,51 +2126,6 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
   observer.observe(settingsContent, { childList: true, subtree: true });
 }
 
-/** Encode an AudioBuffer as a WAV Blob */
-function audioBufferToWav(buffer) {
-  const numChannels = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const format = 1; // PCM
-  const bitDepth = 16;
-  const bytesPerSample = bitDepth / 8;
-  const blockAlign = numChannels * bytesPerSample;
-
-  const samples = buffer.length;
-  const dataSize = samples * blockAlign;
-  const bufferSize = 44 + dataSize;
-  const arrayBuffer = new ArrayBuffer(bufferSize);
-  const view = new DataView(arrayBuffer);
-
-  function writeString(offset, string) {
-    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-  }
-
-  writeString(0, 'RIFF');
-  view.setUint32(4, bufferSize - 8, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, format, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * blockAlign, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitDepth, true);
-  writeString(36, 'data');
-  view.setUint32(40, dataSize, true);
-
-  let offset = 44;
-  for (let i = 0; i < samples; i++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      let sample = buffer.getChannelData(ch)[i];
-      sample = Math.max(-1, Math.min(1, sample));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-      offset += 2;
-    }
-  }
-
-  return new Blob([arrayBuffer], { type: 'audio/wav' });
-}
 
 // ── Status bar ───────────────────────────────────────────────
 
@@ -2522,21 +2467,30 @@ async function loadSoundTheme() {
   if (!api.soundThemes) return;
   const soundMap = await api.soundThemes.getSounds(selectedProjectPath);
   if (!soundMap) return;
-  for (const [event, url] of Object.entries(soundMap)) {
-    const audio = new Audio(url);
-    audio.preload = 'auto';
-    audio.volume = 1.0;
-    soundCache.set(event, audio);
+  for (const [event, entries] of Object.entries(soundMap)) {
+    const sounds = entries.map(entry => {
+      const audio = new Audio(entry.url);
+      audio.preload = 'auto';
+      audio.volume = 1.0;
+      return { audio, trimStart: entry.trimStart, trimEnd: entry.trimEnd };
+    });
+    soundCache.set(event, sounds);
   }
 }
 
-/** Play the sound for a hook event (if mapped) */
+/** Play the sound for a hook event (if mapped) — random selection + trim */
 function playEventSound(eventName) {
-  const audio = soundCache.get(eventName);
-  if (!audio) return;
-  // Clone the audio node so overlapping sounds work
-  const clone = audio.cloneNode();
-  clone.volume = audio.volume;
+  const sounds = soundCache.get(eventName);
+  if (!sounds || sounds.length === 0) return;
+  const pick = sounds[Math.floor(Math.random() * sounds.length)];
+  const clone = pick.audio.cloneNode();
+  clone.volume = pick.audio.volume;
+  if (pick.trimStart != null) clone.currentTime = pick.trimStart;
+  if (pick.trimEnd != null) {
+    clone.addEventListener('timeupdate', () => {
+      if (clone.currentTime >= pick.trimEnd) clone.pause();
+    });
+  }
   clone.play().catch(() => { /* ignore autoplay blocks */ });
 }
 

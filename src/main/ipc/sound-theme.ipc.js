@@ -62,8 +62,12 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     return soundThemeService.saveOverride(scope, eventName, result.filePaths[0]);
   });
 
-  ipcMain.handle('sound-override-save-base64', (_event, { eventName, base64, scope }) => {
-    return soundThemeService.saveOverrideFromBase64(scope, eventName, base64);
+  ipcMain.handle('sound-theme-save-trim', (_event, { eventName, fileIndex, trimStart, trimEnd, projectPath }) => {
+    const themeName = configService.resolve('soundTheme', projectPath);
+    if (!themeName || themeName === 'none') {
+      return { success: false, error: 'No theme active' };
+    }
+    return soundThemeService.saveTrimData(themeName, eventName, fileIndex, trimStart, trimEnd);
   });
 
   ipcMain.handle('sound-override-remove', (_event, { eventName, scope }) => {

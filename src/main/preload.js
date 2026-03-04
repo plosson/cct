@@ -103,11 +103,12 @@ contextBridge.exposeInMainWorld('electron_api', {
     installFromGitHub: (repoUrl) => ipcRenderer.invoke('sound-theme-install-github', repoUrl),
     remove: (dirName) => ipcRenderer.invoke('sound-theme-remove', dirName),
     getSounds: (projectPath) => ipcRenderer.invoke('sound-theme-get-sounds', projectPath),
+    saveTrim: (eventName, fileIndex, trimStart, trimEnd, projectPath) =>
+      ipcRenderer.invoke('sound-theme-save-trim', { eventName, fileIndex, trimStart, trimEnd, projectPath }),
   },
 
   soundOverrides: {
     upload: (eventName, scope) => ipcRenderer.invoke('sound-override-upload', { eventName, scope }),
-    saveFromBase64: (eventName, base64, scope) => ipcRenderer.invoke('sound-override-save-base64', { eventName, base64, scope }),
     remove: (eventName, scope) => ipcRenderer.invoke('sound-override-remove', { eventName, scope }),
   },
 });

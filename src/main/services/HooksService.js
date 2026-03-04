@@ -105,12 +105,13 @@ function asArray(value) {
 /**
  * Check if a hook entry is one of ours.
  * Detects HTTP hooks by X-Claudiu-Hook header, command hooks by the curl + X-Claudiu-Hook pattern.
+ * Also recognizes legacy X-CCT-Hook headers from before the rename.
  */
 function isOurHook(hookEntry) {
   if (!hookEntry || !hookEntry.hooks) return false;
   return hookEntry.hooks.some(h =>
-    (h.type === 'http' && h.headers && h.headers['X-Claudiu-Hook'] === 'true') ||
-    (h.type === 'command' && h.command && h.command.includes('X-Claudiu-Hook'))
+    (h.type === 'http' && h.headers && (h.headers['X-Claudiu-Hook'] === 'true' || h.headers['X-CCT-Hook'] === 'true')) ||
+    (h.type === 'command' && h.command && (h.command.includes('X-Claudiu-Hook') || h.command.includes('X-CCT-Hook')))
   );
 }
 

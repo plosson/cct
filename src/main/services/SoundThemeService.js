@@ -223,20 +223,33 @@ class SoundThemeService {
   }
 
   /**
-   * Get the sound URL map for a theme (event -> claudiu-sound:// URL).
+   * Get the sound URL map for a theme.
+   * Normalises all event formats (string / object / array) into arrays of
+   * { url, trimStart?, trimEnd? }.
    * @param {string} dirName - Theme directory name
-   * @returns {object|null} Map of event -> URL, or null if theme not found
+   * @returns {object|null} Map of event -> [{ url, trimStart?, trimEnd? }]
    */
   getSoundMap(dirName) {
     const meta = this._readThemeJson(dirName);
     if (!meta) return null;
 
     const map = {};
-    for (const [event, filename] of Object.entries(meta.events)) {
-      const filePath = path.join(this._themesDir, dirName, filename);
-      if (fs.existsSync(filePath)) {
-        map[event] = `claudiu-sound://${dirName}/${filename}`;
+    for (const [event, value] of Object.entries(meta.events)) {
+      const items = Array.isArray(value) ? value : [value];
+      const entries = [];
+      for (const item of items) {
+        const filename = typeof item === 'string' ? item : item.file;
+        if (!filename) continue;
+        const filePath = path.join(this._themesDir, dirName, filename);
+        if (!fs.existsSync(filePath)) continue;
+        const entry = { url: `claudiu-sound://${dirName}/${filename}` };
+        if (typeof item === 'object') {
+          if (item.trimStart != null) entry.trimStart = item.trimStart;
+          if (item.trimEnd != null) entry.trimEnd = item.trimEnd;
+        }
+        entries.push(entry);
       }
+      if (entries.length > 0) map[event] = entries;
     }
     return map;
   }
@@ -286,19 +299,6 @@ class SoundThemeService {
   }
 
   /**
-   * Save an override from base64 data (used by trim UI).
-   */
-  saveOverrideFromBase64(scope, eventName, base64Data, ext = '.wav') {
-    const dir = this.getOverrideDir(scope);
-    fs.mkdirSync(dir, { recursive: true });
-    this._removeOverrideFiles(dir, eventName);
-    const dest = path.join(dir, `${eventName}${ext}`);
-    fs.writeFileSync(dest, Buffer.from(base64Data, 'base64'));
-    if (this._logService) this._logService.info('sound-override', `Saved trimmed override for ${eventName} (${scope.type})`);
-    return { success: true, path: dest };
-  }
-
-  /**
    * Remove an override for an event.
    */
   removeOverride(scope, eventName) {
@@ -343,11 +343,9 @@ class SoundThemeService {
         const ext = path.extname(file);
         if (!['.mp3', '.wav', '.ogg', '.webm'].includes(ext)) continue;
         const eventName = path.basename(file, ext);
-        // Encode the absolute path as a claudiu-sound-override URL
-        // We use base64-encoded path in the hostname to keep it safe
         const absPath = path.join(dir, file);
         const encodedPath = Buffer.from(absPath).toString('base64url');
-        map[eventName] = `claudiu-sound-override://${encodedPath}/sound${ext}`;
+        map[eventName] = [{ url: `claudiu-sound-override://${encodedPath}/sound${ext}` }];
       }
     } catch { /* ignore */ }
   }
@@ -359,6 +357,83 @@ class SoundThemeService {
       const filePath = path.join(dir, `${eventName}.${ext}`);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
+  }
+
+  // ── Trim metadata ───────────────────────────────────────────
+
+  /**
+   * Save trim metadata into theme.json for a specific sound.
+   * @param {string} themeDirName - Theme directory name
+   * @param {string} eventName - Hook event name
+   * @param {number} fileIndex - Index within the event's sound array
+   * @param {number} trimStart - Start time in seconds
+   * @param {number} trimEnd - End time in seconds
+   */
+  saveTrimData(themeDirName, eventName, fileIndex, trimStart, trimEnd) {
+    const jsonPath = path.join(this._themesDir, themeDirName, 'theme.json');
+    let raw;
+    try {
+      raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    } catch {
+      return { success: false, error: 'Could not read theme.json' };
+    }
+    if (!raw.events || !raw.events[eventName]) {
+      return { success: false, error: `Event "${eventName}" not found` };
+    }
+
+    let value = raw.events[eventName];
+    const isArray = Array.isArray(value);
+    const items = isArray ? value : [value];
+
+    if (fileIndex < 0 || fileIndex >= items.length) {
+      return { success: false, error: 'Invalid file index' };
+    }
+
+    const item = items[fileIndex];
+    const filename = typeof item === 'string' ? item : item.file;
+    items[fileIndex] = { file: filename, trimStart, trimEnd };
+
+    raw.events[eventName] = isArray ? items : items[0];
+    fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
+    if (this._logService) this._logService.info('sound-theme', `Saved trim data for ${eventName}[${fileIndex}]`);
+    return { success: true };
+  }
+
+  /**
+   * Remove trim metadata from theme.json, reverting entry to plain filename.
+   * @param {string} themeDirName - Theme directory name
+   * @param {string} eventName - Hook event name
+   * @param {number} fileIndex - Index within the event's sound array
+   */
+  removeTrimData(themeDirName, eventName, fileIndex) {
+    const jsonPath = path.join(this._themesDir, themeDirName, 'theme.json');
+    let raw;
+    try {
+      raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    } catch {
+      return { success: false, error: 'Could not read theme.json' };
+    }
+    if (!raw.events || !raw.events[eventName]) {
+      return { success: false, error: `Event "${eventName}" not found` };
+    }
+
+    let value = raw.events[eventName];
+    const isArray = Array.isArray(value);
+    const items = isArray ? value : [value];
+
+    if (fileIndex < 0 || fileIndex >= items.length) {
+      return { success: false, error: 'Invalid file index' };
+    }
+
+    const item = items[fileIndex];
+    if (typeof item === 'object') {
+      items[fileIndex] = item.file;
+    }
+
+    raw.events[eventName] = isArray ? items : items[0];
+    fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
+    if (this._logService) this._logService.info('sound-theme', `Removed trim data for ${eventName}[${fileIndex}]`);
+    return { success: true };
   }
 
   // ── Helpers ──────────────────────────────────────────────────
