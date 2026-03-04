@@ -221,12 +221,16 @@ function renderSidebar() {
     const color = getProjectColor(project.name);
     const folderColor = `hsl(${color.hue}, ${color.s}%, ${color.l + 10}%)`;
 
+    const dotColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+    el.style.setProperty('--project-dot-color', dotColor);
+
     el.innerHTML = `
       <span class="sidebar-project-icon" style="color: ${folderColor}">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
           <path d="M1.5 3A1.5 1.5 0 0 1 3 1.5h3.3a1.5 1.5 0 0 1 1.1.5L8.6 3.5H13A1.5 1.5 0 0 1 14.5 5v7.5A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3z"/>
         </svg>
       </span>
+      <span class="sidebar-project-color-dot" style="background: ${dotColor}"></span>
       <span class="sidebar-project-name">${project.name}</span>
       <span class="sidebar-project-count" data-testid="session-count">${sessionCount}</span>
       <button class="sidebar-project-remove" data-testid="remove-project-btn">&times;</button>
@@ -576,6 +580,10 @@ function activateTab(id) {
   }
 
   session.panelEl.classList.add('active');
+  session.panelEl.classList.remove('panel-fade-in');
+  // Force reflow to restart animation
+  void session.panelEl.offsetWidth;
+  session.panelEl.classList.add('panel-fade-in');
   session.tabEl.classList.add('active');
   session.tabEl.classList.remove('tab-activity');
   activeId = id;
