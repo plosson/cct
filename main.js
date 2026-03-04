@@ -58,6 +58,27 @@ if (process.env.CLAUDIU_USER_DATA) {
   app.setPath('userData', process.env.CLAUDIU_USER_DATA);
 }
 
+// Auto-migrate userData from legacy "cct" directory to "claudiu"
+// Only runs on first launch after rename — if new dir is empty but old one has data
+if (!process.env.CLAUDIU_USER_DATA) {
+  const userDataPath = app.getPath('userData'); // Now points to .../claudiu/
+  const legacyPath = path.join(path.dirname(userDataPath), 'cct');
+  if (!fs.existsSync(userDataPath) || fs.readdirSync(userDataPath).length === 0) {
+    if (fs.existsSync(legacyPath)) {
+      try {
+        if (!fs.existsSync(userDataPath)) fs.mkdirSync(userDataPath, { recursive: true });
+        for (const file of ['projects.json', 'config.json', 'window-state.json']) {
+          const src = path.join(legacyPath, file);
+          const dst = path.join(userDataPath, file);
+          if (fs.existsSync(src)) fs.copyFileSync(src, dst);
+        }
+      } catch {
+        // Migration failed — start fresh
+      }
+    }
+  }
+}
+
 // Single instance lock (skip in test mode so parallel workers can run)
 // Pass the initial project path as additionalData so the running instance receives it
 const initialProjectPath = parseProjectPath(process.argv);
