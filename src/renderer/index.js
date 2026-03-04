@@ -209,8 +209,10 @@ function updateEmptyState() {
         card.style.background = colBg;
         card.querySelector('.ess-icon').style.color = col;
         card.querySelector('.ess-label').style.color = col;
-        // Recolor hardcoded SVG fills to project color
-        card.querySelectorAll('rect[fill="#ff9b71"]').forEach(r => r.setAttribute('fill', col));
+        // Recolor SVG fills to project color (skip white pixels used for eyes)
+        card.querySelectorAll('rect[fill]').forEach(r => {
+          if (r.getAttribute('fill') !== '#ffffff') r.setAttribute('fill', col);
+        });
       });
     }
   } else {
