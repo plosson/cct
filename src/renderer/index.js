@@ -2224,6 +2224,7 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
         ? { type: 'project', projectPath: selectedProjectPath }
         : { type: 'global' };
       await api.soundOverrides.saveFromBase64(eventName, base64, scopeObj);
+      resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
       await loadSoundTheme();
       closeTrimPanel();
       if (onSave) onSave();
