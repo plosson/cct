@@ -75,6 +75,7 @@ if (!gotTheLock) {
   const { registerConfigIPC } = require('./src/main/ipc/config.ipc');
   const { WindowStateService } = require('./src/main/services/WindowStateService');
   const { installHooks, removeHooks, setLogService } = require('./src/main/services/HooksService');
+  const { HookServerService } = require('./src/main/services/HookServerService');
   const { UpdaterService } = require('./src/main/services/UpdaterService');
   const { LogService } = require('./src/main/services/LogService');
   const { registerLogIPC } = require('./src/main/ipc/log.ipc');
@@ -82,6 +83,7 @@ if (!gotTheLock) {
   let terminalService;
   let windowStateService;
   let projectStore;
+  let hookServerService;
 
   /**
    * Open a project in the renderer: add it if new, then tell the renderer to select it.
@@ -103,7 +105,7 @@ if (!gotTheLock) {
     openProjectFromCLI(projectPath);
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     const logService = new LogService();
     registerLogIPC(logService);
 
@@ -160,8 +162,11 @@ if (!gotTheLock) {
     // Auto-updater (skips initialization in dev mode)
     new UpdaterService(win, logService);
 
+    // Hook server + hooks installation
     setLogService(logService);
-    installHooks();
+    hookServerService = new HookServerService(projectConfigService, win, logService);
+    await hookServerService.start();
+    installHooks(hookServerService.port);
 
     logService.info('app', 'CCT started — v' + app.getVersion());
 
@@ -206,6 +211,7 @@ if (!gotTheLock) {
     // Force close skips the confirmation dialog (triggered by app.quit(), Cmd+Q, etc.)
     forceCloseWindow();
     removeHooks();
+    if (hookServerService) hookServerService.stop();
     if (terminalService) terminalService.killAll();
   });
 

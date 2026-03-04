@@ -99,6 +99,24 @@ class ProjectConfigService {
   }
 
   /**
+   * Update claudeSessionId for a CCT session (searched across all cached projects)
+   * @param {string} cctSessionId — the CCT-assigned session UUID
+   * @param {string} claudeSessionId — Claude Code's own session ID
+   * @returns {boolean} true if the session was found and updated
+   */
+  updateClaudeSessionId(cctSessionId, claudeSessionId) {
+    for (const [projectPath, config] of this._cache) {
+      const entry = config.sessions.find(s => s.id === cctSessionId);
+      if (entry) {
+        entry.claudeSessionId = claudeSessionId;
+        this._save(projectPath, config);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Write config to .cct/sessions.json
    * @param {string} projectPath
    * @param {object} config

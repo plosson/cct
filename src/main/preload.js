@@ -92,4 +92,8 @@ contextBridge.exposeInMainWorld('electron_api', {
     clear: () => ipcRenderer.send('log-clear'),
     onEntry: createListener('log-entry'),
   },
+
+  hooks: {
+    onEvent: createListener('hook-event'),
+  },
 });

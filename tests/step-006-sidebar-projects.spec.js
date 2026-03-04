@@ -598,29 +598,68 @@ test('29 - sessions are restored on app restart', async () => {
   await expect(count).toHaveText('2', { timeout: 5000 });
 });
 
-// ── Claude Code SessionStart hook ─────────────────────────────
+// ── Claude Code HTTP hooks ────────────────────────────────────
 
-test('30 - SessionStart hook is installed in isolated settings file', async () => {
+test('30 - HTTP hooks are installed for all 17 events', async () => {
   // Hooks are written to CCT_USER_DATA/claude-settings.json in test mode
   const settingsPath = path.join(testEnv.CCT_USER_DATA, 'claude-settings.json');
   expect(fs.existsSync(settingsPath)).toBe(true);
 
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   expect(settings.hooks).toBeTruthy();
-  expect(settings.hooks.SessionStart).toBeTruthy();
 
-  const arr = Array.isArray(settings.hooks.SessionStart)
-    ? settings.hooks.SessionStart
-    : [settings.hooks.SessionStart];
+  const expectedEvents = [
+    'SessionStart', 'SessionEnd', 'PreToolUse', 'PostToolUse',
+    'PostToolUseFailure', 'PermissionRequest', 'Notification',
+    'SubagentStart', 'SubagentStop', 'PreCompact', 'ConfigChange',
+    'UserPromptSubmit', 'Stop', 'TeammateIdle', 'TaskCompleted',
+    'WorktreeCreate', 'WorktreeRemove',
+  ];
 
-  const ourHook = arr.find(entry =>
-    entry.hooks && entry.hooks.some(h => h.command && h.command.includes('cct-hook-handler'))
-  );
-  expect(ourHook).toBeTruthy();
+  for (const eventName of expectedEvents) {
+    expect(settings.hooks[eventName]).toBeTruthy();
 
-  // Verify the handler script path in the command actually exists
-  const cmd = ourHook.hooks[0].command;
-  const match = cmd.match(/node "([^"]+)"/);
-  expect(match).toBeTruthy();
-  expect(fs.existsSync(match[1])).toBe(true);
+    const arr = Array.isArray(settings.hooks[eventName])
+      ? settings.hooks[eventName]
+      : [settings.hooks[eventName]];
+
+    const ourHook = arr.find(entry =>
+      entry.hooks && entry.hooks.some(h =>
+        h.type === 'http' && h.headers && h.headers['X-CCT-Hook'] === 'true'
+      )
+    );
+    expect(ourHook).toBeTruthy();
+
+    // Verify URL points to localhost with a port
+    const httpHook = ourHook.hooks.find(h => h.type === 'http');
+    expect(httpHook.url).toMatch(/^http:\/\/localhost:\d+\/hooks$/);
+
+    // Verify session/project headers are present
+    expect(httpHook.headers['X-CCT-Session-Id']).toBe('$CCT_SESSION_ID');
+    expect(httpHook.headers['X-CCT-Project-Id']).toBe('$CCT_PROJECT_ID');
+  }
+});
+
+test('31 - hook server accepts POST and returns 200', async () => {
+  // Extract the port from the installed hooks
+  const settingsPath = path.join(testEnv.CCT_USER_DATA, 'claude-settings.json');
+  const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+  const hookEntry = settings.hooks.SessionStart[0];
+  const url = hookEntry.hooks.find(h => h.type === 'http').url;
+
+  // POST to the hook server
+  const http = require('http');
+  const response = await new Promise((resolve, reject) => {
+    const req = http.request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' } }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body }));
+    });
+    req.on('error', reject);
+    req.write(JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'test-123' }));
+    req.end();
+  });
+
+  expect(response.status).toBe(200);
+  expect(response.body).toBe('{}');
 });
