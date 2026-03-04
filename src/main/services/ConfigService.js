@@ -37,7 +37,7 @@ const CONFIG_SCHEMA = {
   soundTheme: {
     label: 'Sound theme',
     type: 'string',
-    default: 'none',
+    default: 'default',
     description: 'Active sound theme directory name (or "none" to disable)',
   },
 };

@@ -23,6 +23,33 @@ class SoundThemeService {
     }
   }
 
+  /**
+   * Copy built-in themes from app resources to userData if not already present.
+   * In dev mode, falls back to the project root's themes/ directory.
+   */
+  installBuiltInThemes() {
+    const builtInNames = ['default'];
+
+    for (const name of builtInNames) {
+      const destDir = path.join(this._themesDir, name);
+      if (fs.existsSync(destDir)) continue; // already installed
+
+      // Locate the bundled theme: packaged app uses resourcesPath, dev uses project root
+      let srcDir = path.join(process.resourcesPath, 'themes', name);
+      if (!fs.existsSync(srcDir)) {
+        // Dev fallback: SoundThemeService.js is in src/main/services/, project root is 3 levels up
+        srcDir = path.join(__dirname, '..', '..', '..', 'themes', name);
+      }
+      if (!fs.existsSync(srcDir)) {
+        if (this._logService) this._logService.warn('sound-theme', `Built-in theme "${name}" not found in resources`);
+        continue;
+      }
+
+      this._copyDirSync(srcDir, destDir);
+      if (this._logService) this._logService.info('sound-theme', `Installed built-in theme "${name}"`);
+    }
+  }
+
   /** @returns {string} Absolute path to the themes directory */
   get themesDir() {
     return this._themesDir;
@@ -471,6 +498,20 @@ class SoundThemeService {
       .replace(/[^a-z0-9_-]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '') || 'unnamed-theme';
+  }
+
+  /** Recursively copy a directory */
+  _copyDirSync(src, dest) {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        this._copyDirSync(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
   }
 
   /** Remove a temporary directory */
