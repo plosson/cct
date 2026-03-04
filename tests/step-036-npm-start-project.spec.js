@@ -38,7 +38,7 @@ test('1 - launching without a project path arg does NOT auto-select any project'
 test('2 - launching with CWD as extra arg auto-adds and selects the project', async () => {
   // Simulate `electron . $PWD` (npm start after the fix)
   const env = launchEnv();
-  const cwd = appPath; // use the CCT project itself as the "cwd"
+  const cwd = appPath; // use the Claudiu project itself as the "cwd"
 
   electronApp = await electron.launch({ args: [appPath, cwd], env });
   window = await electronApp.firstWindow();
