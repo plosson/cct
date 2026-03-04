@@ -1,0 +1,12 @@
+{
+  "name": "Default",
+  "version": "1.0.0",
+  "author": "Claudiu",
+  "description": "Built-in sound theme with simple tones",
+  "events": {
+    "SessionStart": "session-start.mp3",
+    "SessionEnd": "session-end.mp3",
+    "TaskCompleted": "task-completed.mp3",
+    "Notification": "notification.mp3"
+  }
+}
