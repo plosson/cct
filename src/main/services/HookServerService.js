@@ -100,6 +100,8 @@ class HookServerService {
 
     const hookEvent = payload.hook_event_name || headers['x-hook-event'] || 'unknown';
 
+    this._logService.info('hooks', `${hookEvent} — session=${cctSessionId.slice(0, 8)}`);
+
     // Special handling: SessionStart — capture Claude's session ID
     if (hookEvent === 'SessionStart' && payload.session_id) {
       const updated = this._projectConfigService.updateClaudeSessionId(
