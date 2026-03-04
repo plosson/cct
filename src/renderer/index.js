@@ -1758,141 +1758,117 @@ async function renderSettingsTab(panelEl) {
     const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
 
     for (const eventName of ALL_HOOK_EVENTS) {
-      const entries = resolvedSoundMap && resolvedSoundMap[eventName];
-      const hasSound = entries && entries.length > 0;
+      const entry = resolvedSoundMap && resolvedSoundMap[eventName];
+      const hasSound = !!entry;
 
-      // Render one sub-row per sound file (or a single row if none / single)
-      const fileCount = hasSound ? entries.length : 1;
-      for (let fi = 0; fi < fileCount; fi++) {
-        const entry = hasSound ? entries[fi] : null;
-        const row = document.createElement('div');
-        row.className = 'settings-sound-row';
-        row.dataset.testid = fi === 0 ? `settings-sound-row-${eventName}` : `settings-sound-row-${eventName}-${fi}`;
+      const row = document.createElement('div');
+      row.className = 'settings-sound-row';
+      row.dataset.testid = `settings-sound-row-${eventName}`;
 
-        const eventCell = document.createElement('span');
-        eventCell.className = 'settings-sound-event';
-        if (fi === 0) {
-          eventCell.textContent = eventName;
-          if (hasSound && fileCount > 1) {
-            const countBadge = document.createElement('span');
-            countBadge.className = 'settings-sound-count';
-            countBadge.textContent = ` (${fileCount})`;
-            eventCell.appendChild(countBadge);
-          }
-        } else {
-          // Indent sub-rows — show filename
-          const filename = entry ? entry.url.split('/').pop() : '';
-          eventCell.textContent = `  ${filename}`;
-          eventCell.classList.add('settings-sound-sub');
-        }
-        row.appendChild(eventCell);
+      const eventCell = document.createElement('span');
+      eventCell.className = 'settings-sound-event';
+      eventCell.textContent = eventName;
+      row.appendChild(eventCell);
 
-        const sourceCell = document.createElement('span');
-        sourceCell.className = 'settings-sound-source';
-        if (fi === 0) {
-          if (hasSound) {
-            sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : (currentThemeMeta ? currentThemeMeta.name : 'Theme');
-          } else {
-            sourceCell.textContent = '\u2014';
-          }
-        }
-        row.appendChild(sourceCell);
-
-        const actionsCell = document.createElement('span');
-        actionsCell.className = 'settings-sound-actions';
-
-        // Play button
-        if (entry) {
-          const playBtn = document.createElement('button');
-          playBtn.className = 'settings-btn-icon';
-          playBtn.dataset.testid = `settings-sound-play-${eventName}${fi > 0 ? `-${fi}` : ''}`;
-          playBtn.title = 'Play';
-          playBtn.textContent = '\u25B6';
-          playBtn.addEventListener('click', () => {
-            if (window._settingsPreviewAudio) {
-              window._settingsPreviewAudio.pause();
-              window._settingsPreviewAudio.currentTime = 0;
-            }
-            const a = new Audio(entry.url);
-            if (entry.trimStart != null) a.currentTime = entry.trimStart;
-            if (entry.trimEnd != null) {
-              a.addEventListener('timeupdate', () => {
-                if (a.currentTime >= entry.trimEnd) a.pause();
-              });
-            }
-            window._settingsPreviewAudio = a;
-            a.play().catch(() => {});
-          });
-          actionsCell.appendChild(playBtn);
-        }
-
-        // Upload button (only on first row)
-        if (fi === 0) {
-          const uploadBtn = document.createElement('button');
-          uploadBtn.className = 'settings-btn-icon';
-          uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
-          uploadBtn.title = 'Upload custom sound';
-          uploadBtn.textContent = '\u2191';
-          uploadBtn.addEventListener('click', async () => {
-            const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
-            const result = await api.soundThemes.uploadSound(eventName, projectPath);
-            if (result && result.success) {
-              if (result.forked) {
-                // Theme was forked — refresh theme list and update dropdown
-                const newThemes = await api.soundThemes.list();
-                themes.length = 0;
-                themes.push(...newThemes);
-              }
-              resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
-              await loadSoundTheme();
-              renderActiveSection();
-            }
-          });
-          actionsCell.appendChild(uploadBtn);
-        }
-
-        // Trim button
-        if (entry) {
-          const fileIndex = fi;
-          const trimBtn = document.createElement('button');
-          trimBtn.className = 'settings-btn-icon';
-          trimBtn.dataset.testid = `settings-sound-trim-${eventName}${fi > 0 ? `-${fi}` : ''}`;
-          trimBtn.title = 'Trim sound';
-          trimBtn.textContent = '\u2702';
-          trimBtn.addEventListener('click', () => {
-            openTrimUI(eventName, entry.url, wrapper, settingsScope, fileIndex, entry.trimStart, entry.trimEnd, () => renderActiveSection());
-          });
-          actionsCell.appendChild(trimBtn);
-        }
-
-        // Remove sound button (only for custom themes, not built-in)
-        if (fi === 0 && hasSound && !isCurrentBuiltIn) {
-          const removeBtn = document.createElement('button');
-          removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
-          removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
-          removeBtn.title = 'Remove sound from theme';
-          removeBtn.textContent = '\u2715';
-          removeBtn.addEventListener('click', async () => {
-            if (window._settingsPreviewAudio) {
-              window._settingsPreviewAudio.pause();
-              window._settingsPreviewAudio.currentTime = 0;
-              window._settingsPreviewAudio = null;
-            }
-            const trimPanel = document.querySelector('.trim-ui');
-            if (trimPanel) {
-              trimPanel.querySelector('.trim-ui-close')?.click();
-            }
-            await api.soundThemes.removeSound(currentTheme, eventName);
-            resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
-            await loadSoundTheme();
-            renderActiveSection();
-          });
-          actionsCell.appendChild(removeBtn);
-        }
-
-        row.appendChild(actionsCell);
-        table.appendChild(row);
+      const sourceCell = document.createElement('span');
+      sourceCell.className = 'settings-sound-source';
+      if (hasSound) {
+        sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : (currentThemeMeta ? currentThemeMeta.name : 'Theme');
+      } else {
+        sourceCell.textContent = '\u2014';
       }
+      row.appendChild(sourceCell);
+
+      const actionsCell = document.createElement('span');
+      actionsCell.className = 'settings-sound-actions';
+
+      // Play button
+      if (entry) {
+        const playBtn = document.createElement('button');
+        playBtn.className = 'settings-btn-icon';
+        playBtn.dataset.testid = `settings-sound-play-${eventName}`;
+        playBtn.title = 'Play';
+        playBtn.textContent = '\u25B6';
+        playBtn.addEventListener('click', () => {
+          if (window._settingsPreviewAudio) {
+            window._settingsPreviewAudio.pause();
+            window._settingsPreviewAudio.currentTime = 0;
+          }
+          const a = new Audio(entry.url);
+          if (entry.trimStart != null) a.currentTime = entry.trimStart;
+          if (entry.trimEnd != null) {
+            a.addEventListener('timeupdate', () => {
+              if (a.currentTime >= entry.trimEnd) a.pause();
+            });
+          }
+          window._settingsPreviewAudio = a;
+          a.play().catch(() => {});
+        });
+        actionsCell.appendChild(playBtn);
+      }
+
+      // Upload button
+      const uploadBtn = document.createElement('button');
+      uploadBtn.className = 'settings-btn-icon';
+      uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
+      uploadBtn.title = 'Upload custom sound';
+      uploadBtn.textContent = '\u2191';
+      uploadBtn.addEventListener('click', async () => {
+        const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
+        const result = await api.soundThemes.uploadSound(eventName, projectPath);
+        if (result && result.success) {
+          if (result.forked) {
+            const newThemes = await api.soundThemes.list();
+            themes.length = 0;
+            themes.push(...newThemes);
+          }
+          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+          await loadSoundTheme();
+          renderActiveSection();
+        }
+      });
+      actionsCell.appendChild(uploadBtn);
+
+      // Trim button
+      if (entry) {
+        const trimBtn = document.createElement('button');
+        trimBtn.className = 'settings-btn-icon';
+        trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
+        trimBtn.title = 'Trim sound';
+        trimBtn.textContent = '\u2702';
+        trimBtn.addEventListener('click', () => {
+          openTrimUI(eventName, entry.url, wrapper, settingsScope, entry.trimStart, entry.trimEnd, () => renderActiveSection());
+        });
+        actionsCell.appendChild(trimBtn);
+      }
+
+      // Remove sound button (only for custom themes, not built-in)
+      if (hasSound && !isCurrentBuiltIn) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
+        removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
+        removeBtn.title = 'Remove sound from theme';
+        removeBtn.textContent = '\u2715';
+        removeBtn.addEventListener('click', async () => {
+          if (window._settingsPreviewAudio) {
+            window._settingsPreviewAudio.pause();
+            window._settingsPreviewAudio.currentTime = 0;
+            window._settingsPreviewAudio = null;
+          }
+          const trimPanel = document.querySelector('.trim-ui');
+          if (trimPanel) {
+            trimPanel.querySelector('.trim-ui-close')?.click();
+          }
+          await api.soundThemes.removeSound(currentTheme, eventName);
+          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+          await loadSoundTheme();
+          renderActiveSection();
+        });
+        actionsCell.appendChild(removeBtn);
+      }
+
+      row.appendChild(actionsCell);
+      table.appendChild(row);
     }
 
     wrapper.appendChild(table);
@@ -1954,7 +1930,7 @@ async function renderSettingsTab(panelEl) {
  * Open a Voice Memos-style trim panel on the right side of settings.
  * Uses Web Audio API for waveform + OfflineAudioContext for export.
  */
-function openTrimUI(eventName, audioUrl, parentEl, scope, fileIndex, initTrimStart, initTrimEnd, onSave) {
+function openTrimUI(eventName, audioUrl, parentEl, scope, initTrimStart, initTrimEnd, onSave) {
   const settingsContent = parentEl.closest('.settings-content');
   if (!settingsContent) return;
 
@@ -2124,7 +2100,7 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, fileIndex, initTrimSta
     if (!trimRegion || !api.soundThemes) return;
     const start = trimRegion.start;
     const end = trimRegion.end;
-    const result = await api.soundThemes.saveTrim(eventName, fileIndex, start, end, selectedProjectPath);
+    const result = await api.soundThemes.saveTrim(eventName, start, end, selectedProjectPath);
     if (result && result.forked) {
       // Theme was forked — refresh will pick up the new theme from config
     }
@@ -2485,28 +2461,24 @@ async function loadSoundTheme() {
   if (!api.soundThemes) return;
   const soundMap = await api.soundThemes.getSounds(selectedProjectPath);
   if (!soundMap) return;
-  for (const [event, entries] of Object.entries(soundMap)) {
-    const sounds = entries.map(entry => {
-      const audio = new Audio(entry.url);
-      audio.preload = 'auto';
-      audio.volume = 1.0;
-      return { audio, trimStart: entry.trimStart, trimEnd: entry.trimEnd };
-    });
-    soundCache.set(event, sounds);
+  for (const [event, entry] of Object.entries(soundMap)) {
+    const audio = new Audio(entry.url);
+    audio.preload = 'auto';
+    audio.volume = 1.0;
+    soundCache.set(event, { audio, trimStart: entry.trimStart, trimEnd: entry.trimEnd });
   }
 }
 
-/** Play the sound for a hook event (if mapped) — random selection + trim */
+/** Play the sound for a hook event (if mapped) */
 function playEventSound(eventName) {
-  const sounds = soundCache.get(eventName);
-  if (!sounds || sounds.length === 0) return;
-  const pick = sounds[Math.floor(Math.random() * sounds.length)];
-  const clone = pick.audio.cloneNode();
-  clone.volume = pick.audio.volume;
-  if (pick.trimStart != null) clone.currentTime = pick.trimStart;
-  if (pick.trimEnd != null) {
+  const entry = soundCache.get(eventName);
+  if (!entry) return;
+  const clone = entry.audio.cloneNode();
+  clone.volume = entry.audio.volume;
+  if (entry.trimStart != null) clone.currentTime = entry.trimStart;
+  if (entry.trimEnd != null) {
     clone.addEventListener('timeupdate', () => {
-      if (clone.currentTime >= pick.trimEnd) clone.pause();
+      if (clone.currentTime >= entry.trimEnd) clone.pause();
     });
   }
   clone.play().catch(() => { /* ignore autoplay blocks */ });

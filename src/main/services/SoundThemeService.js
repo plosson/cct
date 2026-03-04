@@ -360,10 +360,9 @@ class SoundThemeService {
 
   /**
    * Get the sound URL map for a theme.
-   * Normalises all event formats (string / object / array) into arrays of
-   * { url, trimStart?, trimEnd? }.
+   * Each event maps to a single { url, trimStart?, trimEnd? }.
    * @param {string} dirName - Theme directory name
-   * @returns {object|null} Map of event -> [{ url, trimStart?, trimEnd? }]
+   * @returns {object|null} Map of event -> { url, trimStart?, trimEnd? }
    */
   getSoundMap(dirName) {
     const meta = this._readThemeJson(dirName);
@@ -371,21 +370,17 @@ class SoundThemeService {
 
     const map = {};
     for (const [event, value] of Object.entries(meta.events)) {
-      const items = Array.isArray(value) ? value : [value];
-      const entries = [];
-      for (const item of items) {
-        const filename = typeof item === 'string' ? item : item.file;
-        if (!filename) continue;
-        const filePath = path.join(this._themesDir, dirName, filename);
-        if (!fs.existsSync(filePath)) continue;
-        const entry = { url: `claudiu-sound://${dirName}/${filename}` };
-        if (typeof item === 'object') {
-          if (item.trimStart != null) entry.trimStart = item.trimStart;
-          if (item.trimEnd != null) entry.trimEnd = item.trimEnd;
-        }
-        entries.push(entry);
+      const item = Array.isArray(value) ? value[0] : value;
+      const filename = typeof item === 'string' ? item : (item && item.file);
+      if (!filename) continue;
+      const filePath = path.join(this._themesDir, dirName, filename);
+      if (!fs.existsSync(filePath)) continue;
+      const entry = { url: `claudiu-sound://${dirName}/${filename}` };
+      if (typeof item === 'object') {
+        if (item.trimStart != null) entry.trimStart = item.trimStart;
+        if (item.trimEnd != null) entry.trimEnd = item.trimEnd;
       }
-      if (entries.length > 0) map[event] = entries;
+      map[event] = entry;
     }
     return map;
   }
@@ -451,15 +446,13 @@ class SoundThemeService {
       return { success: false, error: `Event "${eventName}" not found` };
     }
 
-    // Collect filenames to remove
+    // Remove the sound file
     const value = raw.events[eventName];
-    const items = Array.isArray(value) ? value : [value];
-    for (const item of items) {
-      const filename = typeof item === 'string' ? item : item.file;
-      if (filename) {
-        const filePath = path.join(themeDir, filename);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      }
+    const item = Array.isArray(value) ? value[0] : value;
+    const filename = typeof item === 'string' ? item : (item && item.file);
+    if (filename) {
+      const filePath = path.join(themeDir, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
     delete raw.events[eventName];
@@ -495,7 +488,7 @@ class SoundThemeService {
   /**
    * Get the resolved sound map for a theme (no more override layering).
    * @param {string} themeDirName - Theme directory name
-   * @returns {object|null} Map of event -> [{ url, trimStart?, trimEnd? }]
+   * @returns {object|null} Map of event -> { url, trimStart?, trimEnd? }
    */
   getResolvedSoundMap(themeDirName) {
     if (!themeDirName || themeDirName === 'none') return null;
@@ -505,15 +498,13 @@ class SoundThemeService {
   // ── Trim metadata ───────────────────────────────────────────
 
   /**
-   * Read theme.json, locate a specific sound entry, apply a transform, and write back.
-   * Handles array/single normalization and index validation.
+   * Read theme.json, apply a transform to a single event entry, and write back.
    * @param {string} themeDirName - Theme directory name
    * @param {string} eventName - Hook event name
-   * @param {number} fileIndex - Index within the event's sound array
-   * @param {function} transform - (item, items, index) => new item value
+   * @param {function} transform - (item) => new item value
    * @returns {{success: boolean, error?: string}}
    */
-  _modifyThemeEvent(themeDirName, eventName, fileIndex, transform) {
+  _modifyThemeEvent(themeDirName, eventName, transform) {
     const jsonPath = path.join(this._themesDir, themeDirName, 'theme.json');
     let raw;
     try {
@@ -526,15 +517,8 @@ class SoundThemeService {
     }
 
     const value = raw.events[eventName];
-    const isArray = Array.isArray(value);
-    const items = isArray ? value : [value];
-
-    if (fileIndex < 0 || fileIndex >= items.length) {
-      return { success: false, error: 'Invalid file index' };
-    }
-
-    items[fileIndex] = transform(items[fileIndex]);
-    raw.events[eventName] = isArray ? items : items[0];
+    const item = Array.isArray(value) ? value[0] : value;
+    raw.events[eventName] = transform(item);
     fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
     return { success: true };
   }
@@ -543,18 +527,17 @@ class SoundThemeService {
    * Save trim metadata into theme.json for a specific sound.
    * @param {string} themeDirName - Theme directory name
    * @param {string} eventName - Hook event name
-   * @param {number} fileIndex - Index within the event's sound array
    * @param {number} trimStart - Start time in seconds
    * @param {number} trimEnd - End time in seconds
    */
-  saveTrimData(themeDirName, eventName, fileIndex, trimStart, trimEnd) {
+  saveTrimData(themeDirName, eventName, trimStart, trimEnd) {
     const { dirName: targetDir, forked } = this.ensureWritable(themeDirName);
-    const result = this._modifyThemeEvent(targetDir, eventName, fileIndex, (item) => {
+    const result = this._modifyThemeEvent(targetDir, eventName, (item) => {
       const filename = typeof item === 'string' ? item : item.file;
       return { file: filename, trimStart, trimEnd };
     });
     if (result.success) {
-      this._log('info', `Saved trim data for ${eventName}[${fileIndex}] in "${targetDir}"`);
+      this._log('info', `Saved trim data for ${eventName} in "${targetDir}"`);
       result.dirName = targetDir;
       result.forked = forked;
     }
@@ -565,13 +548,12 @@ class SoundThemeService {
    * Remove trim metadata from theme.json, reverting entry to plain filename.
    * @param {string} themeDirName - Theme directory name
    * @param {string} eventName - Hook event name
-   * @param {number} fileIndex - Index within the event's sound array
    */
-  removeTrimData(themeDirName, eventName, fileIndex) {
-    const result = this._modifyThemeEvent(themeDirName, eventName, fileIndex, (item) => {
+  removeTrimData(themeDirName, eventName) {
+    const result = this._modifyThemeEvent(themeDirName, eventName, (item) => {
       return typeof item === 'object' ? item.file : item;
     });
-    if (result.success) this._log('info', `Removed trim data for ${eventName}[${fileIndex}]`);
+    if (result.success) this._log('info', `Removed trim data for ${eventName}`);
     return result;
   }
 

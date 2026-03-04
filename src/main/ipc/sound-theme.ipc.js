@@ -93,12 +93,12 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     return uploadResult;
   });
 
-  ipcMain.handle('sound-theme-save-trim', (_event, { eventName, fileIndex, trimStart, trimEnd, projectPath }) => {
+  ipcMain.handle('sound-theme-save-trim', (_event, { eventName, trimStart, trimEnd, projectPath }) => {
     const themeName = configService.resolve('soundTheme', projectPath);
     if (!themeName || themeName === 'none') {
       return { success: false, error: 'No theme active' };
     }
-    const result = soundThemeService.saveTrimData(themeName, eventName, fileIndex, trimStart, trimEnd);
+    const result = soundThemeService.saveTrimData(themeName, eventName, trimStart, trimEnd);
     // If forked, update config to point to the new theme
     if (result.forked) {
       if (projectPath) {

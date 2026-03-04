@@ -104,8 +104,8 @@ contextBridge.exposeInMainWorld('electron_api', {
     remove: (dirName) => ipcRenderer.invoke('sound-theme-remove', dirName),
     fork: (dirName) => ipcRenderer.invoke('sound-theme-fork', dirName),
     getSounds: (projectPath) => ipcRenderer.invoke('sound-theme-get-sounds', projectPath),
-    saveTrim: (eventName, fileIndex, trimStart, trimEnd, projectPath) =>
-      ipcRenderer.invoke('sound-theme-save-trim', { eventName, fileIndex, trimStart, trimEnd, projectPath }),
+    saveTrim: (eventName, trimStart, trimEnd, projectPath) =>
+      ipcRenderer.invoke('sound-theme-save-trim', { eventName, trimStart, trimEnd, projectPath }),
     uploadSound: (eventName, projectPath) =>
       ipcRenderer.invoke('sound-theme-upload-sound', { eventName, projectPath }),
     removeSound: (dirName, eventName) =>

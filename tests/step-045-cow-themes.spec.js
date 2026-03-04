@@ -58,11 +58,11 @@ test('1 - listThemes includes builtIn flag', async () => {
 test('2 - getSounds returns claudiu-sound:// URLs', async () => {
   const sounds = await window.evaluate(() => window.electron_api.soundThemes.getSounds());
   expect(sounds).toBeTruthy();
-  // Check at least one event has the right URL scheme
-  const urls = Object.values(sounds).flat().map(e => e.url);
-  expect(urls.length).toBeGreaterThan(0);
-  for (const url of urls) {
-    expect(url).toMatch(/^claudiu-sound:\/\//);
+  // Each event maps to a single object with a url
+  const entries = Object.values(sounds);
+  expect(entries.length).toBeGreaterThan(0);
+  for (const entry of entries) {
+    expect(entry.url).toMatch(/^claudiu-sound:\/\//);
   }
 });
 
@@ -98,7 +98,7 @@ test('5 - saveTrim on built-in theme auto-forks', async () => {
   );
 
   const result = await window.evaluate(() =>
-    window.electron_api.soundThemes.saveTrim('SessionStart', 0, 0.5, 2.0)
+    window.electron_api.soundThemes.saveTrim('SessionStart', 0.5, 2.0)
   );
   expect(result.success).toBe(true);
   expect(result.forked).toBe(true);
@@ -119,7 +119,7 @@ test('5 - saveTrim on built-in theme auto-forks', async () => {
 test('6 - saveTrim on custom theme does not fork', async () => {
   // default-custom should exist from test 5, and config already points to it
   const result = await window.evaluate(() =>
-    window.electron_api.soundThemes.saveTrim('Notification', 0, 0.1, 1.5)
+    window.electron_api.soundThemes.saveTrim('Notification', 0.1, 1.5)
   );
   expect(result.success).toBe(true);
   expect(result.forked).toBe(false);
