@@ -2,7 +2,7 @@
  * CCT - Main Process Entry Point
  */
 
-const { app, BrowserWindow, ipcMain, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -79,6 +79,8 @@ if (!gotTheLock) {
   const { UpdaterService } = require('./src/main/services/UpdaterService');
   const { LogService } = require('./src/main/services/LogService');
   const { registerLogIPC } = require('./src/main/ipc/log.ipc');
+  const { SoundThemeService } = require('./src/main/services/SoundThemeService');
+  const { registerSoundThemeIPC } = require('./src/main/ipc/sound-theme.ipc');
 
   let terminalService;
   let windowStateService;
@@ -105,9 +107,37 @@ if (!gotTheLock) {
     openProjectFromCLI(projectPath);
   });
 
+  // Register custom protocol for serving theme sound files
+  protocol.registerSchemesAsPrivileged([
+    { scheme: 'cct-sound', privileges: { standard: false, supportFetchAPI: true, stream: true } },
+  ]);
+
   app.whenReady().then(async () => {
     const logService = new LogService();
     registerLogIPC(logService);
+
+    const soundThemeService = new SoundThemeService(logService);
+
+    // Handle cct-sound:// protocol — serves mp3 files from themes directory
+    protocol.handle('cct-sound', (request) => {
+      // URL format: cct-sound://theme-dir-name/filename.mp3
+      const url = new URL(request.url);
+      const themeDirName = url.hostname;
+      const fileName = url.pathname.slice(1); // remove leading /
+      const filePath = path.join(soundThemeService.themesDir, themeDirName, fileName);
+
+      // Security: ensure path stays inside themes directory
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(path.resolve(soundThemeService.themesDir) + path.sep)) {
+        return new Response('Forbidden', { status: 403 });
+      }
+
+      if (!fs.existsSync(resolved)) {
+        return new Response('Not found', { status: 404 });
+      }
+
+      return net.fetch('file://' + resolved);
+    });
 
     const projectConfigService = new ProjectConfigService();
 
@@ -129,6 +159,7 @@ if (!gotTheLock) {
     projectStore = new ProjectStore(logService);
     registerProjectIPC(projectStore, projectConfigService);
     registerConfigIPC(configService);
+    registerSoundThemeIPC(soundThemeService, configService);
 
     // Window state IPC
     ipcMain.handle('get-version', () => app.getVersion());

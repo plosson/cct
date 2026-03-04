@@ -34,6 +34,12 @@ const CONFIG_SCHEMA = {
     default: 'system',
     description: 'App color theme (system follows OS preference)',
   },
+  soundTheme: {
+    label: 'Sound theme',
+    type: 'string',
+    default: 'none',
+    description: 'Active sound theme directory name (or "none" to disable)',
+  },
 };
 
 class ConfigService {

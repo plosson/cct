@@ -96,4 +96,12 @@ contextBridge.exposeInMainWorld('electron_api', {
   hooks: {
     onEvent: createListener('hook-event'),
   },
+
+  soundThemes: {
+    list: () => ipcRenderer.invoke('sound-theme-list'),
+    installFromZip: () => ipcRenderer.invoke('sound-theme-install-zip'),
+    installFromGitHub: (repoUrl) => ipcRenderer.invoke('sound-theme-install-github', repoUrl),
+    remove: (dirName) => ipcRenderer.invoke('sound-theme-remove', dirName),
+    getSounds: (projectPath) => ipcRenderer.invoke('sound-theme-get-sounds', projectPath),
+  },
 });

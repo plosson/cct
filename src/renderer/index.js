@@ -1868,6 +1868,46 @@ function normalizeKeyEvent(e) {
   return parts.join('+');
 }
 
+// ── Sound Theme ───────────────────────────────────────────────
+
+/** Cached Audio objects keyed by event name */
+const soundCache = new Map();
+
+/** Load (or reload) the active sound theme into the cache */
+async function loadSoundTheme() {
+  soundCache.clear();
+  if (!api.soundThemes) return;
+  const soundMap = await api.soundThemes.getSounds(selectedProjectPath);
+  if (!soundMap) return;
+  for (const [event, url] of Object.entries(soundMap)) {
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    audio.volume = 1.0;
+    soundCache.set(event, audio);
+  }
+}
+
+/** Play the sound for a hook event (if mapped) */
+function playEventSound(eventName) {
+  const audio = soundCache.get(eventName);
+  if (!audio) return;
+  // Clone the audio node so overlapping sounds work
+  const clone = audio.cloneNode();
+  clone.volume = audio.volume;
+  clone.play().catch(() => { /* ignore autoplay blocks */ });
+}
+
+/** Wire up hook events to sound playback */
+function initSoundTheme() {
+  // Initial load
+  loadSoundTheme();
+
+  // Play sounds on hook events
+  api.hooks.onEvent(({ event }) => {
+    playEventSound(event);
+  });
+}
+
 // ── Init ─────────────────────────────────────────────────────
 
 async function init() {
@@ -2060,6 +2100,9 @@ async function init() {
 
   document.querySelector('.ess-card[data-action="claude"]').addEventListener('click', () => createSession('claude'));
   document.querySelector('.ess-card[data-action="terminal"]').addEventListener('click', () => createSession('terminal'));
+
+  // Sound theme — play sounds on hook events
+  initSoundTheme();
 
   initSidebarResize();
   initDebugPaneResize();
