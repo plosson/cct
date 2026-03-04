@@ -69,16 +69,9 @@ class SoundThemeService {
       const destDir = path.join(this._themesDir, entry.name);
       const destJson = path.join(destDir, 'theme.json');
 
-      if (fs.existsSync(destJson)) {
-        // Already seeded — ensure builtIn flag is set
-        try {
-          const raw = JSON.parse(fs.readFileSync(destJson, 'utf8'));
-          if (!raw.builtIn) {
-            raw.builtIn = true;
-            fs.writeFileSync(destJson, JSON.stringify(raw, null, 2), 'utf8');
-          }
-        } catch { /* ignore */ }
-        continue;
+      // Always overwrite built-in themes with latest bundled files
+      if (fs.existsSync(destDir)) {
+        fs.rmSync(destDir, { recursive: true, force: true });
       }
 
       fs.mkdirSync(destDir, { recursive: true });

@@ -161,6 +161,75 @@ function refocusTerminal() {
   if (session) session.terminal.focus();
 }
 
+/**
+ * Show a prompt overlay (replaces window.prompt which doesn't work in Electron).
+ * Returns a Promise that resolves to the entered string, or null if cancelled.
+ */
+function showPromptOverlay(message, defaultValue = '') {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.dataset.testid = 'prompt-overlay';
+
+    const panel = document.createElement('div');
+    panel.className = 'overlay-panel';
+    panel.style.maxWidth = '400px';
+    panel.style.padding = '16px';
+    panel.style.marginTop = '20vh';
+
+    const label = document.createElement('label');
+    label.className = 'settings-label';
+    label.textContent = message;
+    label.style.marginBottom = '8px';
+    label.style.display = 'block';
+
+    const input = document.createElement('input');
+    input.className = 'project-picker-input';
+    input.dataset.testid = 'prompt-input';
+    input.value = defaultValue;
+
+    const btnRow = document.createElement('div');
+    btnRow.style.display = 'flex';
+    btnRow.style.justifyContent = 'flex-end';
+    btnRow.style.gap = '8px';
+    btnRow.style.marginTop = '12px';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'settings-btn-secondary';
+    cancelBtn.textContent = 'Cancel';
+
+    const okBtn = document.createElement('button');
+    okBtn.className = 'settings-btn-primary';
+    okBtn.textContent = 'OK';
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(okBtn);
+    panel.appendChild(label);
+    panel.appendChild(input);
+    panel.appendChild(btnRow);
+    overlay.appendChild(panel);
+
+    function close(value) {
+      overlay.remove();
+      resolve(value);
+    }
+
+    cancelBtn.addEventListener('click', () => close(null));
+    okBtn.addEventListener('click', () => close(input.value || null));
+    overlay.addEventListener('mousedown', (e) => {
+      if (e.target === overlay) close(null);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); close(input.value || null); }
+      if (e.key === 'Escape') { e.preventDefault(); close(null); }
+    });
+
+    document.querySelector('.app').appendChild(overlay);
+    input.focus();
+    input.select();
+  });
+}
+
 /** Update the app-shell glow color based on the active project */
 function updateAppGlow(projectNameOrPath) {
   const appEl = document.querySelector('.app');
@@ -1700,7 +1769,7 @@ async function renderSettingsTab(panelEl) {
       if (!srcDir || srcDir === 'none') return;
       const srcMeta = themes.find(t => t.dirName === srcDir);
       const baseName = srcMeta ? srcMeta.name.replace(/ \(built-in\)$/, '') : srcDir;
-      const newName = prompt('Name for the duplicated theme:', baseName + ' Copy');
+      const newName = await showPromptOverlay('Name for the duplicated theme:', baseName + ' Copy');
       if (!newName) return;
       const result = await api.soundThemes.duplicate(srcDir, newName);
       if (result.success) {
@@ -1724,7 +1793,7 @@ async function renderSettingsTab(panelEl) {
       const dirName = themeSelect.value;
       if (!dirName || dirName === 'none') return;
       const meta = themes.find(t => t.dirName === dirName);
-      const newName = prompt('New name:', meta ? meta.name : dirName);
+      const newName = await showPromptOverlay('New name:', meta ? meta.name : dirName);
       if (!newName) return;
       const result = await api.soundThemes.rename(dirName, newName);
       if (result.success) {
@@ -1787,7 +1856,7 @@ async function renderSettingsTab(panelEl) {
     installGhBtn.className = 'settings-btn-secondary';
     installGhBtn.textContent = 'Install from GitHub';
     installGhBtn.addEventListener('click', async () => {
-      const url = prompt('Enter GitHub repository URL:');
+      const url = await showPromptOverlay('Enter GitHub repository URL:');
       if (!url) return;
       const result = await api.soundThemes.installFromGitHub(url);
       if (result.success) {
@@ -1865,6 +1934,7 @@ async function renderSettingsTab(panelEl) {
     headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">Source</span><span class="settings-sound-actions">Actions</span>';
     table.appendChild(headerRow);
 
+    console.log('[sounds] resolvedSoundMap:', resolvedSoundMap, 'currentTheme:', currentTheme);
     for (const eventName of ALL_HOOK_EVENTS) {
       const entry = resolvedSoundMap && resolvedSoundMap[eventName];
       const hasSound = !!entry;

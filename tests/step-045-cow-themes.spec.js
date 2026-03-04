@@ -203,10 +203,9 @@ test('10 - legacy sound-overrides dir cleaned up', async () => {
 
 test('11 - Sound settings shows Built-in source label (schema default)', async () => {
   // Clear soundTheme from config — dropdown should fall back to schema default ('default')
+  // Must pass null explicitly; setGlobal only processes keys present in the object
   await window.evaluate(async () => {
-    const config = await window.electron_api.appConfig.getGlobal();
-    delete config.soundTheme;
-    await window.electron_api.appConfig.setGlobal(config);
+    await window.electron_api.appConfig.setGlobal({ soundTheme: null });
   });
 
   await window.keyboard.press('Meta+,');
@@ -291,9 +290,7 @@ test('16 - validation rejects invalid eventName', async () => {
 test('17 - Dropdown shows Default when config has no soundTheme key', async () => {
   // Simulate fresh install: config has no soundTheme
   await window.evaluate(async () => {
-    const config = await window.electron_api.appConfig.getGlobal();
-    delete config.soundTheme;
-    await window.electron_api.appConfig.setGlobal(config);
+    await window.electron_api.appConfig.setGlobal({ soundTheme: null });
   });
 
   // Open settings and navigate to Sounds
