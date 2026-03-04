@@ -230,10 +230,6 @@ test('15 - settings nav sections work', async () => {
     await window.waitForSelector('[data-testid="settings-nav-general"]', { timeout: 3000 });
   }
 
-  // Click Appearance
-  await window.locator('[data-testid="settings-nav-appearance"]').click();
-  await window.waitForTimeout(200);
-
   // Click About
   await window.locator('[data-testid="settings-nav-about"]').click();
   await window.waitForTimeout(200);

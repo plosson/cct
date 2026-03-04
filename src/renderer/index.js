@@ -1450,7 +1450,6 @@ async function renderSettingsTab(panelEl) {
   nav.className = 'settings-nav';
   const sections = [
     { id: 'general', label: 'General', icon: '⚙' },
-    { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'sounds', label: 'Sound & Hooks', icon: '🔊' },
     { id: 'about', label: 'About', icon: 'ℹ' },
   ];
@@ -1485,7 +1484,6 @@ async function renderSettingsTab(panelEl) {
     contentArea.innerHTML = '';
     switch (activeSection) {
       case 'general': renderGeneralSection(); break;
-      case 'appearance': renderAppearanceSection(); break;
       case 'sounds': renderSoundsSection(); break;
       case 'about': renderAboutSection(); break;
     }
@@ -1627,23 +1625,6 @@ async function renderSettingsTab(panelEl) {
 
     actionsDiv.appendChild(saveBtn);
     wrapper.appendChild(actionsDiv);
-    contentArea.appendChild(wrapper);
-  }
-
-  function renderAppearanceSection() {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'settings-section';
-
-    const heading = document.createElement('h3');
-    heading.className = 'settings-section-title';
-    heading.textContent = 'Appearance';
-    wrapper.appendChild(heading);
-
-    const placeholder = document.createElement('p');
-    placeholder.className = 'settings-placeholder';
-    placeholder.textContent = 'Font family, font size, and color customization coming soon.';
-    wrapper.appendChild(placeholder);
-
     contentArea.appendChild(wrapper);
   }
 
