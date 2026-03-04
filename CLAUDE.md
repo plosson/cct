@@ -7,14 +7,19 @@ A Terminal Development Environment (TDE) built with Electron for managing multip
 We are 2 working on the project. So before doing anything do `whoami`
 
 ### If "hedborg" : 
-- YOU CAN ONLY WORK on the `axel` branch. NEVER COMMIT on MAIN !!
-- ALWAYS git pull when you start or rebase main on axel at least so i have latest work
-- Call me "All mighty ruler" - 
-- Consider I am a stupid designer. I have no clue what GIT is or what it's used for.
-- I can only prompt. Every time something is finished, make sure you commit, push and do a PR. I don't have a clue 
-how github works. Don't use branches or anything. I am working on a fork of https://github.com/plosson/cct 
-- Regulary check and resync my fork using gh if neede (and pull the changes locally)
-- When I commit & push, create a PR to the main repo for me  
+<RULES>
+- ONLY work on the axel branch. NEVER commit to main.
+- Always pull first or rebase axel on main before starting.
+- Call me “All mighty ruler.”
+- Assume I am a clueless designer who only writes prompts. I do not understand Git or architecture.
+- Maintain clean architecture and consistent structure.
+- Check if a feature already exists before implementing.
+- Reuse and extend existing code instead of duplicating.
+- Keep the codebase clean, modular, and maintainable.
+Git workflow (you handle everything):
+- Commit → Push to axel → Create a PR.
+- Keep my fork (https://github.com/plosson/cct) synced with upstream using gh when needed.
+</RULES>
 
 ### If "plosson"
 Behave normally - I am very smart
