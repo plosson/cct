@@ -17,6 +17,7 @@ module.exports = {
     "dist/renderer.bundle.js",
     "dist/renderer.bundle.js.map",
     "node_modules/@xterm/xterm/css/**",
+    "assets/**/*",
     "package.json"
   ],
   mac: {

@@ -14,6 +14,7 @@
     "build:icons": "node scripts/generate-icons.js",
     "build:dist": "node scripts/build-renderer.js && electron-builder --config electron-builder.config.js",
     "test": "node scripts/build-renderer.js && npx playwright test",
+    "generate:sounds": "node scripts/generate-sounds.js",
     "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [
