@@ -9,6 +9,8 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { getProjectColor } from './projectColors.js';
+import WaveSurfer from 'wavesurfer.js';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 
 const api = window.electron_api;
 
@@ -1913,12 +1915,14 @@ async function renderSettingsTab(panelEl) {
  * Uses Web Audio API for waveform + OfflineAudioContext for export.
  */
 function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
-  // Find the settings-content container for the right-panel layout
   const settingsContent = parentEl.closest('.settings-content');
   if (!settingsContent) return;
 
   // Remove any existing trim panel
-  settingsContent.querySelector('.trim-ui')?.remove();
+  const existingTrim = settingsContent.querySelector('.trim-ui');
+  if (existingTrim) {
+    existingTrim.querySelector('.trim-ui-close')?.click();
+  }
 
   // Wrap existing content if not already wrapped
   let sectionWrap = settingsContent.querySelector('.settings-section-wrap');
@@ -1937,16 +1941,21 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
   trimPanel.className = 'trim-ui';
   trimPanel.dataset.testid = `trim-ui-${eventName}`;
 
+  let ws = null; // wavesurfer instance
+  let wsRegions = null; // regions plugin
+  let trimRegion = null;
+  let audioBuffer = null;
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
   function closeTrimPanel() {
+    if (ws) { ws.destroy(); ws = null; }
     trimPanel.remove();
     settingsContent.classList.remove('has-trim-panel');
-    // Unwrap section back into settings-content
     const wrap = settingsContent.querySelector('.settings-section-wrap');
     if (wrap) {
       while (wrap.firstChild) settingsContent.appendChild(wrap.firstChild);
       wrap.remove();
     }
-    stopPlayback();
   }
 
   // Title bar
@@ -1966,13 +1975,12 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
   const body = document.createElement('div');
   body.className = 'trim-ui-body';
 
-  // Waveform container
+  // Waveform container (wavesurfer renders into this)
   const waveWrap = document.createElement('div');
   waveWrap.className = 'trim-ui-waveform-wrap';
-  const canvas = document.createElement('canvas');
-  canvas.className = 'trim-ui-canvas';
-  canvas.height = 120;
-  waveWrap.appendChild(canvas);
+  const waveContainer = document.createElement('div');
+  waveContainer.className = 'trim-ui-wave-container';
+  waveWrap.appendChild(waveContainer);
   body.appendChild(waveWrap);
 
   // Controls row
@@ -2003,26 +2011,7 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
   trimPanel.appendChild(body);
   settingsContent.appendChild(trimPanel);
 
-  // ── State ──
-  let audioBuffer = null;
-  let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  let trimStartRatio = 0;   // 0..1 ratio of duration
-  let trimEndRatio = 1;     // 0..1 ratio of duration
-  let dragging = null;       // 'start' | 'end' | null
-  let isPlaying = false;
-  let playbackSource = null;
-  let playheadRaf = null;
-  let playStartTime = 0;
-  let playStartOffset = 0;
-
-  const HANDLE_W = 14; // CSS px hit zone (slightly larger than visual 10px for easy grabbing)
-
-  function getStartEnd() {
-    if (!audioBuffer) return { start: 0, end: 0 };
-    const d = audioBuffer.duration;
-    return { start: trimStartRatio * d, end: trimEndRatio * d };
-  }
-
+  // ── Helper ──
   function formatTime(sec) {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -2030,176 +2019,81 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
   }
 
   function updateTimeDisplay() {
-    const { start, end } = getStartEnd();
-    timeDisplay.textContent = `${formatTime(start)} — ${formatTime(end)}`;
+    if (!trimRegion) return;
+    timeDisplay.textContent = `${formatTime(trimRegion.start)} — ${formatTime(trimRegion.end)}`;
   }
 
-  function redraw(playheadRatio) {
-    drawTrimWaveform(canvas, audioBuffer, trimStartRatio, trimEndRatio, playheadRatio);
-  }
+  // ── Init wavesurfer ──
+  wsRegions = RegionsPlugin.create();
 
-  // ── Canvas sizing (use CSS pixels directly, no DPR complexity) ──
-  function sizeCanvas() {
-    const rect = waveWrap.getBoundingClientRect();
-    const w = Math.floor(rect.width - 12); // subtract padding
-    if (w <= 0) return;
-    canvas.width = w;
-    canvas.height = 120;
-    if (audioBuffer) redraw();
-  }
-
-  // ── Mouse drag for handles ──
-  // The handles are drawn at HANDLE_CSS (10px) wide in the draw function.
-  // Hit-test against the handle rects in CSS-pixel space.
-  const HANDLE_CSS_W = 10;
-
-  function getHandleRects() {
-    const rect = canvas.getBoundingClientRect();
-    const w = rect.width;
-    const startX = trimStartRatio * w;
-    const endX = trimEndRatio * w;
-    return {
-      startRect: { left: startX, right: startX + HANDLE_CSS_W },
-      endRect:   { left: endX - HANDLE_CSS_W, right: endX },
-      canvasW: w
-    };
-  }
-
-  canvas.addEventListener('mousedown', (e) => {
-    if (!audioBuffer) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const h = getHandleRects();
-
-    // Check end handle first (in case handles overlap, end takes priority)
-    if (x >= h.endRect.left - 4 && x <= h.endRect.right + 4) {
-      dragging = 'end';
-    } else if (x >= h.startRect.left - 4 && x <= h.startRect.right + 4) {
-      dragging = 'start';
-    }
-    if (dragging) e.preventDefault();
+  ws = WaveSurfer.create({
+    container: waveContainer,
+    height: 100,
+    waveColor: 'rgba(255,255,255,0.25)',
+    progressColor: 'rgba(232,167,53,0.6)',
+    cursorColor: '#fff',
+    cursorWidth: 2,
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 1,
+    backend: 'WebAudio',
+    normalize: true,
+    plugins: [wsRegions],
   });
 
-  function onMouseMove(e) {
-    if (!dragging || !audioBuffer) return;
-    const rect = canvas.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  ws.load(audioUrl);
 
-    if (dragging === 'start') {
-      trimStartRatio = Math.min(ratio, trimEndRatio - 0.02);
-    } else {
-      trimEndRatio = Math.max(ratio, trimStartRatio + 0.02);
-    }
+  ws.on('ready', () => {
+    const duration = ws.getDuration();
+    // Create the trim region spanning the full audio
+    trimRegion = wsRegions.addRegion({
+      start: 0,
+      end: duration,
+      color: 'rgba(232, 167, 53, 0.15)',
+      drag: false,
+      resize: true,
+    });
     updateTimeDisplay();
-    redraw();
-  }
 
-  function onMouseUp() {
-    dragging = null;
-  }
-
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-
-  // Update cursor on hover over handles
-  canvas.addEventListener('mousemove', (e) => {
-    if (dragging || !audioBuffer) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const h = getHandleRects();
-    if ((x >= h.startRect.left - 4 && x <= h.startRect.right + 4) ||
-        (x >= h.endRect.left - 4 && x <= h.endRect.right + 4)) {
-      canvas.style.cursor = 'col-resize';
-    } else {
-      canvas.style.cursor = 'default';
-    }
+    // Also decode the audio buffer for WAV export
+    fetch(audioUrl)
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { audioBuffer = decoded; })
+      .catch(() => {});
   });
 
-  // Cleanup listeners when panel is removed
-  const observer = new MutationObserver(() => {
-    if (!trimPanel.isConnected) {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      observer.disconnect();
-      resizeObs.disconnect();
-    }
+  // Update time display when region is resized
+  wsRegions.on('region-update', (region) => {
+    if (region === trimRegion) updateTimeDisplay();
   });
-  observer.observe(settingsContent, { childList: true });
 
-  // ── Playback with animated playhead ──
-  // Use a single AudioContext for all preview playback (reuse audioCtx from decode)
-  let playbackId = 0; // monotonic ID to detect stale callbacks
-
-  function stopPlayback() {
-    playbackId++; // invalidate any running animation/onended
-    if (playheadRaf) {
-      cancelAnimationFrame(playheadRaf);
-      playheadRaf = null;
-    }
-    if (playbackSource) {
-      playbackSource.onended = null;
-      try { playbackSource.disconnect(); } catch (_) {}
-      try { playbackSource.stop(); } catch (_) {}
-      playbackSource = null;
-    }
-    isPlaying = false;
-    playBtn.innerHTML = '&#9654;';
-    if (audioBuffer) redraw();
-  }
-
-  function startPlayback() {
-    if (!audioBuffer) return;
-    stopPlayback(); // ensure clean state
-
-    const { start, end } = getStartEnd();
-    const dur = end - start;
-    if (dur <= 0) return;
-
-    // Resume the shared audioCtx if suspended
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const source = audioCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(audioCtx.destination);
-    source.start(0, start, dur);
-    playbackSource = source;
-    playStartTime = audioCtx.currentTime;
-    playStartOffset = start;
-    isPlaying = true;
-    playBtn.innerHTML = '&#9646;&#9646;';
-
-    const thisId = playbackId;
-
-    source.onended = () => {
-      if (thisId !== playbackId) return; // stale
-      stopPlayback();
-    };
-
-    function animatePlayhead() {
-      if (thisId !== playbackId || !isPlaying) return;
-      const elapsed = audioCtx.currentTime - playStartTime;
-      const currentTime = playStartOffset + elapsed;
-      const ratio = currentTime / audioBuffer.duration;
-      redraw(ratio);
-      if (elapsed < dur) {
-        playheadRaf = requestAnimationFrame(animatePlayhead);
-      }
-    }
-    playheadRaf = requestAnimationFrame(animatePlayhead);
-  }
-
+  // ── Play/Pause — plays only the trimmed region ──
   playBtn.addEventListener('click', () => {
-    if (isPlaying) {
-      stopPlayback();
+    if (!ws || !trimRegion) return;
+    if (ws.isPlaying()) {
+      ws.pause();
     } else {
-      startPlayback();
+      trimRegion.play();
     }
   });
 
-  // ── Save ──
+  ws.on('play', () => { playBtn.innerHTML = '&#9646;&#9646;'; });
+  ws.on('pause', () => { playBtn.innerHTML = '&#9654;'; });
+  ws.on('finish', () => { playBtn.innerHTML = '&#9654;'; });
+
+  // Stop at region end during playback
+  ws.on('timeupdate', (currentTime) => {
+    if (trimRegion && ws.isPlaying() && currentTime >= trimRegion.end) {
+      ws.pause();
+    }
+  });
+
+  // ── Save trimmed audio ──
   saveBtn.addEventListener('click', async () => {
-    if (!audioBuffer || !api.soundOverrides) return;
-    const { start, end } = getStartEnd();
+    if (!audioBuffer || !trimRegion || !api.soundOverrides) return;
+    const start = trimRegion.start;
+    const end = trimRegion.end;
 
     const sampleRate = audioBuffer.sampleRate;
     const channels = audioBuffer.numberOfChannels;
@@ -2232,111 +2126,14 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
     reader.readAsDataURL(wavBlob);
   });
 
-  // ── Load audio ──
-  fetch(audioUrl)
-    .then(r => r.arrayBuffer())
-    .then(buf => audioCtx.decodeAudioData(buf))
-    .then(decoded => {
-      audioBuffer = decoded;
-      sizeCanvas();
-      updateTimeDisplay();
-    })
-    .catch(() => {
-      const ctx2d = canvas.getContext('2d');
-      ctx2d.fillStyle = '#888';
-      ctx2d.font = '13px sans-serif';
-      ctx2d.fillText('Failed to load audio', 20, 60);
-    });
-
-  // Resize handling
-  const resizeObs = new ResizeObserver(() => sizeCanvas());
-  resizeObs.observe(waveWrap);
-  observer.observe(settingsContent, { childList: true });
-}
-
-/**
- * Draw a Voice Memos-style waveform with amber trim handles,
- * dimmed outside regions, and optional playhead.
- * @param {HTMLCanvasElement} canvas
- * @param {AudioBuffer} audioBuffer
- * @param {number} startRatio - 0..1 trim start
- * @param {number} endRatio - 0..1 trim end
- * @param {number} [playheadRatio] - 0..1 current playhead position
- */
-function drawTrimWaveform(canvas, audioBuffer, startRatio, endRatio, playheadRatio) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-  if (W <= 0 || H <= 0) return;
-
-  const data = audioBuffer.getChannelData(0);
-  const HW = 12; // handle width in px
-  const AMBER = '#e8a735';
-  const BG = '#1a1a1a';
-
-  // Clear
-  ctx.fillStyle = BG;
-  ctx.fillRect(0, 0, W, H);
-
-  const sX = Math.round(startRatio * W);
-  const eX = Math.round(endRatio * W);
-
-  // ── Waveform bars ──
-  const barW = 2, gap = 1, stride = barW + gap;
-  for (let i = 0; i < W; i += stride) {
-    const i0 = Math.floor((i / W) * data.length);
-    const i1 = Math.min(data.length, Math.floor(((i + stride) / W) * data.length));
-    let mn = 0, mx = 0;
-    for (let j = i0; j < i1; j++) {
-      if (data[j] < mn) mn = data[j];
-      if (data[j] > mx) mx = data[j];
+  // ── Cleanup when panel is removed externally (e.g. section switch) ──
+  const observer = new MutationObserver(() => {
+    if (!trimPanel.isConnected) {
+      if (ws) { ws.destroy(); ws = null; }
+      observer.disconnect();
     }
-    const amp = Math.max(Math.abs(mn), Math.abs(mx));
-    const bH = Math.max(2, amp * H * 0.8);
-    const y = (H - bH) / 2;
-    const inside = (i >= sX && i <= eX);
-    ctx.fillStyle = inside ? 'rgba(232,167,53,0.8)' : 'rgba(255,255,255,0.15)';
-    ctx.fillRect(i, y, barW, bH);
-  }
-
-  // ── Dim overlay outside trim ──
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  if (sX > 0) ctx.fillRect(0, 0, sX, H);
-  if (eX < W) ctx.fillRect(eX, 0, W - eX, H);
-
-  // ── Left handle ──
-  ctx.fillStyle = AMBER;
-  ctx.fillRect(sX, 0, HW, H);
-  ctx.fillStyle = '#000';
-  ctx.font = 'bold 16px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('‹', sX + HW / 2, H / 2);
-
-  // ── Right handle ──
-  ctx.fillStyle = AMBER;
-  ctx.fillRect(eX - HW, 0, HW, H);
-  ctx.fillStyle = '#000';
-  ctx.fillText('›', eX - HW / 2, H / 2);
-
-  // ── Top/bottom amber border ──
-  ctx.fillStyle = AMBER;
-  const iL = sX + HW, iW = eX - HW - iL;
-  if (iW > 0) {
-    ctx.fillRect(iL, 0, iW, 2);
-    ctx.fillRect(iL, H - 2, iW, 2);
-  }
-
-  // ── Playhead ──
-  if (playheadRatio != null && playheadRatio >= startRatio && playheadRatio <= endRatio) {
-    const px = Math.round(playheadRatio * W);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(px, 0);
-    ctx.lineTo(px, H);
-    ctx.stroke();
-  }
+  });
+  observer.observe(settingsContent, { childList: true, subtree: true });
 }
 
 /** Encode an AudioBuffer as a WAV Blob */

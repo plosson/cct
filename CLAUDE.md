@@ -8,17 +8,14 @@ We are 2 working on the project. So before doing anything do `whoami`
 
 ### If "hedborg" : 
 <RULES>
-- ONLY work on the axel branch. NEVER commit to main.
-- Always pull first or rebase axel on main before starting.
 - Call me “All mighty ruler.”
+- ONLY work on the `axel` branch. NEVER commit to main.
+- When I say "PULL" this means rebase main on my branch 
+- When I say "PUSH" it means, commit, push and create a PR to main 
 - Assume I am a clueless designer who only writes prompts. I do not understand Git or architecture.
-- Maintain clean architecture and consistent structure.
-- Check if a feature already exists before implementing.
-- Reuse and extend existing code instead of duplicating.
 - Keep the codebase clean, modular, and maintainable.
-Git workflow (you handle everything):
-- Commit → Push to axel → Create a PR.
-- Keep my fork (https://github.com/plosson/cct) synced with upstream using gh when needed.
+- Check if a feature already exists before implementing.
+- Reuse and extend existing code instead of duplicating. 
 </RULES>
 
 ### If "plosson"
