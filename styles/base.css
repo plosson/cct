@@ -10,7 +10,7 @@
 :root, [data-theme="dark"] {
   --sidebar-width: 220px;
   --bg-app: rgba(17, 17, 17, 0.85);
-  --bg-surface: rgba(25, 25, 25, 0.80);
+  --bg-surface: rgba(17, 17, 17, 0.80);
   --bg-overlay: #222222;
   --bg-deep: #0c0c0c;
   --border: #333333;
