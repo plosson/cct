@@ -109,12 +109,21 @@ if (!gotTheLock) {
     const logService = new LogService();
     registerLogIPC(logService);
 
+    const projectConfigService = new ProjectConfigService();
+
+    // Hook server + hooks installation — must complete before window creation
+    // so that restored Claude sessions pick up the hooks
+    setLogService(logService);
+    hookServerService = new HookServerService(projectConfigService, logService);
+    await hookServerService.start();
+    installHooks(hookServerService.port);
+
     windowStateService = new WindowStateService(logService);
     const configService = new ConfigService(logService);
     const win = createMainWindow(windowStateService, configService);
+    hookServerService.setWindow(win);
     terminalService = new TerminalService(win, logService);
     setTerminalService(terminalService);
-    const projectConfigService = new ProjectConfigService();
     registerTerminalIPC(terminalService, projectConfigService, configService);
 
     projectStore = new ProjectStore(logService);
@@ -161,12 +170,6 @@ if (!gotTheLock) {
 
     // Auto-updater (skips initialization in dev mode)
     new UpdaterService(win, logService);
-
-    // Hook server + hooks installation
-    setLogService(logService);
-    hookServerService = new HookServerService(projectConfigService, win, logService);
-    await hookServerService.start();
-    installHooks(hookServerService.port);
 
     logService.info('app', 'CCT started — v' + app.getVersion());
 

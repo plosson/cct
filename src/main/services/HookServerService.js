@@ -9,15 +9,22 @@ const http = require('http');
 class HookServerService {
   /**
    * @param {import('./ProjectConfigService').ProjectConfigService} projectConfigService
-   * @param {import('electron').BrowserWindow} mainWindow
    * @param {import('./LogService').LogService} logService
    */
-  constructor(projectConfigService, mainWindow, logService) {
+  constructor(projectConfigService, logService) {
     this._projectConfigService = projectConfigService;
-    this._mainWindow = mainWindow;
     this._logService = logService;
+    this._mainWindow = null;
     this._server = null;
     this._port = null;
+  }
+
+  /**
+   * Set the main window for IPC broadcasts (can be called after start)
+   * @param {import('electron').BrowserWindow} win
+   */
+  setWindow(win) {
+    this._mainWindow = win;
   }
 
   /** @returns {number|null} The port the server is listening on */

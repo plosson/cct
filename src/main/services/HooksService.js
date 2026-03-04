@@ -94,6 +94,14 @@ function buildHookEntry(hookDef, port) {
 }
 
 /**
+ * Normalize a hook value to an array (Claude settings may store a single object or an array)
+ */
+function asArray(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+/**
  * Check if a hook entry is one of ours (detected by X-CCT-Hook header)
  */
 function isOurHook(hookEntry) {
@@ -117,20 +125,11 @@ function installHooks(port) {
     }
 
     for (const hookDef of HOOK_DEFINITIONS) {
-      const hookKey = hookDef.key;
       const newEntry = buildHookEntry(hookDef, port);
-
-      if (!settings.hooks[hookKey]) {
-        settings.hooks[hookKey] = [newEntry];
-      } else {
-        const existing = settings.hooks[hookKey];
-        const arr = Array.isArray(existing) ? existing : [existing];
-
-        // Remove any existing hooks of ours (to update port if changed)
-        const filtered = arr.filter(entry => !isOurHook(entry));
-        filtered.push(newEntry);
-        settings.hooks[hookKey] = filtered;
-      }
+      // Keep existing non-CCT hooks, replace any previous CCT hook (port may have changed)
+      const filtered = asArray(settings.hooks[hookDef.key]).filter(entry => !isOurHook(entry));
+      filtered.push(newEntry);
+      settings.hooks[hookDef.key] = filtered;
     }
 
     writeClaudeSettings(settings);
@@ -155,18 +154,11 @@ function removeHooks() {
     }
 
     for (const hookDef of HOOK_DEFINITIONS) {
-      const hookKey = hookDef.key;
-      if (!settings.hooks[hookKey]) continue;
-
-      const existing = settings.hooks[hookKey];
-      const arr = Array.isArray(existing) ? existing : [existing];
-
-      const filtered = arr.filter(entry => !isOurHook(entry));
-
+      const filtered = asArray(settings.hooks[hookDef.key]).filter(entry => !isOurHook(entry));
       if (filtered.length === 0) {
-        delete settings.hooks[hookKey];
+        delete settings.hooks[hookDef.key];
       } else {
-        settings.hooks[hookKey] = filtered;
+        settings.hooks[hookDef.key] = filtered;
       }
     }
 
