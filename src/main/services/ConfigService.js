@@ -3,7 +3,7 @@
  *
  * Hierarchy: per-project config → global config → defaults
  * Global config lives in userData/config.json
- * Per-project config lives in .cct/config.json (inside the project folder)
+ * Per-project config lives in .claudiu/config.json (inside the project folder)
  *
  * Design: each setting is a flat key (e.g. 'claudeCommand', 'terminalCommand').
  * The schema is defined once in CONFIG_SCHEMA and drives validation, defaults,
@@ -102,7 +102,13 @@ class ConfigService {
   // ── Per-project config ───────────────────────────────────────
 
   _projectConfigPath(projectPath) {
-    return path.join(projectPath, '.cct', 'config.json');
+    // Auto-migrate legacy .cct/ → .claudiu/
+    const newDir = path.join(projectPath, '.claudiu');
+    const oldDir = path.join(projectPath, '.cct');
+    if (!fs.existsSync(newDir) && fs.existsSync(oldDir)) {
+      fs.renameSync(oldDir, newDir);
+    }
+    return path.join(projectPath, '.claudiu', 'config.json');
   }
 
   _loadProject(projectPath) {

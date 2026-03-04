@@ -1,6 +1,6 @@
 /**
- * ProjectConfigService — manages per-project .cct/sessions.json
- * Each project folder gets a .cct/ directory with a sessions.json
+ * ProjectConfigService — manages per-project .claudiu/sessions.json
+ * Each project folder gets a .claudiu/ directory with a sessions.json
  * containing a stable projectId (UUID) and session tracking.
  */
 
@@ -8,7 +8,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const CONFIG_DIR = '.cct';
+const CONFIG_DIR = '.claudiu';
+const LEGACY_CONFIG_DIR = '.cct';
 const CONFIG_FILE = 'sessions.json';
 
 class ProjectConfigService {
@@ -17,11 +18,13 @@ class ProjectConfigService {
   }
 
   /**
-   * Read or create .cct/sessions.json for a project
+   * Read or create .claudiu/sessions.json for a project
    * @param {string} projectPath
    * @returns {{ projectId: string, sessions: Array }}
    */
   getConfig(projectPath) {
+    this._migrateIfNeeded(projectPath);
+
     if (this._cache.has(projectPath)) {
       return this._cache.get(projectPath);
     }
@@ -118,7 +121,20 @@ class ProjectConfigService {
 
 
   /**
-   * Write config to .cct/sessions.json
+   * Auto-migrate legacy .cct/ directory to .claudiu/ if needed.
+   * Only migrates if .claudiu/ doesn't exist but .cct/ does.
+   * @param {string} projectPath
+   */
+  _migrateIfNeeded(projectPath) {
+    const newDir = path.join(projectPath, CONFIG_DIR);
+    const oldDir = path.join(projectPath, LEGACY_CONFIG_DIR);
+    if (!fs.existsSync(newDir) && fs.existsSync(oldDir)) {
+      fs.renameSync(oldDir, newDir);
+    }
+  }
+
+  /**
+   * Write config to .claudiu/sessions.json
    * @param {string} projectPath
    * @param {object} config
    */
