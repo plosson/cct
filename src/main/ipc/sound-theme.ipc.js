@@ -85,9 +85,9 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     // If forked, update config to point to the new theme
     if (uploadResult.forked) {
       if (projectPath) {
-        configService.setProject(projectPath, { soundTheme: uploadResult.dirName });
+        configService.setProjectAll(projectPath, { ...configService.getProject(projectPath), soundTheme: uploadResult.dirName });
       } else {
-        configService.setGlobal({ soundTheme: uploadResult.dirName });
+        configService.setGlobalAll({ ...configService.getGlobal(), soundTheme: uploadResult.dirName });
       }
     }
     return uploadResult;
@@ -102,9 +102,9 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     // If forked, update config to point to the new theme
     if (result.forked) {
       if (projectPath) {
-        configService.setProject(projectPath, { soundTheme: result.dirName });
+        configService.setProjectAll(projectPath, { ...configService.getProject(projectPath), soundTheme: result.dirName });
       } else {
-        configService.setGlobal({ soundTheme: result.dirName });
+        configService.setGlobalAll({ ...configService.getGlobal(), soundTheme: result.dirName });
       }
     }
     return result;
