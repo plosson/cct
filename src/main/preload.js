@@ -104,4 +104,10 @@ contextBridge.exposeInMainWorld('electron_api', {
     remove: (dirName) => ipcRenderer.invoke('sound-theme-remove', dirName),
     getSounds: (projectPath) => ipcRenderer.invoke('sound-theme-get-sounds', projectPath),
   },
+
+  soundOverrides: {
+    upload: (eventName, scope) => ipcRenderer.invoke('sound-override-upload', { eventName, scope }),
+    saveFromBase64: (eventName, base64, scope) => ipcRenderer.invoke('sound-override-save-base64', { eventName, base64, scope }),
+    remove: (eventName, scope) => ipcRenderer.invoke('sound-override-remove', { eventName, scope }),
+  },
 });

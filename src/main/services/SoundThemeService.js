@@ -241,6 +241,126 @@ class SoundThemeService {
     return map;
   }
 
+  // ── Sound Overrides ─────────────────────────────────────────
+
+  /**
+   * Get the override directory for a given scope.
+   * Global: {userData}/sound-overrides/global/
+   * Project: {projectPath}/.claudiu/sounds/
+   */
+  getOverrideDir(scope) {
+    if (scope.type === 'project' && scope.projectPath) {
+      return path.join(scope.projectPath, '.claudiu', 'sounds');
+    }
+    return path.join(app.getPath('userData'), 'sound-overrides', 'global');
+  }
+
+  /**
+   * Get the override file path for a specific event.
+   * Returns null if no override exists.
+   */
+  getOverridePath(scope, eventName) {
+    const dir = this.getOverrideDir(scope);
+    // Check common audio extensions
+    for (const ext of ['mp3', 'wav', 'ogg', 'webm']) {
+      const filePath = path.join(dir, `${eventName}.${ext}`);
+      if (fs.existsSync(filePath)) return filePath;
+    }
+    return null;
+  }
+
+  /**
+   * Save an override from a source file path.
+   * Copies the file to the override directory.
+   */
+  saveOverride(scope, eventName, sourceFilePath) {
+    const dir = this.getOverrideDir(scope);
+    fs.mkdirSync(dir, { recursive: true });
+    const ext = path.extname(sourceFilePath) || '.mp3';
+    const dest = path.join(dir, `${eventName}${ext}`);
+    // Remove existing overrides for this event (any extension)
+    this._removeOverrideFiles(dir, eventName);
+    fs.copyFileSync(sourceFilePath, dest);
+    if (this._logService) this._logService.info('sound-override', `Saved override for ${eventName} (${scope.type})`);
+    return { success: true, path: dest };
+  }
+
+  /**
+   * Save an override from base64 data (used by trim UI).
+   */
+  saveOverrideFromBase64(scope, eventName, base64Data, ext = '.wav') {
+    const dir = this.getOverrideDir(scope);
+    fs.mkdirSync(dir, { recursive: true });
+    this._removeOverrideFiles(dir, eventName);
+    const dest = path.join(dir, `${eventName}${ext}`);
+    fs.writeFileSync(dest, Buffer.from(base64Data, 'base64'));
+    if (this._logService) this._logService.info('sound-override', `Saved trimmed override for ${eventName} (${scope.type})`);
+    return { success: true, path: dest };
+  }
+
+  /**
+   * Remove an override for an event.
+   */
+  removeOverride(scope, eventName) {
+    const dir = this.getOverrideDir(scope);
+    this._removeOverrideFiles(dir, eventName);
+    if (this._logService) this._logService.info('sound-override', `Removed override for ${eventName} (${scope.type})`);
+    return { success: true };
+  }
+
+  /**
+   * Get the resolved sound map: theme + global overrides + project overrides.
+   * Resolution: project override > global override > theme sound > none
+   */
+  getResolvedSoundMap(themeDirName, projectPath) {
+    const map = {};
+
+    // Start with theme sounds
+    if (themeDirName && themeDirName !== 'none') {
+      const themeMap = this.getSoundMap(themeDirName);
+      if (themeMap) Object.assign(map, themeMap);
+    }
+
+    // Layer global overrides
+    const globalDir = this.getOverrideDir({ type: 'global' });
+    this._layerOverrides(map, globalDir, 'global');
+
+    // Layer project overrides
+    if (projectPath) {
+      const projectDir = this.getOverrideDir({ type: 'project', projectPath });
+      this._layerOverrides(map, projectDir, 'project');
+    }
+
+    return Object.keys(map).length > 0 ? map : null;
+  }
+
+  /** Layer override files from a directory onto the map */
+  _layerOverrides(map, dir, scopeLabel) {
+    if (!fs.existsSync(dir)) return;
+    try {
+      const entries = fs.readdirSync(dir);
+      for (const file of entries) {
+        const ext = path.extname(file);
+        if (!['.mp3', '.wav', '.ogg', '.webm'].includes(ext)) continue;
+        const eventName = path.basename(file, ext);
+        // Encode the absolute path as a claudiu-sound-override URL
+        // We use base64-encoded path in the hostname to keep it safe
+        const absPath = path.join(dir, file);
+        const encodedPath = Buffer.from(absPath).toString('base64url');
+        map[eventName] = `claudiu-sound-override://${encodedPath}/sound${ext}`;
+      }
+    } catch { /* ignore */ }
+  }
+
+  /** Remove all override files for an event name (any extension) */
+  _removeOverrideFiles(dir, eventName) {
+    if (!fs.existsSync(dir)) return;
+    for (const ext of ['mp3', 'wav', 'ogg', 'webm']) {
+      const filePath = path.join(dir, `${eventName}.${ext}`);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+  }
+
   // ── Helpers ──────────────────────────────────────────────────
 
   /** Find the directory containing theme.json (root or one level deep) */
