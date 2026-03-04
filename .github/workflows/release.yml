@@ -102,7 +102,7 @@ jobs:
         if: steps.bump.outputs.is_dev == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: cct-dev-${{ steps.bump.outputs.version }}
+          name: claudiu-dev-${{ steps.bump.outputs.version }}
           path: |
             dist/*.dmg
             dist/*.zip
