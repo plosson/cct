@@ -7,7 +7,7 @@ Added a right-click context menu to sidebar projects with three options: Reveal 
 **Modified files:**
 - `main.js` — added `shell-show-item-in-folder` IPC handler using Electron's `shell.showItemInFolder()`
 - `src/main/preload.js` — exposed `shell.showItemInFolder` via context bridge
-- `src/renderer/index.js` — added `contextmenu` event listener on sidebar project elements, `showProjectContextMenu()` function, `_cctGetProjectContextMenuItems` test helper
+- `src/renderer/index.js` — added `contextmenu` event listener on sidebar project elements, `showProjectContextMenu()` function, `_claudiuGetProjectContextMenuItems` test helper
 
 **New files:**
 - `tests/step-028-project-context-menu.spec.js` — 5 Playwright tests

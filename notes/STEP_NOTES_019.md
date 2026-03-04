@@ -5,7 +5,7 @@
 Added a visual activity indicator (blue dot) on sidebar project items when a non-selected project has terminals producing output. Extends the tab-level activity indicator from step 015 to the project level.
 
 **Modified files:**
-- `src/renderer/index.js` — added `projectActivity` Set, `updateProjectActivityBadge()`, modified `onData` handler to track project activity, modified `selectProject()` to clear activity, added `project-activity` class in `renderSidebar()`, added `_cctProjectActivity` and `_cctGetSessionsForProject` test helpers
+- `src/renderer/index.js` — added `projectActivity` Set, `updateProjectActivityBadge()`, modified `onData` handler to track project activity, modified `selectProject()` to clear activity, added `project-activity` class in `renderSidebar()`, added `_claudiuProjectActivity` and `_claudiuGetSessionsForProject` test helpers
 - `styles/base.css` — added `.sidebar-project.project-activity .sidebar-project-name::after` pseudo-element
 
 **New files:**

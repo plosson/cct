@@ -31,7 +31,7 @@ Added a confirmation dialog when the user tries to close the window while termin
 - **`setTerminalService()` function**: MainWindow needs access to TerminalService to check session count, but TerminalService is created after the window. Using a setter avoids circular dependencies.
 - **`forceCloseWindow()` exported**: Called from `before-quit` in `main.js`. Sets `forceClose = true` and then calls `mainWindow.close()`. This ensures the close event fires but skips the dialog.
 - **Dialog lives in MainWindow, not main.js**: The close confirmation is a window-level concern. MainWindow owns the close event handler.
-- **No test environment check**: Instead of adding a `CCT_SKIP_CLOSE_CONFIRM` env variable, the `forceClose` flag handles the test case naturally: Playwright calls `app.quit()` which triggers `before-quit` → `forceCloseWindow()`.
+- **No test environment check**: Instead of adding a `CLAUDIU_SKIP_CLOSE_CONFIRM` env variable, the `forceClose` flag handles the test case naturally: Playwright calls `app.quit()` which triggers `before-quit` → `forceCloseWindow()`.
 
 ## How it was tested
 

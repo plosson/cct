@@ -2,17 +2,17 @@
 
 ## What was done
 
-Added CLI support so users can launch CCT with a project path: `cct .` or `cct /path/to/project`.
+Added CLI support so users can launch Claudiu with a project path: `claudiu .` or `claudiu /path/to/project`.
 
 **Files created:**
-- `bin/cct` — Bash CLI wrapper that resolves the path to absolute, uses `open -a CCT.app` for packaged builds and falls back to `electron` for dev mode
+- `bin/claudiu` — Bash CLI wrapper that resolves the path to absolute, uses `open -a Claudiu.app` for packaged builds and falls back to `electron` for dev mode
 - `tests/step-034-cli-invocation.spec.js` — 8 Playwright tests
 
 **Files modified:**
 - `main.js` — Added `parseProjectPath(argv)` to extract directory args from argv, `openProjectFromCLI(projectPath)` to add+select a project, enhanced `requestSingleInstanceLock` with `additionalData` to forward the project path, and `second-instance` handler to open projects from subsequent launches
 - `src/main/preload.js` — Added `projects.onOpen` listener via `createListener('open-project')`
 - `src/renderer/index.js` — Added `refreshProjectList()` helper to deduplicate MRU sync logic, added `api.projects.onOpen` listener that reloads projects and selects the opened one
-- `package.json` — Added `"bin": { "cct": "bin/cct" }` field
+- `package.json` — Added `"bin": { "claudiu": "bin/claudiu" }` field
 
 ## Choices made
 
@@ -25,7 +25,7 @@ Added CLI support so users can launch CCT with a project path: `cct .` or `cct /
 
 - **IPC channel `open-project`**: Main process sends, renderer listens. Fits the existing fire-and-forget pattern (main → renderer) used by `terminal-data`, `terminal-exit`, etc.
 - **`parseProjectPath` in main process**: Filters out flags (anything starting with `-`) and non-directory paths. Returns the first valid directory found in argv, or null.
-- **Project auto-add**: When opening from CLI, the project is added to `projects.json` via `ProjectStore.addProject()` if not already present, then selected. This means `cct /some/new/path` is a one-step "add and open" operation.
+- **Project auto-add**: When opening from CLI, the project is added to `projects.json` via `ProjectStore.addProject()` if not already present, then selected. This means `claudiu /some/new/path` is a one-step "add and open" operation.
 
 ## How it was tested
 
@@ -37,8 +37,8 @@ Added CLI support so users can launch CCT with a project path: `cct .` or `cct /
 4. **open-project IPC** — Adds a second project via IPC, simulates the open-project flow, verifies selection switches
 5. **projects.onOpen exposed** — Confirms the preload listener is a function
 6. **parseProjectPath ignores flags** — Verifies flags don't cause crashes or change project
-7. **bin/cct exists and is executable** — Checks file exists with execute permission
-8. **bin/cct contains open -a** — Confirms the script uses macOS `open -a` convention
+7. **bin/claudiu exists and is executable** — Checks file exists with execute permission
+8. **bin/claudiu contains open -a** — Confirms the script uses macOS `open -a` convention
 
 All 21 tests pass (13 step-033 + 8 step-034) in ~2.8s.
 

@@ -57,7 +57,7 @@ The `.titlebar-drag-region` (38px) becomes the project identity banner:
 
 ### No-Project State
 
-When no project is selected, everything stays monochrome `#16162a`. Titlebar shows nothing or "CCT".
+When no project is selected, everything stays monochrome `#16162a`. Titlebar shows nothing or "Claudiu".
 
 ## Decisions
 

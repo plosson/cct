@@ -11,7 +11,7 @@ Implemented a sound theme system that plays MP3 sounds in response to Claude Cod
 ### Files modified
 - `src/main/services/ConfigService.js` — Added `soundTheme` config key (default: `'none'`)
 - `src/main/preload.js` — Added `soundThemes` API namespace (list, install, remove, getSounds)
-- `main.js` — Registered `cct-sound://` custom protocol, initialized SoundThemeService, registered IPC
+- `main.js` — Registered `claudiu-sound://` custom protocol, initialized SoundThemeService, registered IPC
 - `src/renderer/index.js` — Added sound cache, hook event → sound playback wiring
 
 ## Theme format
@@ -42,7 +42,7 @@ Events map 1:1 to the 17 hook events from Step 039. Unmapped events are silent.
 
 ## Choices made
 
-- **Custom `cct-sound://` protocol** over `file://` or base64 data URLs — clean, secure (path-validated), no encoding overhead, and works naturally with `new Audio(url)` in the renderer
+- **Custom `claudiu-sound://` protocol** over `file://` or base64 data URLs — clean, secure (path-validated), no encoding overhead, and works naturally with `new Audio(url)` in the renderer
 - **Audio clone on play** — `audio.cloneNode()` so overlapping event sounds don't cut each other off
 - **GitHub install via shallow `git clone`** — simplest approach; `.git` dir is removed post-clone to save space
 - **Zip install via system `unzip`** — avoids adding a Node zip dependency; available on macOS/Linux out of the box

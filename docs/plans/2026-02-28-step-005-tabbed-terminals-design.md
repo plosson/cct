@@ -64,7 +64,7 @@ Key functions:
 
 ### Buffer text helper
 
-`window._cctGetBufferText()` returns active tab's buffer. Optionally accepts an ID parameter for targeted reads during tests.
+`window._claudiuGetBufferText()` returns active tab's buffer. Optionally accepts an ID parameter for targeted reads during tests.
 
 ### Keyboard shortcut
 

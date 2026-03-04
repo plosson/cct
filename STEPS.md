@@ -19,16 +19,16 @@ to more configuration settings in the feature.
 I would like user to be able to do : 
 
 ```bash
-cct .
+claudiu .
 ``` 
 or
 ```bash
-cct $HOME/devel/project/my-project
+claudiu $HOME/devel/project/my-project
 ```
 
-to open the project in CTT. The flow is as follows : 
+to open the project in Claudiu. The flow is as follows :
 
-1/ is CTT already open. If so, reuse the same process, if not open CTT
+1/ is Claudiu already open. If so, reuse the same process, if not open Claudiu
 2/ does the project already exists, if so, just select the project, if not, create the project.
 
 ### Step 35 - Debug pane

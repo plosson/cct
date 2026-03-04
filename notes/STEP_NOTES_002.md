@@ -44,7 +44,7 @@ Local dry-runs:
 GitHub CI validation:
 - CI workflow: pushed to main → **completed success** in 24s
 - Release workflow: pushed tag `v0.0.1-test` → **completed success** in 2m40s
-- Artifacts produced: `CCT-0.1.0-arm64.dmg`, `CCT-0.1.0-arm64.dmg.blockmap`, `latest-mac.yml` — published as draft release
+- Artifacts produced: `Claudiu-0.1.0-arm64.dmg`, `Claudiu-0.1.0-arm64.dmg.blockmap`, `latest-mac.yml` — published as draft release
 - Test tag and draft release cleaned up after validation
 
 ## Lessons / gotchas

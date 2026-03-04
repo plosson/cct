@@ -730,7 +730,7 @@ test('6 - log entries appear in the debug pane', async () => {
   await window.evaluate(() => {
     // Use the onEntry listener — we'll trigger it by calling getHistory which we know works
     // Instead, let's directly test the rendering function
-    window._cctAddDebugEntry({ timestamp: Date.now(), level: 'info', source: 'test', message: 'Hello from test' });
+    window._claudiuAddDebugEntry({ timestamp: Date.now(), level: 'info', source: 'test', message: 'Hello from test' });
   });
 
   const entries = await window.evaluate(() =>
@@ -747,7 +747,7 @@ test('6 - log entries appear in the debug pane', async () => {
 test('7 - clear button removes all entries', async () => {
   // Add an entry first
   await window.evaluate(() => {
-    window._cctAddDebugEntry({ timestamp: Date.now(), level: 'warn', source: 'test', message: 'Warning entry' });
+    window._claudiuAddDebugEntry({ timestamp: Date.now(), level: 'warn', source: 'test', message: 'Warning entry' });
   });
 
   // Click clear
@@ -822,7 +822,7 @@ function clearDebugPane() {
 }
 
 // Test helper
-window._cctAddDebugEntry = addDebugEntry;
+window._claudiuAddDebugEntry = addDebugEntry;
 ```
 
 In `init()`, wire up:
@@ -1078,7 +1078,7 @@ In `main.js`, the logService must be created early (before services that need it
     setLogService(logService);
     installHooks();
 
-    logService.info('app', 'CCT started — v' + app.getVersion());
+    logService.info('app', 'Claudiu started — v' + app.getVersion());
 ```
 
 **Step 10: Run test — expect pass**
@@ -1141,7 +1141,7 @@ npm run start
 
 Verify:
 - Cmd+J opens/closes the debug pane
-- Log entries appear (at minimum, "CCT started" from startup)
+- Log entries appear (at minimum, "Claudiu started" from startup)
 - Resize handle works
 - Clear button works
 - Auto-scroll to bottom on new entries

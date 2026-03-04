@@ -2,7 +2,7 @@
 
 ## What was done
 
-Fixed `npm start` so it auto-adds and selects the current working directory as a project when CCT launches.
+Fixed `npm start` so it auto-adds and selects the current working directory as a project when Claudiu launches.
 
 **Modified files:**
 - `package.json` — changed `start` script from `electron .` to `electron . $PWD`
@@ -18,7 +18,7 @@ Fixed `npm start` so it auto-adds and selects the current working directory as a
 ## Architecture decisions
 
 - **Minimal change** — one word added to `package.json`. All the logic for opening a project from CLI was already in place (step 034).
-- **Consistent with `cct .`**: Running `npm start` in a project dir now behaves identically to running `cct .`, just without the single-instance check that brings an existing window forward.
+- **Consistent with `claudiu .`**: Running `npm start` in a project dir now behaves identically to running `claudiu .`, just without the single-instance check that brings an existing window forward.
 
 ## How it was tested
 

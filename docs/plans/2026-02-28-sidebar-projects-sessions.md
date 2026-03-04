@@ -591,7 +591,7 @@ test('3 - add a project via IPC and it appears in sidebar', async () => {
     const fs = require('fs');
     const path = require('path');
     const os = require('os');
-    const dir = path.join(os.tmpdir(), `cct-test-project-${Date.now()}`);
+    const dir = path.join(os.tmpdir(), `claudiu-test-project-${Date.now()}`);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
   });
@@ -604,7 +604,7 @@ test('3 - add a project via IPC and it appears in sidebar', async () => {
   await window.evaluate(async () => {
     // projects list was updated server-side, trigger re-render
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects && window._cctReloadProjects(saved);
+    window._claudiuReloadProjects && window._claudiuReloadProjects(saved);
   });
 
   const items = window.locator('[data-testid="project-item"]');
@@ -630,7 +630,7 @@ test('4 - click project creates a new session tab in that folder', async () => {
   await window.waitForTimeout(1000);
 
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toContain(projectPath);
   }).toPass({ timeout: 5000 });
 });
@@ -646,7 +646,7 @@ test('6 - add a second project, sidebar shows both', async () => {
     const fs = require('fs');
     const path = require('path');
     const os = require('os');
-    const dir = path.join(os.tmpdir(), `cct-test-project2-${Date.now()}`);
+    const dir = path.join(os.tmpdir(), `claudiu-test-project2-${Date.now()}`);
     fs.mkdirSync(dir, { recursive: true });
     return dir;
   });
@@ -657,7 +657,7 @@ test('6 - add a second project, sidebar shows both', async () => {
 
   await window.evaluate(async () => {
     const saved = await window.electron_api.projects.list();
-    window._cctReloadProjects && window._cctReloadProjects(saved);
+    window._claudiuReloadProjects && window._claudiuReloadProjects(saved);
   });
 
   const items = window.locator('[data-testid="project-item"]');
@@ -750,11 +750,11 @@ test('12 - all step 005 tab behaviors still work', async () => {
 });
 ```
 
-Note: Tests 3, 6 use `addPath` IPC (bypasses native dialog) + a `_cctReloadProjects` helper exposed from the renderer. This helper must be added to `src/renderer/index.js`:
+Note: Tests 3, 6 use `addPath` IPC (bypasses native dialog) + a `_claudiuReloadProjects` helper exposed from the renderer. This helper must be added to `src/renderer/index.js`:
 
 ```javascript
 // Test helper: reload projects from store and re-render sidebar
-window._cctReloadProjects = (projectList) => {
+window._claudiuReloadProjects = (projectList) => {
   projects.length = 0;
   projects.push(...projectList);
   renderSidebar();

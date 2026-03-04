@@ -353,7 +353,7 @@ function closeTab(id) {
 }
 
 // Expose buffer text for test assertions
-window._cctGetBufferText = (targetId) => {
+window._claudiuGetBufferText = (targetId) => {
   const id = targetId || activeId;
   const session = sessions.get(id);
   if (!session) return '';
@@ -367,7 +367,7 @@ window._cctGetBufferText = (targetId) => {
 };
 
 // Expose active tab ID for tests
-window._cctActiveTabId = () => activeId;
+window._claudiuActiveTabId = () => activeId;
 
 /**
  * Init: create first session + wire keyboard shortcuts
@@ -504,7 +504,7 @@ test('6. terminal state preserved across tab switches', async () => {
 
   // Wait for marker to appear in buffer
   await expect(async () => {
-    const text = await window.evaluate(() => window._cctGetBufferText());
+    const text = await window.evaluate(() => window._claudiuGetBufferText());
     expect(text).toContain('TAB1_UNIQUE_MARKER_12345');
   }).toPass({ timeout: 5000 });
 
@@ -517,7 +517,7 @@ test('6. terminal state preserved across tab switches', async () => {
   await window.waitForTimeout(300);
 
   // Marker should still be in buffer
-  const text = await window.evaluate(() => window._cctGetBufferText());
+  const text = await window.evaluate(() => window._claudiuGetBufferText());
   expect(text).toContain('TAB1_UNIQUE_MARKER_12345');
 });
 

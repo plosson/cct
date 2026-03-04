@@ -5,7 +5,7 @@
 Added Cmd+Shift+Left and Cmd+Shift+Right shortcuts to move the active tab left/right in the tab bar.
 
 **Modified files:**
-- `src/renderer/index.js` — added `'Shift+Meta+ArrowLeft': 'moveTabLeft'` and `'Shift+Meta+ArrowRight': 'moveTabRight'` keybindings, `moveTab(direction)` function, action labels, registered actions in init(), added `_cctGetTabOrder` test helper
+- `src/renderer/index.js` — added `'Shift+Meta+ArrowLeft': 'moveTabLeft'` and `'Shift+Meta+ArrowRight': 'moveTabRight'` keybindings, `moveTab(direction)` function, action labels, registered actions in init(), added `_claudiuGetTabOrder` test helper
 
 **New files:**
 - `tests/step-024-move-tab.spec.js` — 6 Playwright tests
@@ -27,7 +27,7 @@ Added Cmd+Shift+Left and Cmd+Shift+Right shortcuts to move the active tab left/r
 ## Architecture decisions
 
 - **Filter visible project tabs from DOM**: Instead of maintaining a separate ordering data structure, we read the current tab order directly from the DOM. This keeps the source of truth in one place (the DOM) and is consistent with drag-and-drop.
-- **Test helper `_cctGetTabOrder`**: Returns an array of visible tab labels in their DOM order. Filters out `display:none` tabs so it only returns tabs for the current project.
+- **Test helper `_claudiuGetTabOrder`**: Returns an array of visible tab labels in their DOM order. Filters out `display:none` tabs so it only returns tabs for the current project.
 
 ## How it was tested
 

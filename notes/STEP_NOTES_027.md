@@ -5,7 +5,7 @@
 Added Cmd+B to toggle the sidebar visibility. When hidden, the main area takes full width.
 
 **Modified files:**
-- `src/renderer/index.js` — added `'Meta+b': 'toggleSidebar'` keybinding, `toggleSidebar()` function, `sidebarVisible` state variable, action label, registered action in init(), added `_cctIsSidebarVisible` test helper
+- `src/renderer/index.js` — added `'Meta+b': 'toggleSidebar'` keybinding, `toggleSidebar()` function, `sidebarVisible` state variable, action label, registered action in init(), added `_claudiuIsSidebarVisible` test helper
 
 **New files:**
 - `tests/step-027-toggle-sidebar.spec.js` — 6 Playwright tests

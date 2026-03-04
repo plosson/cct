@@ -5,7 +5,7 @@
 Added a "Duplicate" option in the tab context menu that creates a new session of the same type in the same project.
 
 **Modified files:**
-- `src/renderer/index.js` — added "Duplicate" item to context menu with separator, added `duplicate` case in switch, updated `_cctGetTabContextMenuItems` test helper, added `_cctDuplicateTab` test helper
+- `src/renderer/index.js` — added "Duplicate" item to context menu with separator, added `duplicate` case in switch, updated `_claudiuGetTabContextMenuItems` test helper, added `_claudiuDuplicateTab` test helper
 - `tests/step-011-tab-context-menu.spec.js` — updated test 1 to expect 4 items (was 3) including the new Duplicate item
 
 **New files:**
@@ -26,7 +26,7 @@ Added a "Duplicate" option in the tab context menu that creates a new session of
 ## Architecture decisions
 
 - **Reuses `createSession(session.type)`**: The duplicate action simply calls the existing `createSession()` with the original tab's type. No new infrastructure needed — maximum code reuse.
-- **Test helper `_cctDuplicateTab`**: Exposed for testing since we can't trigger native context menus from Playwright.
+- **Test helper `_claudiuDuplicateTab`**: Exposed for testing since we can't trigger native context menus from Playwright.
 
 ## How it was tested
 

@@ -1,4 +1,4 @@
-# CCT - Claude Code Terminal
+# Claudiu — A Terminal Development Environment
 
 A Terminal Development Environment (TDE) built with Electron for managing multiple Claude Code sessions across projects.
 
@@ -76,8 +76,8 @@ Do NOT copy its feature set — only adopt its architectural patterns where rele
 Whenever the users asks you to implement a new feature, this should be done : 
 
 - Figure out the step number (by checking the last step number in notes/)
-- Always work on a branch called `step-XXX-description` 
-
+- Always work on a branch called `step-XXX-description`
+- Merge the branch back when you are done 
 
 ## Step Journal
 
@@ -97,7 +97,8 @@ Keep it concise and factual — this is a technical log, not prose.
 
 - Use `uv` for any Python tooling
 - Use `npm` for Node.js package management
-- Branch strategy: each step lives on `step-XXX-description`, merged to `main` when complete
+- Branch strategy: each step lives on `step-XXX-description`, merged to `main` (or axel depending on who you are) when 
+  complete
 - Go step by step — small increments, test stability at each step before moving on
 - Prefer editing existing files over creating new ones
 - No over-engineering — build only what the current step requires

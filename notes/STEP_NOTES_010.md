@@ -51,7 +51,7 @@ Added in-terminal search using xterm.js SearchAddon. Cmd+F opens a search bar ab
 7. Prev/Next buttons navigate matches (click ↑ and ↓, results still shown)
 8. Cmd+F again focuses existing search bar and preserves input text
 
-Test setup: creates a terminal, types `echo SEARCH_TARGET_UNIQUE_42`, waits for output via `_cctGetBufferText()`, then runs all search tests.
+Test setup: creates a terminal, types `echo SEARCH_TARGET_UNIQUE_42`, waits for output via `_claudiuGetBufferText()`, then runs all search tests.
 
 All 8 tests pass. Full suite: 98 tests in ~43s.
 

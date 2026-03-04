@@ -2,11 +2,11 @@
 
 ## What was done
 
-Extended the terminal infrastructure to spawn `claude` CLI sessions instead of just plain shells. The `TerminalService.create()` now accepts `command` and `args` parameters, allowing the caller to specify what to spawn. The renderer reads a config value (`CCT_COMMAND` env var) to determine the spawn command, defaulting to shell for backward compatibility.
+Extended the terminal infrastructure to spawn `claude` CLI sessions instead of just plain shells. The `TerminalService.create()` now accepts `command` and `args` parameters, allowing the caller to specify what to spawn. The renderer reads a config value (`CLAUDIU_COMMAND` env var) to determine the spawn command, defaulting to shell for backward compatibility.
 
 **Files modified:**
 - `src/main/services/TerminalService.js` — added `command` and `args` params to `create()`, clean `CLAUDECODE` env var from PTY env to avoid nested-session detection
-- `src/main/preload.js` — added `config.spawnCommand` to the bridge, read from `CCT_COMMAND` env var
+- `src/main/preload.js` — added `config.spawnCommand` to the bridge, read from `CLAUDIU_COMMAND` env var
 - `src/renderer/index.js` — reads `api.config.spawnCommand` to decide what to spawn (undefined = default shell)
 
 **Files created:**
@@ -15,13 +15,13 @@ Extended the terminal infrastructure to spawn `claude` CLI sessions instead of j
 ## Choices made
 
 - **Generic `command` param over typed `type` enum**: `create({ command: 'claude' })` is simpler and more flexible than `create({ type: 'claude' })`. No premature abstraction — the caller decides what to spawn.
-- **Env var (`CCT_COMMAND`) over app args**: The preload has direct access to `process.env`, making this zero-IPC overhead. Tests control behavior via `electron.launch({ env: { CCT_COMMAND: 'claude' } })`.
+- **Env var (`CLAUDIU_COMMAND`) over app args**: The preload has direct access to `process.env`, making this zero-IPC overhead. Tests control behavior via `electron.launch({ env: { CLAUDIU_COMMAND: 'claude' } })`.
 - **Default to shell, not claude**: Keeps Step 003 tests passing without modification. The app's real default will change in later steps when sessions are user-initiated.
-- **Strip `CLAUDECODE` env var**: Claude Code sets this to detect nested sessions and refuses to start inside another Claude Code. Since CCT spawns Claude in a PTY that inherits the parent env, this var must be removed.
+- **Strip `CLAUDECODE` env var**: Claude Code sets this to detect nested sessions and refuses to start inside another Claude Code. Since Claudiu spawns Claude in a PTY that inherits the parent env, this var must be removed.
 
 ## Architecture decisions
 
-- **Config via preload bridge**: `electron_api.config.spawnCommand` — lightweight, no IPC round-trip. The preload reads `process.env.CCT_COMMAND` at load time and exposes it statically. Pattern extends naturally to other config values later.
+- **Config via preload bridge**: `electron_api.config.spawnCommand` — lightweight, no IPC round-trip. The preload reads `process.env.CLAUDIU_COMMAND` at load time and exposes it statically. Pattern extends naturally to other config values later.
 - **No changes to IPC layer or preload terminal API**: The `terminal.create(params)` already passes arbitrary params through. Adding `command`/`args` was purely a TerminalService change.
 
 ## How it was tested

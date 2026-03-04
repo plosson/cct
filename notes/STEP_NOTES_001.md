@@ -7,7 +7,7 @@ Created a minimal Electron app with the following files:
 - `main.js` — Entry point. PATH fix for macOS Finder launch, single instance lock, app lifecycle (`whenReady`, `window-all-closed`, `activate`).
 - `src/main/windows/MainWindow.js` — BrowserWindow factory with macOS `hiddenInset` titlebar, traffic light positioning, secure `webPreferences`.
 - `src/main/preload.js` — Context bridge exposing `electron_api` with a placeholder `getVersion` method and a reusable `createListener` helper.
-- `index.html` — Minimal page with CSP header, loads `styles/base.css`, displays "CCT".
+- `index.html` — Minimal page with CSP header, loads `styles/base.css`, displays "Claudiu".
 - `styles/base.css` — Dark theme, draggable titlebar region, centered content.
 - `playwright.config.js` + `tests/step-001-skeleton.spec.js` — 9 Playwright e2e tests.
 
@@ -32,7 +32,7 @@ Created a minimal Electron app with the following files:
 ```
 ✓ app launches without timeout (2ms)
 ✓ a window is created (0ms)
-✓ window title contains CCT (25ms)
+✓ window title contains Claudiu (25ms)
 ✓ screenshot is non-empty (253ms)
 ✓ app is not packaged (dev mode) (3ms)
 ✓ contextIsolation is true and nodeIntegration is false (5ms)

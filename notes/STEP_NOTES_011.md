@@ -42,12 +42,12 @@ Added right-click context menu on tabs with Close, Close Others, and Close All a
 4. `closeOtherTabs` keeps only the specified tab (3 tabs → 1)
 5. `closeAllTabs` closes every tab (3 tabs → 0)
 6. Empty state is visible after Close All
-7. `closeOtherTabs` activates the kept tab (verified via `_cctActiveTabId`)
+7. `closeOtherTabs` activates the kept tab (verified via `_claudiuActiveTabId`)
 
 All 7 tests pass. Full suite: 105 tests in ~52s.
 
 ## Lessons / gotchas
 
-- **`contextBridge` creates sealed proxies**: Cannot monkey-patch `window.electron_api` properties from the renderer. Initial test approach of overriding `contextMenu.show` failed because the object is frozen by context isolation. Had to use test helpers exposed via `window._cct*` instead.
+- **`contextBridge` creates sealed proxies**: Cannot monkey-patch `window.electron_api` properties from the renderer. Initial test approach of overriding `contextMenu.show` failed because the object is frozen by context isolation. Had to use test helpers exposed via `window._claudiu*` instead.
 - **Native menu blocks the event loop**: Dispatching a `contextmenu` event from `window.evaluate()` triggers `showTabContextMenu()` which calls `api.contextMenu.show()`. Since `Menu.popup()` is modal, the IPC promise never resolves in test, causing timeouts. Solution: test the functions directly rather than going through the event/IPC path.
 - **Generic context menu is reusable**: The IPC handler is not tab-specific. It can be reused for project sidebar context menus, terminal panel context menus, etc. The renderer decides what items to show.

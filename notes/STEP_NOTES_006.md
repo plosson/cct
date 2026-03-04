@@ -6,7 +6,7 @@ Added a left sidebar for managing projects (folders on disk) with project-scoped
 
 **New files:**
 - `src/main/services/ProjectStore.js` — CRUD + JSON persistence in `app.getPath('userData')/projects.json`
-- `src/main/services/ProjectConfigService.js` — per-project `.cct/sessions.json` management, stable UUID, session tracking
+- `src/main/services/ProjectConfigService.js` — per-project `.claudiu/sessions.json` management, stable UUID, session tracking
 - `src/main/ipc/project.ipc.js` — IPC handlers bridging renderer to ProjectStore
 - `tests/step-006-sidebar-projects.spec.js` — 20 Playwright e2e tests
 - `docs/plans/2026-02-28-sidebar-projects-sessions.md` — design/implementation plan
@@ -16,7 +16,7 @@ Added a left sidebar for managing projects (folders on disk) with project-scoped
 - `styles/base.css` — sidebar CSS, selected project highlight, empty state, horizontal flex layout, aligned sidebar/tab-bar height
 - `src/main/preload.js` — added `projects` namespace to context bridge
 - `src/main/services/TerminalService.js` — added `env` and `onExit` optional params to `create()`
-- `src/main/ipc/terminal.ipc.js` — orchestrates session lifecycle: generates sessionId, injects `CCT_PROJECT_ID`/`CCT_SESSION_ID` env vars, records/removes sessions
+- `src/main/ipc/terminal.ipc.js` — orchestrates session lifecycle: generates sessionId, injects `CLAUDIU_PROJECT_ID`/`CLAUDIU_SESSION_ID` env vars, records/removes sessions
 - `src/renderer/index.js` — project-scoped sessions, sidebar rendering, project selection, tab visibility switching, stores `sessionId`
 - `main.js` — wired up ProjectStore, ProjectConfigService, and IPC registration
 - `tests/step-003-xterm-shell.spec.js` — updated to create a project before spawning sessions
@@ -39,12 +39,12 @@ Added a left sidebar for managing projects (folders on disk) with project-scoped
 - **Empty states for each scenario**: "Add a project to get started" (no projects), "No sessions — click + to create one" (project selected, no sessions), "Select a project from the sidebar" (projects exist but none selected).
 - **Native folder picker over drag-and-drop**: Simpler to implement, standard macOS UX.
 - **`addPath(folderPath)` alongside `add()`**: Programmatic addition for tests, native dialog for users.
-- **`_cctReloadProjects` + `_cctSelectProject` test helpers**: Tests add projects via IPC but the renderer's in-memory list needs syncing. Simple helpers bridge the gap.
+- **`_claudiuReloadProjects` + `_claudiuSelectProject` test helpers**: Tests add projects via IPC but the renderer's in-memory list needs syncing. Simple helpers bridge the gap.
 
 ## Architecture decisions
 
 - **ProjectStore as a main-process service**: Follows the TerminalService pattern — instantiated in `main.js`, accessed via IPC. File I/O stays in main process.
-- **Persistence in `app.getPath('userData')`**: Standard Electron convention (`~/Library/Application Support/cct/projects.json`).
+- **Persistence in `app.getPath('userData')`**: Standard Electron convention (`~/Library/Application Support/claudiu/projects.json`).
 - **`selectedProjectPath` state in renderer**: Drives tab visibility filtering. When switching projects, all sessions' tab/panel visibility is toggled based on `projectPath` match.
 - **Tab visibility via `style.display`**: Tabs for non-selected projects get `display: none`. Panels get `active` class removed. Simple, no DOM thrashing.
 - **`activateTab` scoped to same project**: When activating a tab, only deactivates sibling tabs from the same project, not all tabs globally.
@@ -74,25 +74,25 @@ Full suite: **51 tests passing** (steps 001-006), 16.8s total.
 
 ### Per-project config & env vars (second iteration)
 
-Added per-project `.cct/sessions.json` with stable project UUID, session tracking, and environment variable injection.
+Added per-project `.claudiu/sessions.json` with stable project UUID, session tracking, and environment variable injection.
 
 8 new Playwright tests (13-20):
 
-13. Creating a session produces `.cct/sessions.json` in the project folder
+13. Creating a session produces `.claudiu/sessions.json` in the project folder
 14. `sessions.json` has UUID `projectId` and `sessions` array
 15. Session entry has `id`, `terminalId`, `createdAt`
-16. `echo $CCT_PROJECT_ID` outputs a UUID in the terminal
-17. `echo $CCT_SESSION_ID` outputs a UUID in the terminal
+16. `echo $CLAUDIU_PROJECT_ID` outputs a UUID in the terminal
+17. `echo $CLAUDIU_SESSION_ID` outputs a UUID in the terminal
 18. Closing session removes it from `sessions.json`
 19. `projectId` persists across app restart
-20. Removing project from sidebar does NOT delete `.cct/` dir
+20. Removing project from sidebar does NOT delete `.claudiu/` dir
 
 Full suite: **20 tests passing** (step-006), 9.8s total.
 
 ## Lessons / gotchas
 
 - **`electronApp.evaluate` ≠ full Node.js**: `require` isn't available in Playwright's Electron evaluate context. Use Node.js APIs directly in test code for file ops, IPC for app-level operations.
-- **Test setup complexity**: Since sessions now require a project, every test file that uses terminals needs project setup in `beforeAll`. Added `_cctSelectProject` test helper to programmatically select a project from tests.
+- **Test setup complexity**: Since sessions now require a project, every test file that uses terminals needs project setup in `beforeAll`. Added `_claudiuSelectProject` test helper to programmatically select a project from tests.
 - **No changes to TerminalService**: The `cwd` parameter was already supported since step 003. The entire project-scoping logic lives in the renderer.
 - **Tab visibility vs. DOM removal**: Hiding tabs with `display: none` is simpler and faster than removing/re-adding DOM nodes. Terminal state (xterm buffers) is preserved across project switches since panels stay in the DOM.
 - **IPC layer as orchestrator**: Session ID generation, env var injection, and session recording all live in `terminal.ipc.js` rather than being spread across services. This keeps TerminalService and ProjectConfigService focused on their single responsibilities.
