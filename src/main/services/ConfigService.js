@@ -118,8 +118,8 @@ class ConfigService {
     let config = {};
     try {
       config = JSON.parse(fs.readFileSync(this._projectConfigPath(projectPath), 'utf8'));
-    } catch (e) {
-      config = {};
+    } catch {
+      // Missing or invalid config file — use empty defaults
     }
     this._projectCache.set(projectPath, config);
     return config;

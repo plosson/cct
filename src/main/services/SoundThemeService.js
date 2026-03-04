@@ -10,11 +10,19 @@ const path = require('path');
 const { app } = require('electron');
 const { execFile } = require('child_process');
 
+const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'webm'];
+const AUDIO_DOT_EXTENSIONS = AUDIO_EXTENSIONS.map(e => '.' + e);
+
 class SoundThemeService {
   constructor(logService) {
     this._logService = logService || null;
     this._themesDir = path.join(app.getPath('userData'), 'themes');
     this._ensureThemesDir();
+  }
+
+  /** Log a message if a log service is available */
+  _log(level, message) {
+    if (this._logService) this._logService[level]('sound-theme', message);
   }
 
   _ensureThemesDir() {
@@ -41,12 +49,12 @@ class SoundThemeService {
         srcDir = path.join(__dirname, '..', '..', '..', 'themes', name);
       }
       if (!fs.existsSync(srcDir)) {
-        if (this._logService) this._logService.warn('sound-theme', `Built-in theme "${name}" not found in resources`);
+        this._log('warn', `Built-in theme "${name}" not found in resources`);
         continue;
       }
 
       this._copyDirSync(srcDir, destDir);
-      if (this._logService) this._logService.info('sound-theme', `Installed built-in theme "${name}"`);
+      this._log('info', `Installed built-in theme "${name}"`);
     }
   }
 
@@ -153,7 +161,7 @@ class SoundThemeService {
         fs.renameSync(themeDir, destDir);
         this._cleanup(tmpDir);
 
-        if (this._logService) this._logService.info('sound-theme', `Installed theme "${meta.name}" from zip`);
+        this._log('info', `Installed theme "${meta.name}" from zip`);
         resolve({ success: true, dirName });
       });
     });
@@ -167,9 +175,6 @@ class SoundThemeService {
    */
   installFromGitHub(repoUrl) {
     return new Promise((resolve) => {
-      // Extract repo name from URL for the directory name
-      const urlParts = repoUrl.replace(/\.git$/, '').split('/');
-      const repoName = urlParts[urlParts.length - 1] || 'unknown-theme';
       const tmpDir = path.join(this._themesDir, '_tmp_' + Date.now());
 
       execFile('git', ['clone', '--depth', '1', repoUrl, tmpDir], (err) => {
@@ -202,7 +207,7 @@ class SoundThemeService {
 
         fs.renameSync(tmpDir, destDir);
 
-        if (this._logService) this._logService.info('sound-theme', `Installed theme "${meta.name}" from GitHub`);
+        this._log('info', `Installed theme "${meta.name}" from GitHub`);
         resolve({ success: true, dirName });
       });
     });
@@ -223,7 +228,7 @@ class SoundThemeService {
       return { success: false, error: 'Invalid theme path' };
     }
     fs.rmSync(themeDir, { recursive: true, force: true });
-    if (this._logService) this._logService.info('sound-theme', `Removed theme "${dirName}"`);
+    this._log('info', `Removed theme "${dirName}"`);
     return { success: true };
   }
 
@@ -301,8 +306,7 @@ class SoundThemeService {
    */
   getOverridePath(scope, eventName) {
     const dir = this.getOverrideDir(scope);
-    // Check common audio extensions
-    for (const ext of ['mp3', 'wav', 'ogg', 'webm']) {
+    for (const ext of AUDIO_EXTENSIONS) {
       const filePath = path.join(dir, `${eventName}.${ext}`);
       if (fs.existsSync(filePath)) return filePath;
     }
@@ -321,7 +325,7 @@ class SoundThemeService {
     // Remove existing overrides for this event (any extension)
     this._removeOverrideFiles(dir, eventName);
     fs.copyFileSync(sourceFilePath, dest);
-    if (this._logService) this._logService.info('sound-override', `Saved override for ${eventName} (${scope.type})`);
+    this._log('info', `Saved override for ${eventName} (${scope.type})`);
     return { success: true, path: dest };
   }
 
@@ -331,7 +335,7 @@ class SoundThemeService {
   removeOverride(scope, eventName) {
     const dir = this.getOverrideDir(scope);
     this._removeOverrideFiles(dir, eventName);
-    if (this._logService) this._logService.info('sound-override', `Removed override for ${eventName} (${scope.type})`);
+    this._log('info', `Removed override for ${eventName} (${scope.type})`);
     return { success: true };
   }
 
@@ -350,25 +354,25 @@ class SoundThemeService {
 
     // Layer global overrides
     const globalDir = this.getOverrideDir({ type: 'global' });
-    this._layerOverrides(map, globalDir, 'global');
+    this._layerOverrides(map, globalDir);
 
     // Layer project overrides
     if (projectPath) {
       const projectDir = this.getOverrideDir({ type: 'project', projectPath });
-      this._layerOverrides(map, projectDir, 'project');
+      this._layerOverrides(map, projectDir);
     }
 
     return Object.keys(map).length > 0 ? map : null;
   }
 
   /** Layer override files from a directory onto the map */
-  _layerOverrides(map, dir, scopeLabel) {
+  _layerOverrides(map, dir) {
     if (!fs.existsSync(dir)) return;
     try {
       const entries = fs.readdirSync(dir);
       for (const file of entries) {
         const ext = path.extname(file);
-        if (!['.mp3', '.wav', '.ogg', '.webm'].includes(ext)) continue;
+        if (!AUDIO_DOT_EXTENSIONS.includes(ext)) continue;
         const eventName = path.basename(file, ext);
         const absPath = path.join(dir, file);
         const encodedPath = Buffer.from(absPath).toString('base64url');
@@ -380,13 +384,48 @@ class SoundThemeService {
   /** Remove all override files for an event name (any extension) */
   _removeOverrideFiles(dir, eventName) {
     if (!fs.existsSync(dir)) return;
-    for (const ext of ['mp3', 'wav', 'ogg', 'webm']) {
+    for (const ext of AUDIO_EXTENSIONS) {
       const filePath = path.join(dir, `${eventName}.${ext}`);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
   }
 
   // ── Trim metadata ───────────────────────────────────────────
+
+  /**
+   * Read theme.json, locate a specific sound entry, apply a transform, and write back.
+   * Handles array/single normalization and index validation.
+   * @param {string} themeDirName - Theme directory name
+   * @param {string} eventName - Hook event name
+   * @param {number} fileIndex - Index within the event's sound array
+   * @param {function} transform - (item, items, index) => new item value
+   * @returns {{success: boolean, error?: string}}
+   */
+  _modifyThemeEvent(themeDirName, eventName, fileIndex, transform) {
+    const jsonPath = path.join(this._themesDir, themeDirName, 'theme.json');
+    let raw;
+    try {
+      raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    } catch {
+      return { success: false, error: 'Could not read theme.json' };
+    }
+    if (!raw.events || !raw.events[eventName]) {
+      return { success: false, error: `Event "${eventName}" not found` };
+    }
+
+    const value = raw.events[eventName];
+    const isArray = Array.isArray(value);
+    const items = isArray ? value : [value];
+
+    if (fileIndex < 0 || fileIndex >= items.length) {
+      return { success: false, error: 'Invalid file index' };
+    }
+
+    items[fileIndex] = transform(items[fileIndex]);
+    raw.events[eventName] = isArray ? items : items[0];
+    fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
+    return { success: true };
+  }
 
   /**
    * Save trim metadata into theme.json for a specific sound.
@@ -397,33 +436,12 @@ class SoundThemeService {
    * @param {number} trimEnd - End time in seconds
    */
   saveTrimData(themeDirName, eventName, fileIndex, trimStart, trimEnd) {
-    const jsonPath = path.join(this._themesDir, themeDirName, 'theme.json');
-    let raw;
-    try {
-      raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    } catch {
-      return { success: false, error: 'Could not read theme.json' };
-    }
-    if (!raw.events || !raw.events[eventName]) {
-      return { success: false, error: `Event "${eventName}" not found` };
-    }
-
-    let value = raw.events[eventName];
-    const isArray = Array.isArray(value);
-    const items = isArray ? value : [value];
-
-    if (fileIndex < 0 || fileIndex >= items.length) {
-      return { success: false, error: 'Invalid file index' };
-    }
-
-    const item = items[fileIndex];
-    const filename = typeof item === 'string' ? item : item.file;
-    items[fileIndex] = { file: filename, trimStart, trimEnd };
-
-    raw.events[eventName] = isArray ? items : items[0];
-    fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
-    if (this._logService) this._logService.info('sound-theme', `Saved trim data for ${eventName}[${fileIndex}]`);
-    return { success: true };
+    const result = this._modifyThemeEvent(themeDirName, eventName, fileIndex, (item) => {
+      const filename = typeof item === 'string' ? item : item.file;
+      return { file: filename, trimStart, trimEnd };
+    });
+    if (result.success) this._log('info', `Saved trim data for ${eventName}[${fileIndex}]`);
+    return result;
   }
 
   /**
@@ -433,34 +451,11 @@ class SoundThemeService {
    * @param {number} fileIndex - Index within the event's sound array
    */
   removeTrimData(themeDirName, eventName, fileIndex) {
-    const jsonPath = path.join(this._themesDir, themeDirName, 'theme.json');
-    let raw;
-    try {
-      raw = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    } catch {
-      return { success: false, error: 'Could not read theme.json' };
-    }
-    if (!raw.events || !raw.events[eventName]) {
-      return { success: false, error: `Event "${eventName}" not found` };
-    }
-
-    let value = raw.events[eventName];
-    const isArray = Array.isArray(value);
-    const items = isArray ? value : [value];
-
-    if (fileIndex < 0 || fileIndex >= items.length) {
-      return { success: false, error: 'Invalid file index' };
-    }
-
-    const item = items[fileIndex];
-    if (typeof item === 'object') {
-      items[fileIndex] = item.file;
-    }
-
-    raw.events[eventName] = isArray ? items : items[0];
-    fs.writeFileSync(jsonPath, JSON.stringify(raw, null, 2), 'utf8');
-    if (this._logService) this._logService.info('sound-theme', `Removed trim data for ${eventName}[${fileIndex}]`);
-    return { success: true };
+    const result = this._modifyThemeEvent(themeDirName, eventName, fileIndex, (item) => {
+      return typeof item === 'object' ? item.file : item;
+    });
+    if (result.success) this._log('info', `Removed trim data for ${eventName}[${fileIndex}]`);
+    return result;
   }
 
   // ── Helpers ──────────────────────────────────────────────────

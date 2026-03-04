@@ -39,10 +39,6 @@ function registerSoundThemeIPC(soundThemeService, configService) {
 
   ipcMain.handle('sound-theme-get-sounds', (_event, projectPath) => {
     const themeName = configService.resolve('soundTheme', projectPath);
-    if (!themeName || themeName === 'none') {
-      // Still check for overrides even with no theme
-      return soundThemeService.getResolvedSoundMap(null, projectPath);
-    }
     return soundThemeService.getResolvedSoundMap(themeName, projectPath);
   });
 
