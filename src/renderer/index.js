@@ -1720,8 +1720,18 @@ async function renderSettingsTab(panelEl) {
       }
     });
 
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'settings-btn-secondary';
+    exportBtn.textContent = 'Export as ZIP';
+    exportBtn.addEventListener('click', async () => {
+      const themeDirName = themeSelect.value;
+      if (!themeDirName || themeDirName === 'none') return;
+      await api.soundThemes.export(themeDirName);
+    });
+
     installRow.appendChild(installZipBtn);
     installRow.appendChild(installGhBtn);
+    installRow.appendChild(exportBtn);
     wrapper.appendChild(installRow);
 
     // Event sound table
@@ -1732,7 +1742,7 @@ async function renderSettingsTab(panelEl) {
 
     const tableDesc = document.createElement('div');
     tableDesc.className = 'settings-description';
-    tableDesc.textContent = 'Upload custom sounds per event. Overrides are saved globally or per-project depending on scope.';
+    tableDesc.textContent = 'Upload custom sounds per event. Modifying a built-in theme creates a custom copy automatically.';
     wrapper.appendChild(tableDesc);
 
     const table = document.createElement('div');
@@ -1744,10 +1754,12 @@ async function renderSettingsTab(panelEl) {
     headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">Source</span><span class="settings-sound-actions">Actions</span>';
     table.appendChild(headerRow);
 
+    const currentThemeMeta = themes.find(t => t.dirName === currentTheme);
+    const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
+
     for (const eventName of ALL_HOOK_EVENTS) {
       const entries = resolvedSoundMap && resolvedSoundMap[eventName];
       const hasSound = entries && entries.length > 0;
-      const isOverride = hasSound && entries[0].url.startsWith('claudiu-sound-override://');
 
       // Render one sub-row per sound file (or a single row if none / single)
       const fileCount = hasSound ? entries.length : 1;
@@ -1778,8 +1790,11 @@ async function renderSettingsTab(panelEl) {
         const sourceCell = document.createElement('span');
         sourceCell.className = 'settings-sound-source';
         if (fi === 0) {
-          sourceCell.textContent = isOverride ? 'Override' : (hasSound ? 'Theme' : '\u2014');
-          if (isOverride) sourceCell.classList.add('settings-sound-source-override');
+          if (hasSound) {
+            sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : (currentThemeMeta ? currentThemeMeta.name : 'Theme');
+          } else {
+            sourceCell.textContent = '\u2014';
+          }
         }
         row.appendChild(sourceCell);
 
@@ -1819,21 +1834,25 @@ async function renderSettingsTab(panelEl) {
           uploadBtn.title = 'Upload custom sound';
           uploadBtn.textContent = '\u2191';
           uploadBtn.addEventListener('click', async () => {
-            if (!api.soundOverrides) return;
-            const scope = settingsScope === 'project' && selectedProjectPath
-              ? { type: 'project', projectPath: selectedProjectPath }
-              : { type: 'global' };
-            const result = await api.soundOverrides.upload(eventName, scope);
+            const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
+            const result = await api.soundThemes.uploadSound(eventName, projectPath);
             if (result && result.success) {
+              if (result.forked) {
+                // Theme was forked — refresh theme list and update dropdown
+                const newThemes = await api.soundThemes.list();
+                themes.length = 0;
+                themes.push(...newThemes);
+              }
               resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+              await loadSoundTheme();
               renderActiveSection();
             }
           });
           actionsCell.appendChild(uploadBtn);
         }
 
-        // Trim button (only for theme sounds, not overrides)
-        if (entry && !isOverride) {
+        // Trim button
+        if (entry) {
           const fileIndex = fi;
           const trimBtn = document.createElement('button');
           trimBtn.className = 'settings-btn-icon';
@@ -1846,15 +1865,14 @@ async function renderSettingsTab(panelEl) {
           actionsCell.appendChild(trimBtn);
         }
 
-        // Remove override button (only on first row for overrides)
-        if (fi === 0 && isOverride) {
+        // Remove sound button (only for custom themes, not built-in)
+        if (fi === 0 && hasSound && !isCurrentBuiltIn) {
           const removeBtn = document.createElement('button');
           removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
           removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
-          removeBtn.title = 'Remove override (revert to theme)';
+          removeBtn.title = 'Remove sound from theme';
           removeBtn.textContent = '\u2715';
           removeBtn.addEventListener('click', async () => {
-            if (!api.soundOverrides) return;
             if (window._settingsPreviewAudio) {
               window._settingsPreviewAudio.pause();
               window._settingsPreviewAudio.currentTime = 0;
@@ -1864,10 +1882,7 @@ async function renderSettingsTab(panelEl) {
             if (trimPanel) {
               trimPanel.querySelector('.trim-ui-close')?.click();
             }
-            const scope = settingsScope === 'project' && selectedProjectPath
-              ? { type: 'project', projectPath: selectedProjectPath }
-              : { type: 'global' };
-            await api.soundOverrides.remove(eventName, scope);
+            await api.soundThemes.removeSound(currentTheme, eventName);
             resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
             await loadSoundTheme();
             renderActiveSection();
@@ -2109,7 +2124,10 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, fileIndex, initTrimSta
     if (!trimRegion || !api.soundThemes) return;
     const start = trimRegion.start;
     const end = trimRegion.end;
-    await api.soundThemes.saveTrim(eventName, fileIndex, start, end, selectedProjectPath);
+    const result = await api.soundThemes.saveTrim(eventName, fileIndex, start, end, selectedProjectPath);
+    if (result && result.forked) {
+      // Theme was forked — refresh will pick up the new theme from config
+    }
     resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
     await loadSoundTheme();
     closeTrimPanel();

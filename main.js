@@ -128,10 +128,9 @@ if (!gotTheLock) {
     openProjectFromCLI(projectPath);
   });
 
-  // Register custom protocols for serving theme sound files and overrides
+  // Register custom protocol for serving theme sound files
   protocol.registerSchemesAsPrivileged([
     { scheme: 'claudiu-sound', privileges: { standard: false, supportFetchAPI: true, stream: true } },
-    { scheme: 'claudiu-sound-override', privileges: { standard: false, supportFetchAPI: true, stream: true } },
   ]);
 
   app.whenReady().then(async () => {
@@ -159,33 +158,6 @@ if (!gotTheLock) {
         return new Response('Not found', { status: 404 });
       }
 
-      return net.fetch('file://' + resolved);
-    });
-
-    // Handle claudiu-sound-override:// protocol — serves override sound files
-    // URL format: claudiu-sound-override://{base64url-encoded-absolute-path}/sound.wav
-    protocol.handle('claudiu-sound-override', (request) => {
-      const url = new URL(request.url);
-      const encodedPath = url.hostname;
-      let filePath;
-      try {
-        filePath = Buffer.from(encodedPath, 'base64url').toString('utf8');
-      } catch {
-        return new Response('Bad request', { status: 400 });
-      }
-
-      const resolved = path.resolve(filePath);
-      // Security: only serve from userData or project .claudiu directories
-      const userDataDir = path.resolve(app.getPath('userData'));
-      const isUserData = resolved.startsWith(userDataDir + path.sep);
-      const isClaudiuDir = resolved.includes(path.sep + '.claudiu' + path.sep);
-      if (!isUserData && !isClaudiuDir) {
-        return new Response('Forbidden', { status: 403 });
-      }
-
-      if (!fs.existsSync(resolved)) {
-        return new Response('Not found', { status: 404 });
-      }
       return net.fetch('file://' + resolved);
     });
 

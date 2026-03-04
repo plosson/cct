@@ -102,13 +102,15 @@ contextBridge.exposeInMainWorld('electron_api', {
     installFromZip: () => ipcRenderer.invoke('sound-theme-install-zip'),
     installFromGitHub: (repoUrl) => ipcRenderer.invoke('sound-theme-install-github', repoUrl),
     remove: (dirName) => ipcRenderer.invoke('sound-theme-remove', dirName),
+    fork: (dirName) => ipcRenderer.invoke('sound-theme-fork', dirName),
     getSounds: (projectPath) => ipcRenderer.invoke('sound-theme-get-sounds', projectPath),
     saveTrim: (eventName, fileIndex, trimStart, trimEnd, projectPath) =>
       ipcRenderer.invoke('sound-theme-save-trim', { eventName, fileIndex, trimStart, trimEnd, projectPath }),
+    uploadSound: (eventName, projectPath) =>
+      ipcRenderer.invoke('sound-theme-upload-sound', { eventName, projectPath }),
+    removeSound: (dirName, eventName) =>
+      ipcRenderer.invoke('sound-theme-remove-sound', { dirName, eventName }),
+    export: (dirName) => ipcRenderer.invoke('sound-theme-export', dirName),
   },
 
-  soundOverrides: {
-    upload: (eventName, scope) => ipcRenderer.invoke('sound-override-upload', { eventName, scope }),
-    remove: (eventName, scope) => ipcRenderer.invoke('sound-override-remove', { eventName, scope }),
-  },
 });

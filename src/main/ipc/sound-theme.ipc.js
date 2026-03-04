@@ -37,14 +37,36 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     return soundThemeService.removeTheme(dirName);
   });
 
-  ipcMain.handle('sound-theme-get-sounds', (_event, projectPath) => {
-    const themeName = configService.resolve('soundTheme', projectPath);
-    return soundThemeService.getResolvedSoundMap(themeName, projectPath);
+  ipcMain.handle('sound-theme-fork', (_event, dirName) => {
+    return soundThemeService.forkTheme(dirName);
   });
 
-  // ── Sound Override IPC handlers ────────────────────────────
+  ipcMain.handle('sound-theme-get-sounds', (_event, projectPath) => {
+    const themeName = configService.resolve('soundTheme', projectPath);
+    return soundThemeService.getResolvedSoundMap(themeName);
+  });
 
-  ipcMain.handle('sound-override-upload', async (event, { eventName, scope }) => {
+  ipcMain.handle('sound-theme-remove-sound', (_event, { dirName, eventName }) => {
+    return soundThemeService.removeSoundFromTheme(dirName, eventName);
+  });
+
+  ipcMain.handle('sound-theme-export', async (event, dirName) => {
+    const { BrowserWindow } = require('electron');
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Export Sound Theme',
+      defaultPath: `${dirName}.zip`,
+      filters: [{ name: 'Zip files', extensions: ['zip'] }],
+    });
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'Cancelled' };
+    }
+    return soundThemeService.exportThemeAsZip(dirName, result.filePath);
+  });
+
+  // ── Upload sound to theme (copy-on-write) ──────────────────
+
+  ipcMain.handle('sound-theme-upload-sound', async (event, { eventName, projectPath }) => {
     const { BrowserWindow } = require('electron');
     const win = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showOpenDialog(win, {
@@ -55,7 +77,20 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     if (result.canceled || !result.filePaths.length) {
       return { success: false, error: 'Cancelled' };
     }
-    return soundThemeService.saveOverride(scope, eventName, result.filePaths[0]);
+    const themeName = configService.resolve('soundTheme', projectPath);
+    if (!themeName || themeName === 'none') {
+      return { success: false, error: 'No theme active' };
+    }
+    const uploadResult = soundThemeService.uploadSoundToTheme(themeName, eventName, result.filePaths[0]);
+    // If forked, update config to point to the new theme
+    if (uploadResult.forked) {
+      if (projectPath) {
+        configService.setProject(projectPath, { soundTheme: uploadResult.dirName });
+      } else {
+        configService.setGlobal({ soundTheme: uploadResult.dirName });
+      }
+    }
+    return uploadResult;
   });
 
   ipcMain.handle('sound-theme-save-trim', (_event, { eventName, fileIndex, trimStart, trimEnd, projectPath }) => {
@@ -63,12 +98,18 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     if (!themeName || themeName === 'none') {
       return { success: false, error: 'No theme active' };
     }
-    return soundThemeService.saveTrimData(themeName, eventName, fileIndex, trimStart, trimEnd);
+    const result = soundThemeService.saveTrimData(themeName, eventName, fileIndex, trimStart, trimEnd);
+    // If forked, update config to point to the new theme
+    if (result.forked) {
+      if (projectPath) {
+        configService.setProject(projectPath, { soundTheme: result.dirName });
+      } else {
+        configService.setGlobal({ soundTheme: result.dirName });
+      }
+    }
+    return result;
   });
 
-  ipcMain.handle('sound-override-remove', (_event, { eventName, scope }) => {
-    return soundThemeService.removeOverride(scope, eventName);
-  });
 }
 
 module.exports = { registerSoundThemeIPC };
