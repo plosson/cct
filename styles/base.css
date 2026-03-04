@@ -422,7 +422,6 @@ html, body {
   -webkit-app-region: no-drag;
   border: 1px solid var(--border);
   border-left: none;
-  border-bottom: none;
   box-sizing: border-box;
 }
 
@@ -544,6 +543,7 @@ html, body {
 .tab-new-btn {
   background: none;
   border: none;
+  border-bottom: 1px solid var(--border);
   color: var(--text-dim);
   font-size: 16px;
   cursor: pointer;
