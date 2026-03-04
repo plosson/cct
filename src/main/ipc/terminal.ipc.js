@@ -30,8 +30,8 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
     const isClaude = type === 'claude';
 
     // Resolve command from config hierarchy (project → global → default)
-    // CCT_COMMAND env var overrides in test mode only (when CCT_USER_DATA is set)
-    let command = params.command || (process.env.CCT_USER_DATA && process.env.CCT_COMMAND);
+    // CLAUDIU_COMMAND env var overrides in test mode only (when CLAUDIU_USER_DATA is set)
+    let command = params.command || (process.env.CLAUDIU_USER_DATA && process.env.CLAUDIU_COMMAND);
     if (!command && configService) {
       const key = isClaude ? 'claudeCommand' : 'terminalCommand';
       command = configService.resolve(key, cwd) || undefined;
@@ -49,9 +49,9 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
     const env = {};
     if (cwd && projectConfigService) {
       projectId = projectConfigService.getProjectId(cwd);
-      env.CCT_PROJECT_ID = projectId;
+      env.CLAUDIU_PROJECT_ID = projectId;
     }
-    env.CCT_SESSION_ID = sessionId;
+    env.CLAUDIU_SESSION_ID = sessionId;
 
     let args = params.args || [];
     if (isClaude && resumeId) {
@@ -68,7 +68,7 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
 
     const result = terminalService.create({ ...params, command, args: [...commandArgs, ...args], env, onExit });
 
-    // Record session in .cct/sessions.json
+    // Record session in .claudiu/sessions.json
     if (cwd && projectConfigService) {
       projectConfigService.recordSession(cwd, sessionId, result.id, type, resumeId);
       sessionMap.set(result.id, { projectPath: cwd, sessionId });

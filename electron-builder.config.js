@@ -1,6 +1,6 @@
 module.exports = {
-  appId: "com.cct.app",
-  productName: "CCT",
+  appId: "com.claudiu.app",
+  productName: "Claudiu",
   directories: {
     output: "dist",
     buildResources: "build"

@@ -1,5 +1,5 @@
 /**
- * CCT - Main Process Entry Point
+ * Claudiu - Main Process Entry Point
  */
 
 const { app, BrowserWindow, ipcMain, Menu, shell, protocol, net } = require('electron');
@@ -54,14 +54,14 @@ function parseProjectPath(argv) {
 }
 
 // Allow tests to isolate userData (enables parallel workers)
-if (process.env.CCT_USER_DATA) {
-  app.setPath('userData', process.env.CCT_USER_DATA);
+if (process.env.CLAUDIU_USER_DATA) {
+  app.setPath('userData', process.env.CLAUDIU_USER_DATA);
 }
 
 // Single instance lock (skip in test mode so parallel workers can run)
 // Pass the initial project path as additionalData so the running instance receives it
 const initialProjectPath = parseProjectPath(process.argv);
-const gotTheLock = process.env.CCT_USER_DATA || app.requestSingleInstanceLock({ projectPath: initialProjectPath });
+const gotTheLock = process.env.CLAUDIU_USER_DATA || app.requestSingleInstanceLock({ projectPath: initialProjectPath });
 if (!gotTheLock) {
   app.quit();
 } else {
@@ -109,7 +109,7 @@ if (!gotTheLock) {
 
   // Register custom protocol for serving theme sound files
   protocol.registerSchemesAsPrivileged([
-    { scheme: 'cct-sound', privileges: { standard: false, supportFetchAPI: true, stream: true } },
+    { scheme: 'claudiu-sound', privileges: { standard: false, supportFetchAPI: true, stream: true } },
   ]);
 
   app.whenReady().then(async () => {
@@ -118,9 +118,9 @@ if (!gotTheLock) {
 
     const soundThemeService = new SoundThemeService(logService);
 
-    // Handle cct-sound:// protocol — serves mp3 files from themes directory
-    protocol.handle('cct-sound', (request) => {
-      // URL format: cct-sound://theme-dir-name/filename.mp3
+    // Handle claudiu-sound:// protocol — serves mp3 files from themes directory
+    protocol.handle('claudiu-sound', (request) => {
+      // URL format: claudiu-sound://theme-dir-name/filename.mp3
       const url = new URL(request.url);
       const themeDirName = url.hostname;
       const fileName = url.pathname.slice(1); // remove leading /
@@ -202,7 +202,7 @@ if (!gotTheLock) {
     // Auto-updater (skips initialization in dev mode)
     new UpdaterService(win, logService);
 
-    logService.info('app', 'CCT started — v' + app.getVersion());
+    logService.info('app', 'Claudiu started — v' + app.getVersion());
 
     // Customize native application menu
     const menu = Menu.getApplicationMenu();

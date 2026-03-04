@@ -1,0 +1,35 @@
+#!/bin/bash
+# Claudiu CLI launcher — opens a project in Claudiu
+#
+# Usage:
+#   claudiu .                         # open current directory
+#   claudiu /path/to/project          # open specific project
+#   claudiu                           # just open/focus Claudiu
+#
+# If Claudiu is already running, the project is opened in the existing window.
+# If Claudiu is not running, it is launched with the project argument.
+
+set -euo pipefail
+
+# Resolve the project path to an absolute directory
+ARGS=()
+if [ $# -gt 0 ]; then
+  CANDIDATE="$(cd "$1" 2>/dev/null && pwd || echo "")"
+  if [ -n "$CANDIDATE" ] && [ -d "$CANDIDATE" ]; then
+    ARGS=("$CANDIDATE")
+  else
+    echo "claudiu: not a directory: $1" >&2
+    exit 1
+  fi
+fi
+
+# Find the Claudiu app bundle (packaged) or fall back to dev mode
+CLAUDIU_APP="/Applications/Claudiu.app"
+if [ -d "$CLAUDIU_APP" ]; then
+  open -a "$CLAUDIU_APP" -- "${ARGS[@]+"${ARGS[@]}"}"
+else
+  # Dev mode: find the project root (directory containing this script's parent)
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+  electron "$PROJECT_ROOT" "${ARGS[@]+"${ARGS[@]}"}"
+fi

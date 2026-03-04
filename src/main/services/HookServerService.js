@@ -86,12 +86,12 @@ class HookServerService {
 
   /**
    * Process a hook event after responding 200.
-   * For SessionStart (command hook): CCT_SESSION_ID arrives via header, Claude's session_id in body.
+   * For SessionStart (command hook): CLAUDIU_SESSION_ID arrives via header, Claude's session_id in body.
    * For all other events (HTTP hooks): only payload.session_id is available.
    */
   _processEvent(headers, body) {
-    // Only process hooks sent by CCT (ignore other tools' hooks)
-    if (headers['x-cct-hook'] !== 'true') return;
+    // Only process hooks sent by Claudiu (ignore other tools' hooks)
+    if (headers['x-claudiu-hook'] !== 'true') return;
 
     let payload;
     try {
@@ -107,13 +107,13 @@ class HookServerService {
 
     this._logService.info('hooks', `${hookEvent} — claude=${claudeSessionId.slice(0, 8)}`);
 
-    // On SessionStart, link Claude's session_id to CCT's session via the header
+    // On SessionStart, link Claude's session_id to Claudiu's session via the header
     if (hookEvent === 'SessionStart') {
-      const cctSessionId = headers['x-cct-session-id'];
-      if (cctSessionId) {
-        const updated = this._projectConfigService.updateClaudeSessionId(cctSessionId, claudeSessionId);
+      const claudiuSessionId = headers['x-claudiu-session-id'];
+      if (claudiuSessionId) {
+        const updated = this._projectConfigService.updateClaudeSessionId(claudiuSessionId, claudeSessionId);
         if (updated) {
-          this._logService.info('hooks', `Linked claude=${claudeSessionId.slice(0, 8)} → cct=${cctSessionId.slice(0, 8)}`);
+          this._logService.info('hooks', `Linked claude=${claudeSessionId.slice(0, 8)} → claudiu=${claudiuSessionId.slice(0, 8)}`);
         }
       }
     }

@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('electron_api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
 
   config: {
-    spawnCommand: process.env.CCT_COMMAND || undefined
+    spawnCommand: process.env.CLAUDIU_COMMAND || undefined
   },
 
   terminal: {

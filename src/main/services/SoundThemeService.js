@@ -135,7 +135,7 @@ class SoundThemeService {
   /**
    * Install a theme from a GitHub repo URL.
    * Clones the repo (shallow) into the themes directory.
-   * @param {string} repoUrl - GitHub repo URL (e.g. https://github.com/user/my-cct-theme)
+   * @param {string} repoUrl - GitHub repo URL (e.g. https://github.com/user/my-claudiu-theme)
    * @returns {Promise<{success: boolean, dirName?: string, error?: string}>}
    */
   installFromGitHub(repoUrl) {
@@ -223,7 +223,7 @@ class SoundThemeService {
   }
 
   /**
-   * Get the sound URL map for a theme (event -> cct-sound:// URL).
+   * Get the sound URL map for a theme (event -> claudiu-sound:// URL).
    * @param {string} dirName - Theme directory name
    * @returns {object|null} Map of event -> URL, or null if theme not found
    */
@@ -235,7 +235,7 @@ class SoundThemeService {
     for (const [event, filename] of Object.entries(meta.events)) {
       const filePath = path.join(this._themesDir, dirName, filename);
       if (fs.existsSync(filePath)) {
-        map[event] = `cct-sound://${dirName}/${filename}`;
+        map[event] = `claudiu-sound://${dirName}/${filename}`;
       }
     }
     return map;

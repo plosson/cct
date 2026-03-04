@@ -29,7 +29,7 @@ function createMainWindow(windowStateService, configService) {
 
   const bounds = windowStateService ? windowStateService.bounds : { width: 1200, height: 800 };
 
-  const headless = process.env.CCT_HEADLESS === '1';
+  const headless = process.env.CLAUDIU_HEADLESS === '1';
 
   mainWindow = new BrowserWindow({
     ...bounds,
