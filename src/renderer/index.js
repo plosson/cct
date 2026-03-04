@@ -9,6 +9,8 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { getProjectColor } from './projectColors.js';
+import WaveSurfer from 'wavesurfer.js';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 
 const api = window.electron_api;
 
@@ -1754,8 +1756,11 @@ async function renderSettingsTab(panelEl) {
 
       const sourceCell = document.createElement('span');
       sourceCell.className = 'settings-sound-source';
-      const hasSound = resolvedSoundMap && resolvedSoundMap[eventName];
-      sourceCell.textContent = hasSound ? 'Theme' : '—';
+      const soundUrl = resolvedSoundMap && resolvedSoundMap[eventName];
+      const hasSound = !!soundUrl;
+      const isOverride = hasSound && soundUrl.startsWith('claudiu-sound-override://');
+      sourceCell.textContent = isOverride ? 'Override' : (hasSound ? 'Theme' : '—');
+      if (isOverride) sourceCell.classList.add('settings-sound-source-override');
       row.appendChild(sourceCell);
 
       const actionsCell = document.createElement('span');
@@ -1769,9 +1774,14 @@ async function renderSettingsTab(panelEl) {
         playBtn.title = 'Play';
         playBtn.textContent = '\u25B6';
         playBtn.addEventListener('click', () => {
-          const url = resolvedSoundMap[eventName];
-          if (url) {
-            const a = new Audio(url);
+          if (soundUrl) {
+            // Stop any previously playing preview
+            if (window._settingsPreviewAudio) {
+              window._settingsPreviewAudio.pause();
+              window._settingsPreviewAudio.currentTime = 0;
+            }
+            const a = new Audio(soundUrl);
+            window._settingsPreviewAudio = a;
             a.play().catch(() => {});
           }
         });
@@ -1791,7 +1801,6 @@ async function renderSettingsTab(panelEl) {
           : { type: 'global' };
         const result = await api.soundOverrides.upload(eventName, scope);
         if (result && result.success) {
-          // Refresh the sound map
           resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
           renderActiveSection();
         }
@@ -1806,10 +1815,40 @@ async function renderSettingsTab(panelEl) {
         trimBtn.title = 'Trim sound';
         trimBtn.textContent = '\u2702'; // scissors
         trimBtn.addEventListener('click', () => {
-          const url = resolvedSoundMap[eventName];
-          if (url) openTrimUI(eventName, url, wrapper, settingsScope, () => renderActiveSection());
+          if (soundUrl) openTrimUI(eventName, soundUrl, wrapper, settingsScope, () => renderActiveSection());
         });
         actionsCell.appendChild(trimBtn);
+      }
+
+      // Remove override button
+      if (isOverride) {
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
+        removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
+        removeBtn.title = 'Remove override (revert to theme)';
+        removeBtn.textContent = '\u2715'; // x mark
+        removeBtn.addEventListener('click', async () => {
+          if (!api.soundOverrides) return;
+          // Stop any playing preview audio
+          if (window._settingsPreviewAudio) {
+            window._settingsPreviewAudio.pause();
+            window._settingsPreviewAudio.currentTime = 0;
+            window._settingsPreviewAudio = null;
+          }
+          // Close trim panel if open (which also stops its playback)
+          const trimPanel = document.querySelector('.trim-ui');
+          if (trimPanel) {
+            trimPanel.querySelector('.trim-ui-close')?.click();
+          }
+          const scope = settingsScope === 'project' && selectedProjectPath
+            ? { type: 'project', projectPath: selectedProjectPath }
+            : { type: 'global' };
+          await api.soundOverrides.remove(eventName, scope);
+          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+          await loadSoundTheme();
+          renderActiveSection();
+        });
+        actionsCell.appendChild(removeBtn);
       }
 
       row.appendChild(actionsCell);
@@ -1872,136 +1911,197 @@ async function renderSettingsTab(panelEl) {
 // ── Audio Trim UI ────────────────────────────────────────────
 
 /**
- * Open an inline trim editor for a sound event.
- * Uses Web Audio API for waveform + OfflineAudioContext for export.
+ * Open a Voice Memos-style trim panel on the right side of settings.
+ * Uses wavesurfer.js for waveform display + regions for trim handles.
+ * Uses OfflineAudioContext for WAV export.
  */
 function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
-  // Remove any existing trim UI
-  parentEl.querySelector('.trim-ui')?.remove();
+  const settingsContent = parentEl.closest('.settings-content');
+  if (!settingsContent) return;
 
-  const trimContainer = document.createElement('div');
-  trimContainer.className = 'trim-ui';
-  trimContainer.dataset.testid = `trim-ui-${eventName}`;
+  // Remove any existing trim panel
+  const existingTrim = settingsContent.querySelector('.trim-ui');
+  if (existingTrim) {
+    existingTrim.querySelector('.trim-ui-close')?.click();
+  }
 
+  // Wrap existing content if not already wrapped
+  let sectionWrap = settingsContent.querySelector('.settings-section-wrap');
+  if (!sectionWrap) {
+    sectionWrap = document.createElement('div');
+    sectionWrap.className = 'settings-section-wrap';
+    while (settingsContent.firstChild) {
+      sectionWrap.appendChild(settingsContent.firstChild);
+    }
+    settingsContent.appendChild(sectionWrap);
+  }
+  settingsContent.classList.add('has-trim-panel');
+
+  // ── Build trim panel ──
+  const trimPanel = document.createElement('div');
+  trimPanel.className = 'trim-ui';
+  trimPanel.dataset.testid = `trim-ui-${eventName}`;
+
+  let ws = null; // wavesurfer instance
+  let wsRegions = null; // regions plugin
+  let trimRegion = null;
+  let audioBuffer = null;
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function closeTrimPanel() {
+    if (ws) { ws.destroy(); ws = null; }
+    trimPanel.remove();
+    settingsContent.classList.remove('has-trim-panel');
+    const wrap = settingsContent.querySelector('.settings-section-wrap');
+    if (wrap) {
+      while (wrap.firstChild) settingsContent.appendChild(wrap.firstChild);
+      wrap.remove();
+    }
+  }
+
+  // Title bar
   const titleBar = document.createElement('div');
   titleBar.className = 'trim-ui-title';
-  titleBar.textContent = `Trim: ${eventName}`;
+  const titleSpan = document.createElement('span');
+  titleSpan.textContent = `Trim: ${eventName}`;
+  titleBar.appendChild(titleSpan);
   const closeBtn = document.createElement('button');
   closeBtn.className = 'trim-ui-close';
   closeBtn.textContent = '\u00d7';
-  closeBtn.addEventListener('click', () => trimContainer.remove());
+  closeBtn.addEventListener('click', closeTrimPanel);
   titleBar.appendChild(closeBtn);
-  trimContainer.appendChild(titleBar);
+  trimPanel.appendChild(titleBar);
 
-  const canvas = document.createElement('canvas');
-  canvas.className = 'trim-ui-canvas';
-  canvas.width = 600;
-  canvas.height = 100;
-  trimContainer.appendChild(canvas);
+  // Body
+  const body = document.createElement('div');
+  body.className = 'trim-ui-body';
 
+  // Waveform container (wavesurfer renders into this)
+  const waveWrap = document.createElement('div');
+  waveWrap.className = 'trim-ui-waveform-wrap';
+  const waveContainer = document.createElement('div');
+  waveContainer.className = 'trim-ui-wave-container';
+  waveWrap.appendChild(waveContainer);
+  body.appendChild(waveWrap);
+
+  // Controls row
   const controls = document.createElement('div');
   controls.className = 'trim-ui-controls';
 
-  const startLabel = document.createElement('label');
-  startLabel.textContent = 'Start: ';
-  const startInput = document.createElement('input');
-  startInput.type = 'range';
-  startInput.min = '0';
-  startInput.max = '1000';
-  startInput.value = '0';
-  startInput.className = 'trim-ui-slider';
-  startLabel.appendChild(startInput);
-  controls.appendChild(startLabel);
+  const playBtn = document.createElement('button');
+  playBtn.className = 'trim-ui-play-btn';
+  playBtn.dataset.testid = 'trim-play-btn';
+  playBtn.innerHTML = '&#9654;';
+  controls.appendChild(playBtn);
 
-  const endLabel = document.createElement('label');
-  endLabel.textContent = 'End: ';
-  const endInput = document.createElement('input');
-  endInput.type = 'range';
-  endInput.min = '0';
-  endInput.max = '1000';
-  endInput.value = '1000';
-  endInput.className = 'trim-ui-slider';
-  endLabel.appendChild(endInput);
-  controls.appendChild(endLabel);
-
-  const timeDisplay = document.createElement('span');
+  const timeDisplay = document.createElement('div');
   timeDisplay.className = 'trim-ui-time';
   controls.appendChild(timeDisplay);
 
-  trimContainer.appendChild(controls);
+  body.appendChild(controls);
 
+  // Actions
   const btnRow = document.createElement('div');
   btnRow.className = 'trim-ui-actions';
-
-  const previewBtn = document.createElement('button');
-  previewBtn.className = 'settings-btn-secondary';
-  previewBtn.textContent = 'Preview';
-  btnRow.appendChild(previewBtn);
-
   const saveBtn = document.createElement('button');
   saveBtn.className = 'settings-save-btn';
   saveBtn.textContent = 'Save Trimmed';
   btnRow.appendChild(saveBtn);
+  body.appendChild(btnRow);
 
-  trimContainer.appendChild(btnRow);
-  parentEl.appendChild(trimContainer);
+  trimPanel.appendChild(body);
+  settingsContent.appendChild(trimPanel);
 
-  // Load and decode audio
-  let audioBuffer = null;
-  let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-  fetch(audioUrl)
-    .then(r => r.arrayBuffer())
-    .then(buf => audioCtx.decodeAudioData(buf))
-    .then(decoded => {
-      audioBuffer = decoded;
-      drawWaveform(canvas, audioBuffer, 0, audioBuffer.duration);
-      updateTimeDisplay();
-    })
-    .catch(() => {
-      const ctx2d = canvas.getContext('2d');
-      ctx2d.fillStyle = 'var(--text-dim)';
-      ctx2d.fillText('Failed to load audio', 10, 50);
-    });
-
-  function getStartEnd() {
-    if (!audioBuffer) return { start: 0, end: 0 };
-    const duration = audioBuffer.duration;
-    const start = (parseInt(startInput.value) / 1000) * duration;
-    const end = (parseInt(endInput.value) / 1000) * duration;
-    return { start: Math.min(start, end), end: Math.max(start, end) };
+  // ── Helper ──
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toFixed(2).padStart(5, '0')}`;
   }
 
   function updateTimeDisplay() {
-    const { start, end } = getStartEnd();
-    timeDisplay.textContent = `${start.toFixed(2)}s — ${end.toFixed(2)}s`;
-    if (audioBuffer) drawWaveform(canvas, audioBuffer, start, end);
+    if (!trimRegion) return;
+    timeDisplay.textContent = `${formatTime(trimRegion.start)} — ${formatTime(trimRegion.end)}`;
   }
 
-  startInput.addEventListener('input', updateTimeDisplay);
-  endInput.addEventListener('input', updateTimeDisplay);
+  // ── Init wavesurfer ──
+  wsRegions = RegionsPlugin.create();
 
-  previewBtn.addEventListener('click', () => {
-    if (!audioBuffer) return;
-    const { start, end } = getStartEnd();
-    const previewCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const source = previewCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(previewCtx.destination);
-    source.start(0, start, end - start);
+  ws = WaveSurfer.create({
+    container: waveContainer,
+    height: 100,
+    waveColor: 'rgba(255,255,255,0.25)',
+    progressColor: 'rgba(232,167,53,0.6)',
+    cursorColor: '#fff',
+    cursorWidth: 2,
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 1,
+    backend: 'WebAudio',
+    normalize: true,
+    plugins: [wsRegions],
   });
 
-  saveBtn.addEventListener('click', async () => {
-    if (!audioBuffer || !api.soundOverrides) return;
-    const { start, end } = getStartEnd();
+  ws.load(audioUrl);
 
-    // Render trimmed audio to WAV
+  ws.on('ready', () => {
+    const duration = ws.getDuration();
+    // Create the trim region spanning the full audio
+    trimRegion = wsRegions.addRegion({
+      start: 0,
+      end: duration,
+      color: 'rgba(232, 167, 53, 0.15)',
+      drag: false,
+      resize: true,
+    });
+    updateTimeDisplay();
+
+    // Also decode the audio buffer for WAV export
+    fetch(audioUrl)
+      .then(r => r.arrayBuffer())
+      .then(buf => audioCtx.decodeAudioData(buf))
+      .then(decoded => { audioBuffer = decoded; })
+      .catch(() => {});
+  });
+
+  // Update time display when region is resized
+  wsRegions.on('region-update', (region) => {
+    if (region === trimRegion) updateTimeDisplay();
+  });
+
+  // ── Play/Pause — plays only the trimmed region ──
+  playBtn.addEventListener('click', () => {
+    if (!ws || !trimRegion) return;
+    if (ws.isPlaying()) {
+      ws.pause();
+    } else {
+      // Play only the trim region
+      trimRegion.play();
+    }
+  });
+
+  ws.on('play', () => { playBtn.innerHTML = '&#9646;&#9646;'; });
+  ws.on('pause', () => { playBtn.innerHTML = '&#9654;'; });
+  ws.on('finish', () => { playBtn.innerHTML = '&#9654;'; });
+
+  // Stop at region end during playback
+  ws.on('timeupdate', (currentTime) => {
+    if (trimRegion && ws.isPlaying() && currentTime >= trimRegion.end) {
+      ws.pause();
+    }
+  });
+
+  // ── Save trimmed audio ──
+  saveBtn.addEventListener('click', async () => {
+    if (!audioBuffer || !trimRegion || !api.soundOverrides) return;
+    const start = trimRegion.start;
+    const end = trimRegion.end;
+
     const sampleRate = audioBuffer.sampleRate;
     const channels = audioBuffer.numberOfChannels;
     const startSample = Math.floor(start * sampleRate);
     const endSample = Math.floor(end * sampleRate);
     const length = endSample - startSample;
-
     if (length <= 0) return;
 
     const offlineCtx = new OfflineAudioContext(channels, length, sampleRate);
@@ -2013,7 +2113,6 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
     const rendered = await offlineCtx.startRendering();
     const wavBlob = audioBufferToWav(rendered);
 
-    // Convert blob to base64 for IPC transfer
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result.split(',')[1];
@@ -2021,57 +2120,13 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, onSave) {
         ? { type: 'project', projectPath: selectedProjectPath }
         : { type: 'global' };
       await api.soundOverrides.saveFromBase64(eventName, base64, scopeObj);
+      resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
       await loadSoundTheme();
-      trimContainer.remove();
+      closeTrimPanel();
       if (onSave) onSave();
     };
     reader.readAsDataURL(wavBlob);
   });
-}
-
-/** Draw a waveform on canvas with optional highlight region */
-function drawWaveform(canvas, audioBuffer, highlightStart, highlightEnd) {
-  const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
-  const duration = audioBuffer.duration;
-  const data = audioBuffer.getChannelData(0);
-  const step = Math.max(1, Math.floor(data.length / width));
-
-  // Use CSS variables via computed style
-  const computedStyle = getComputedStyle(document.documentElement);
-  const dimColor = computedStyle.getPropertyValue('--text-muted').trim() || '#555';
-  const accentColor = computedStyle.getPropertyValue('--accent').trim() || '#d4943c';
-  const bgColor = computedStyle.getPropertyValue('--bg-surface').trim() || '#1a1a1a';
-
-  ctx.fillStyle = bgColor;
-  ctx.fillRect(0, 0, width, height);
-
-  for (let i = 0; i < width; i++) {
-    const idx = i * step;
-    let min = 0, max = 0;
-    for (let j = 0; j < step && idx + j < data.length; j++) {
-      const val = data[idx + j];
-      if (val < min) min = val;
-      if (val > max) max = val;
-    }
-    const time = (i / width) * duration;
-    const inRegion = time >= highlightStart && time <= highlightEnd;
-    ctx.fillStyle = inRegion ? accentColor : dimColor;
-    const barTop = ((1 - max) / 2) * height;
-    const barBottom = ((1 - min) / 2) * height;
-    ctx.fillRect(i, barTop, 1, barBottom - barTop || 1);
-  }
-
-  // Draw start/end markers
-  const startX = (highlightStart / duration) * width;
-  const endX = (highlightEnd / duration) * width;
-  ctx.strokeStyle = accentColor;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(startX, 0); ctx.lineTo(startX, height);
-  ctx.moveTo(endX, 0); ctx.lineTo(endX, height);
-  ctx.stroke();
 }
 
 /** Encode an AudioBuffer as a WAV Blob */

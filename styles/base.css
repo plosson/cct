@@ -1223,12 +1223,37 @@ html, body {
   color: var(--danger);
 }
 
-.trim-ui-canvas {
+.trim-ui-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+}
+
+.trim-ui-waveform-wrap {
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 12px 8px;
+  position: relative;
+}
+
+.trim-ui-wave-container {
   width: 100%;
-  height: 80px;
   border-radius: 4px;
-  border: 1px solid var(--border);
-  display: block;
+  overflow: hidden;
+}
+
+/* wavesurfer.js region handle styling */
+.trim-ui-wave-container .wavesurfer-region {
+  border-top: 2px solid #e8a735 !important;
+  border-bottom: 2px solid #e8a735 !important;
+}
+
+.trim-ui-wave-container .wavesurfer-handle {
+  background: #e8a735 !important;
+  width: 10px !important;
+  border-radius: 2px;
 }
 
 .trim-ui-controls {
