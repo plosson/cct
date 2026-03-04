@@ -1674,7 +1674,7 @@ async function renderSettingsTab(panelEl) {
 
     const isProject = settingsScope === 'project';
     const values = isProject ? editProject : editGlobal;
-    const currentTheme = values.soundTheme !== undefined ? values.soundTheme : (editGlobal.soundTheme || 'none');
+    const currentTheme = values.soundTheme !== undefined ? values.soundTheme : (editGlobal.soundTheme || schema.soundTheme.default || 'none');
     themeSelect.value = currentTheme;
 
     themeSelect.addEventListener('change', () => {
@@ -1726,7 +1726,14 @@ async function renderSettingsTab(panelEl) {
     exportBtn.addEventListener('click', async () => {
       const themeDirName = themeSelect.value;
       if (!themeDirName || themeDirName === 'none') return;
-      await api.soundThemes.export(themeDirName);
+      const result = await api.soundThemes.export(themeDirName);
+      if (result && result.success) {
+        const origText = exportBtn.textContent;
+        exportBtn.textContent = 'Exported!';
+        setTimeout(() => { exportBtn.textContent = origText; }, 2000);
+      } else if (result && !result.success && result.error) {
+        alert('Export failed: ' + result.error);
+      }
     });
 
     installRow.appendChild(installZipBtn);
@@ -1818,6 +1825,7 @@ async function renderSettingsTab(panelEl) {
         const result = await api.soundThemes.uploadSound(eventName, projectPath);
         if (result && result.success) {
           if (result.forked) {
+            values.soundTheme = result.dirName;
             const newThemes = await api.soundThemes.list();
             themes.length = 0;
             themes.push(...newThemes);
@@ -1825,6 +1833,8 @@ async function renderSettingsTab(panelEl) {
           resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
           await loadSoundTheme();
           renderActiveSection();
+        } else if (result && !result.success && result.error) {
+          alert('Upload failed: ' + result.error);
         }
       });
       actionsCell.appendChild(uploadBtn);
@@ -1837,7 +1847,15 @@ async function renderSettingsTab(panelEl) {
         trimBtn.title = 'Trim sound';
         trimBtn.textContent = '\u2702';
         trimBtn.addEventListener('click', () => {
-          openTrimUI(eventName, entry.url, wrapper, settingsScope, entry.trimStart, entry.trimEnd, () => renderActiveSection());
+          openTrimUI(eventName, entry.url, wrapper, settingsScope, entry.trimStart, entry.trimEnd, async (trimResult) => {
+            if (trimResult && trimResult.forked) {
+              values.soundTheme = trimResult.dirName;
+              const newThemes = await api.soundThemes.list();
+              themes.length = 0;
+              themes.push(...newThemes);
+            }
+            renderActiveSection();
+          });
         });
         actionsCell.appendChild(trimBtn);
       }
@@ -1859,10 +1877,15 @@ async function renderSettingsTab(panelEl) {
           if (trimPanel) {
             trimPanel.querySelector('.trim-ui-close')?.click();
           }
-          await api.soundThemes.removeSound(currentTheme, eventName);
-          resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
-          await loadSoundTheme();
-          renderActiveSection();
+          const liveTheme = themeSelect.value;
+          const result = await api.soundThemes.removeSound(liveTheme, eventName);
+          if (result && result.success) {
+            resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
+            await loadSoundTheme();
+            renderActiveSection();
+          } else if (result && !result.success) {
+            alert('Remove failed: ' + (result.error || 'Unknown error'));
+          }
         });
         actionsCell.appendChild(removeBtn);
       }
@@ -2101,13 +2124,10 @@ function openTrimUI(eventName, audioUrl, parentEl, scope, initTrimStart, initTri
     const start = trimRegion.start;
     const end = trimRegion.end;
     const result = await api.soundThemes.saveTrim(eventName, start, end, selectedProjectPath);
-    if (result && result.forked) {
-      // Theme was forked — refresh will pick up the new theme from config
-    }
     resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
     await loadSoundTheme();
     closeTrimPanel();
-    if (onSave) onSave();
+    if (onSave) onSave(result);
   });
 
   // ── Cleanup when panel is removed externally (e.g. section switch) ──

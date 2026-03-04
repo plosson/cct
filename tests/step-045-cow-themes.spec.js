@@ -18,7 +18,7 @@ test.beforeAll(async () => {
   env = launchEnv();
   projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claudiu-test-project-'));
 
-  // Pre-seed userData
+  // Pre-seed userData — no soundTheme so schema default is exercised
   fs.mkdirSync(env.CLAUDIU_USER_DATA, { recursive: true });
   fs.writeFileSync(
     path.join(env.CLAUDIU_USER_DATA, 'projects.json'),
@@ -26,7 +26,7 @@ test.beforeAll(async () => {
   );
   fs.writeFileSync(
     path.join(env.CLAUDIU_USER_DATA, 'config.json'),
-    JSON.stringify({ soundTheme: 'default' })
+    JSON.stringify({})
   );
 
   electronApp = await electron.launch({
@@ -201,9 +201,13 @@ test('10 - legacy sound-overrides dir cleaned up', async () => {
 
 // ── UI Tests ────────────────────────────────────────────────
 
-test('11 - Sound settings shows Built-in source label', async () => {
-  // Reset config to default via IPC (updates in-memory state)
-  await window.evaluate(() => window.electron_api.appConfig.setGlobal({ soundTheme: 'default' }));
+test('11 - Sound settings shows Built-in source label (schema default)', async () => {
+  // Clear soundTheme from config — dropdown should fall back to schema default ('default')
+  await window.evaluate(async () => {
+    const config = await window.electron_api.appConfig.getGlobal();
+    delete config.soundTheme;
+    await window.electron_api.appConfig.setGlobal(config);
+  });
 
   await window.keyboard.press('Meta+,');
   await window.waitForSelector('[data-testid="settings-nav-sounds"]', { timeout: 5000 });
@@ -282,4 +286,23 @@ test('16 - validation rejects invalid eventName', async () => {
   );
   expect(result.success).toBe(false);
   expect(result.error).toContain('Invalid');
+});
+
+test('17 - Dropdown shows Default when config has no soundTheme key', async () => {
+  // Simulate fresh install: config has no soundTheme
+  await window.evaluate(async () => {
+    const config = await window.electron_api.appConfig.getGlobal();
+    delete config.soundTheme;
+    await window.electron_api.appConfig.setGlobal(config);
+  });
+
+  // Open settings and navigate to Sounds
+  await window.keyboard.press('Meta+,');
+  await window.waitForSelector('[data-testid="settings-nav-sounds"]', { timeout: 5000 });
+  await window.locator('[data-testid="settings-nav-sounds"]').click();
+  await window.waitForTimeout(500);
+
+  // Dropdown should show "Default" (from schema default), not "None"
+  const selectedValue = await window.locator('[data-testid="settings-sound-theme-select"]').inputValue();
+  expect(selectedValue).toBe('default');
 });
