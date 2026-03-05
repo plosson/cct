@@ -9,7 +9,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { getProjectColor } from './projectColors.js';
-import { openSettings, findSettingsTab } from './settings.js';
+import { openSettings } from './settings.js';
 
 const api = window.electron_api;
 
