@@ -1,12 +1,15 @@
 # Claudiu — A Terminal Development Environment
 
-An Electron desktop app for managing multiple Claude Code sessions across projects. Organize work by **projects** (folders) and **sessions** (Claude Code or shell terminals), with sidebar navigation and tabbed xterm.js terminals connected to real PTYs.
+An Electron desktop app for managing multiple Claude Code sessions across projects. Organize work by **projects** (
+folders) and **sessions** (Claude Code or shell terminals), with sidebar navigation and tabbed xterm.js terminals
+connected to real PTYs.
 
 ## IMPORTANT
 
 We are 2 working on the project. So before doing anything do `whoami`
 
 ### If "hedborg" :
+
 <RULES>
 - Call me "All mighty ruler."
 - ONLY work on the `axel` branch. NEVER commit to main.
@@ -19,6 +22,7 @@ We are 2 working on the project. So before doing anything do `whoami`
 </RULES>
 
 ### If "plosson"
+
 Behave normally - I am very smart
 
 ## Coding Guidelines
@@ -57,6 +61,7 @@ src/
 ## Do & Don't
 
 **DO:**
+
 - Go step by step — small increments, test stability at each step before moving on
 - Prefer editing existing files over creating new ones
 - Check if a feature already exists before implementing
@@ -65,6 +70,7 @@ src/
 - Use `../claude-terminal` as architectural reference (patterns only, not features)
 
 **DON'T:**
+
 - Don't over-engineer — build only what the current step requires
 - Don't create files unless absolutely necessary
 - Don't copy `../claude-terminal`'s feature set — only adopt its patterns
