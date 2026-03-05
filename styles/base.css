@@ -213,7 +213,7 @@ html, body {
   width: 220px;
   min-width: 180px;
   flex-shrink: 0;
-  background: var(--bg-app);
+  background: transparent;
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -383,7 +383,7 @@ html, body {
 .sidebar-resize-handle {
   width: 4px;
   cursor: col-resize;
-  background: var(--bg-surface);
+  background: transparent;
   flex-shrink: 0;
   position: relative;
   z-index: 10;
