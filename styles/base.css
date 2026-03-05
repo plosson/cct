@@ -213,7 +213,7 @@ html, body {
   width: 220px;
   min-width: 180px;
   flex-shrink: 0;
-  background: transparent;
+  background: var(--bg-app);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -423,6 +423,7 @@ html, body {
   border: 1px solid var(--border);
   border-left: none;
   box-sizing: border-box;
+  background: var(--bg-surface);
 }
 
 .tab-item:first-child {
