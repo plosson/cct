@@ -81,6 +81,7 @@ contextBridge.exposeInMainWorld('electron_api', {
     setProject: (projectPath, values) => ipcRenderer.invoke('config-set-project', { projectPath, values }),
     resolve: (key, projectPath) => ipcRenderer.invoke('config-resolve', { key, projectPath }),
     resolveAll: (projectPath) => ipcRenderer.invoke('config-resolve-all', projectPath),
+    pickFile: (opts) => ipcRenderer.invoke('config-pick-file', opts),
   },
 
   log: {

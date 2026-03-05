@@ -382,6 +382,27 @@ export function selectAll() {
   session.terminal.selectAll();
 }
 
+// ── Project Background Image ──────────────────────────────────
+
+/** Apply (or clear) the per-project background image on .terminals-container.
+ *  @param {string} projectPath — active project
+ *  @param {string} [imagePathOverride] — pass directly to skip IPC resolve (avoids autoSave race)
+ */
+export async function applyProjectBackground(projectPath, imagePathOverride) {
+  const container = terminalsContainer || document.getElementById('terminals');
+  if (!container) return;
+  const bgImage = imagePathOverride !== undefined
+    ? imagePathOverride
+    : await api.appConfig.resolve('backgroundImage', projectPath);
+  if (bgImage) {
+    container.style.setProperty('--bg-image', `url("file://${bgImage}")`);
+    container.classList.add('has-bg-image');
+  } else {
+    container.style.removeProperty('--bg-image');
+    container.classList.remove('has-bg-image');
+  }
+}
+
 // ── Sound Theme ───────────────────────────────────────────────
 
 /** Cached Audio objects keyed by event name */

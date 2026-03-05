@@ -3,7 +3,7 @@
  * Bridges renderer ↔ ConfigService via Electron IPC
  */
 
-const { ipcMain } = require('electron');
+const { ipcMain, dialog } = require('electron');
 
 /**
  * Register all config-related IPC handlers
@@ -36,6 +36,16 @@ function registerConfigIPC(configService) {
 
   ipcMain.handle('config-resolve-all', (_event, projectPath) => {
     return configService.resolveAll(projectPath);
+  });
+
+  ipcMain.handle('config-pick-file', async (_event, opts) => {
+    const filters = opts && opts.filters ? opts.filters : [];
+    const result = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters,
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
   });
 }
 

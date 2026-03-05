@@ -9,6 +9,7 @@ import {
   getTerminalsContainer, getTabBarTabs,
   activateTab, closeTab,
   loadSoundTheme, applyThemeSetting,
+  applyProjectBackground,
 } from './terminal.js';
 import { projects, getSelectedProjectPath, renderSidebar, updateGlowIntensity } from './sidebar.js';
 import { showPromptOverlay } from './overlays.js';
@@ -376,6 +377,76 @@ async function renderSettingsTab(panelEl) {
 
         inputRow.appendChild(rangeWrap);
         inputEl = null; // already appended via rangeWrap
+      } else if (schemaDef.type === 'file') {
+        const fileWrap = document.createElement('div');
+        fileWrap.className = 'settings-file-wrap';
+
+        const currentValue = isProject
+          ? (values[key] !== undefined ? values[key] : '')
+          : (values[key] !== undefined ? values[key] : '');
+
+        // Thumbnail preview
+        if (currentValue) {
+          const thumb = document.createElement('img');
+          thumb.className = 'settings-file-thumb';
+          thumb.src = `file://${currentValue}`;
+          thumb.alt = 'Preview';
+          fileWrap.appendChild(thumb);
+        }
+
+        const fileInput = document.createElement('input');
+        fileInput.className = 'settings-input settings-file-input';
+        fileInput.dataset.testid = `settings-input-${key}`;
+        fileInput.type = 'text';
+        fileInput.readOnly = true;
+        fileInput.value = currentValue ? currentValue.split('/').pop() : '';
+        fileInput.placeholder = 'No file selected';
+        fileWrap.appendChild(fileInput);
+
+        const browseBtn = document.createElement('button');
+        browseBtn.className = 'settings-btn-secondary';
+        browseBtn.textContent = 'Browse\u2026';
+        browseBtn.addEventListener('click', async () => {
+          const filePath = await api.appConfig.pickFile({
+            filters: schemaDef.fileFilters || [],
+          });
+          if (!filePath) return;
+          values[key] = filePath;
+          autoSave();
+          applyProjectBackground(selectedProjectPath, filePath);
+          renderActiveSection();
+        });
+        fileWrap.appendChild(browseBtn);
+
+        if (isProject && values[key] !== undefined) {
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'settings-clear-btn';
+          clearBtn.dataset.testid = `settings-clear-${key}`;
+          clearBtn.textContent = '\u00d7';
+          clearBtn.title = 'Use global default';
+          clearBtn.addEventListener('click', () => {
+            delete editProject[key];
+            autoSave();
+            applyProjectBackground(selectedProjectPath, '');
+            renderActiveSection();
+          });
+          fileWrap.appendChild(clearBtn);
+        } else if (!isProject && values[key]) {
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'settings-clear-btn';
+          clearBtn.textContent = '\u00d7';
+          clearBtn.title = 'Clear';
+          clearBtn.addEventListener('click', () => {
+            delete values[key];
+            autoSave();
+            applyProjectBackground(selectedProjectPath, '');
+            renderActiveSection();
+          });
+          fileWrap.appendChild(clearBtn);
+        }
+
+        inputRow.appendChild(fileWrap);
+        inputEl = null;
       } else {
         const input = document.createElement('input');
         input.className = 'settings-input';

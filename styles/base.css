@@ -573,6 +573,21 @@ html, body {
   background: var(--bg-app);
 }
 
+/* Background image — overlay ABOVE terminal content.
+   pointer-events:none lets clicks/scrolls pass through to the terminal. */
+.terminals-container.has-bg-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
 .terminal-panel {
   position: absolute;
   top: 0;
@@ -1094,6 +1109,29 @@ html, body {
   color: var(--text-secondary);
   min-width: 36px;
   text-align: right;
+}
+
+/* File picker widget */
+.settings-file-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.settings-file-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
+.settings-file-input {
+  flex: 1;
+  min-width: 0;
+  cursor: default;
 }
 
 .settings-clear-btn {

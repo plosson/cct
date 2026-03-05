@@ -7,7 +7,7 @@ import { openSettings } from './settings.js';
 import {
   sessions, setActiveId,
   activateTab, closeTab, restoreSessions, updateStatusBar,
-  refitActiveTerminal,
+  refitActiveTerminal, applyProjectBackground,
 } from './terminal.js';
 import {
   getSidebarProjectsEl, getSidebarEl, getEmptyStateEl,
@@ -153,8 +153,9 @@ function selectProject(projectPath) {
     }
   }
 
-  // Update app glow to match selected project
+  // Update app glow and background image to match selected project
   updateAppGlow(projectPath);
+  applyProjectBackground(projectPath);
 
   // Activate the last active tab for this project, or clear
   const projectSessionIds = sessionsForProject(projectPath).map(([id]) => id);
