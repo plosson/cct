@@ -720,7 +720,8 @@ async function renderSettingsTab(panelEl) {
       const sourceCell = document.createElement('span');
       sourceCell.className = 'settings-sound-source';
       if (hasSound && entry.url) {
-        sourceCell.textContent = decodeURIComponent(entry.url.split('/').pop());
+        const filename = decodeURIComponent(entry.url.split('/').pop());
+        sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : filename;
       } else {
         sourceCell.textContent = '\u2014';
       }

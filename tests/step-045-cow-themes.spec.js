@@ -232,7 +232,7 @@ test('13 - Export button visible', async () => {
   await window.waitForTimeout(300);
 
   // The export button is in the install row
-  const exportBtn = window.locator('button:has-text("Export as ZIP")');
+  const exportBtn = window.locator('button:has-text("Download")');
   await expect(exportBtn).toBeVisible();
 });
 

@@ -93,11 +93,8 @@ test('6 - saving global config persists to config.json', async () => {
   const claudeInput = window.locator('[data-testid="settings-input-claudeCommand"]');
   await claudeInput.fill('my-custom-claude');
 
-  // Click save
-  await window.locator('[data-testid="settings-save-btn"]').click();
-
-  // Verify config.json was written
-  await window.waitForTimeout(300);
+  // Auto-save triggers after 400ms debounce
+  await window.waitForTimeout(800);
   const configPath = path.join(env.CLAUDIU_USER_DATA, 'config.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   expect(config.claudeCommand).toBe('my-custom-claude');
@@ -139,10 +136,8 @@ test('9 - saving project config persists to .claudiu/config.json', async () => {
   const claudeInput = window.locator('[data-testid="settings-input-claudeCommand"]');
   await claudeInput.fill('project-claude');
 
-  await window.locator('[data-testid="settings-save-btn"]').click();
-
-  // Verify .claudiu/config.json in project directory
-  await window.waitForTimeout(300);
+  // Auto-save triggers after 400ms debounce
+  await window.waitForTimeout(800);
   const configPath = path.join(projectDir, '.claudiu', 'config.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   expect(config.claudeCommand).toBe('project-claude');
@@ -207,8 +202,8 @@ test('13 - clearing a global config value removes it from config.json', async ()
   const claudeInput = window.locator('[data-testid="settings-input-claudeCommand"]');
   await claudeInput.fill('');
 
-  await window.locator('[data-testid="settings-save-btn"]').click();
-  await window.waitForTimeout(300);
+  // Auto-save triggers after 400ms debounce
+  await window.waitForTimeout(800);
 
   // Verify the key is gone from config.json
   config = JSON.parse(fs.readFileSync(configPath, 'utf8'));

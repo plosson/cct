@@ -139,7 +139,7 @@ test('3 - Change theme dropdown → sound table refreshes immediately', async ()
 
   const sourcesNone = await window.locator('.settings-sound-source').allTextContents();
   // Filter out the header row
-  const dataSources = sourcesNone.filter(t => t !== 'Source');
+  const dataSources = sourcesNone.filter(t => t !== 'Source' && t !== 'File');
   const allDash = dataSources.every(t => t === '\u2014' || t === '—');
   expect(allDash).toBe(true);
 
