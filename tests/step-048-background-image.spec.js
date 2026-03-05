@@ -128,7 +128,7 @@ test('6 - clearing background image removes it', async () => {
   await expect(container).not.toHaveClass(/has-bg-image/, { timeout: 3000 });
 });
 
-test('7 - ::before pseudo-element exists when background is set', async () => {
+test('7 - theme tint overlay (::before) exists when background is set', async () => {
   // Switch back to project A which has the image
   await window.evaluate((dir) => window._claudiuSelectProject(dir), projectDirA);
   await window.waitForTimeout(300);
@@ -138,8 +138,9 @@ test('7 - ::before pseudo-element exists when background is set', async () => {
     const style = getComputedStyle(el, '::before');
     return style.opacity;
   });
-  // ::before should have low opacity (0.15)
-  expect(parseFloat(beforeOpacity)).toBeLessThanOrEqual(0.2);
+  // ::before is the theme tint overlay at 0.7
+  expect(parseFloat(beforeOpacity)).toBeGreaterThan(0);
+  expect(parseFloat(beforeOpacity)).toBeLessThanOrEqual(1);
 });
 
 test('8 - schema includes backgroundImage with type file', async () => {
@@ -176,27 +177,16 @@ test('10 - settings UI shows thumbnail preview', async () => {
   expect(src).toContain('test-bg.png');
 });
 
-test('11 - terminal-panel gets transparent background via CSS rule', async () => {
-  // Close settings tab first
-  const closeBtn = window.locator('.tab-item .tab-label:has-text("Settings")').locator('..').locator('.tab-close');
-  await closeBtn.click();
-  await window.waitForTimeout(200);
-
+test('11 - background image overlay uses ::after pseudo-element', async () => {
   // Switch to project A which has bg image
   await window.evaluate((dir) => window._claudiuSelectProject(dir), projectDirA);
   await window.waitForTimeout(300);
 
-  // Verify the CSS rule exists by checking a temporary test element
-  const isTransparent = await window.evaluate(() => {
+  // Verify the ::after overlay has the background image
+  const afterBgImage = await window.evaluate(() => {
     const container = document.getElementById('terminals');
-    if (!container.classList.contains('has-bg-image')) return false;
-    // Create a temp panel to check computed style
-    const tmp = document.createElement('div');
-    tmp.className = 'terminal-panel';
-    container.appendChild(tmp);
-    const bg = getComputedStyle(tmp).backgroundColor;
-    tmp.remove();
-    return bg === 'rgba(0, 0, 0, 0)';
+    if (!container.classList.contains('has-bg-image')) return '';
+    return getComputedStyle(container, '::after').backgroundImage;
   });
-  expect(isTransparent).toBe(true);
+  expect(afterBgImage).toContain('test-bg.png');
 });

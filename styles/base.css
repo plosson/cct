@@ -589,6 +589,18 @@ html, body {
   pointer-events: none;
 }
 
+/* Theme-aware tint: darkens the image so text stays readable.
+   Sits above the image overlay. */
+.terminals-container.has-bg-image::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  background: var(--bg-app);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
 .terminal-panel {
   position: absolute;
   top: 0;

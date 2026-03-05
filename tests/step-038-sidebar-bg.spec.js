@@ -18,37 +18,49 @@ test.afterAll(async () => {
   await electronApp.close();
 });
 
-for (const theme of ['dark', 'light']) {
-  test(`sidebar background is transparent in ${theme} theme`, async () => {
-    await window.evaluate((t) => {
-      document.documentElement.setAttribute('data-theme', t);
-    }, theme);
-
-    const sidebarBg = await window.evaluate(() => {
-      const sidebar = document.querySelector('.sidebar');
-      if (!sidebar) return 'no sidebar';
-      return getComputedStyle(sidebar).backgroundColor;
-    });
-
-    // Sidebar must be fully transparent so it inherits the window
-    // vibrancy uniformly — no color mismatch with the main area
-    expect(sidebarBg).toBe('rgba(0, 0, 0, 0)');
+test('sidebar background is semi-transparent in dark theme (vibrancy)', async () => {
+  await window.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'dark');
   });
-}
 
-test('sidebar CSS rule uses transparent background', async () => {
-  const usesTransparent = await window.evaluate(() => {
+  const sidebarBg = await window.evaluate(() => {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return 'no sidebar';
+    return getComputedStyle(sidebar).backgroundColor;
+  });
+
+  // Dark --bg-app is rgba(17,17,17,0.85) — semi-transparent for vibrancy
+  expect(sidebarBg).toMatch(/rgba\(17,\s*17,\s*17,\s*0\.85\)/);
+});
+
+test('sidebar background is opaque in light theme (no black flash)', async () => {
+  await window.evaluate(() => {
+    document.documentElement.setAttribute('data-theme', 'light');
+  });
+
+  const sidebarBg = await window.evaluate(() => {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return 'no sidebar';
+    return getComputedStyle(sidebar).backgroundColor;
+  });
+
+  // Light --bg-app is #f5f5f7 = rgb(245, 245, 247) — opaque white
+  expect(sidebarBg).toMatch(/rgb\(245,\s*245,\s*247\)/);
+});
+
+test('sidebar CSS rule uses var(--bg-app)', async () => {
+  const usesBgApp = await window.evaluate(() => {
     for (const sheet of document.styleSheets) {
       try {
         for (const rule of sheet.cssRules) {
           if (rule instanceof CSSStyleRule && rule.selectorText === '.sidebar') {
             const bg = rule.style.background || rule.style.backgroundColor;
-            return bg === 'transparent';
+            return bg.includes('--bg-app');
           }
         }
       } catch {}
     }
     return false;
   });
-  expect(usesTransparent).toBe(true);
+  expect(usesBgApp).toBe(true);
 });
