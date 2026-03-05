@@ -919,7 +919,7 @@ html, body {
   right: 0;
   bottom: -9px; /* 8px padding + 1px border */
   height: 2px;
-  background: var(--scope-underline-color, var(--accent));
+  background: var(--scope-underline-color, var(--text-primary));
 }
 
 .settings-scope-btn:disabled {
@@ -1079,7 +1079,7 @@ html, body {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--text-primary);
   border: none;
   cursor: pointer;
 }

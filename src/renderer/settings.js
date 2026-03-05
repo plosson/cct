@@ -65,7 +65,7 @@ async function openSettings() {
   const selectedProjectName = selectedProject
     ? projects.find(p => p.path === selectedProject)?.name || null
     : null;
-  let tabIconStyle = 'background:var(--accent-bg);color:var(--accent)';
+  let tabIconStyle = 'background:var(--hover-bg);color:var(--text-primary)';
   if (selectedProjectName) {
     const pc = getProjectColor(selectedProjectName);
     const col = `hsl(${pc.hue}, ${pc.s}%, ${pc.l}%)`;
