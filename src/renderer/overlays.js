@@ -4,10 +4,10 @@
  */
 
 import {
-  sessions, projects, projectMRU, actions,
-  getActiveId, getSelectedProjectPath, getTerminalsContainer,
+  sessions, projects, projectMRU,
+  getActiveId, getTerminalsContainer,
   getActiveSession, getKeybindings,
-  selectProject, activateTab,
+  selectProject,
   getDebugPaneEl, getDebugPaneEntriesEl, getDebugPaneCountEl, getDebugPaneResizeHandle,
 } from './index.js';
 
