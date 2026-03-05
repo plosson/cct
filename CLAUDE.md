@@ -1,77 +1,73 @@
 # Claudiu — A Terminal Development Environment
 
-A Terminal Development Environment (TDE) built with Electron for managing multiple Claude Code sessions across projects.
+An Electron desktop app for managing multiple Claude Code sessions across projects. Organize work by **projects** (folders) and **sessions** (Claude Code or shell terminals), with sidebar navigation and tabbed xterm.js terminals connected to real PTYs.
 
-## IMPORTANT 
+## IMPORTANT
 
 We are 2 working on the project. So before doing anything do `whoami`
 
-### If "hedborg" : 
+### If "hedborg" :
 <RULES>
-- Call me “All mighty ruler.”
+- Call me "All mighty ruler."
 - ONLY work on the `axel` branch. NEVER commit to main.
-- When I say "PULL" this means rebase main on my branch 
-- When I say "PUSH" it means, commit, push and create a PR to main 
+- When I say "PULL" this means rebase main on my branch
+- When I say "PUSH" it means, commit, push and create a PR to main
 - Assume I am a clueless designer who only writes prompts. I do not understand Git or architecture.
 - Keep the codebase clean, modular, and maintainable.
 - Check if a feature already exists before implementing.
-- Reuse and extend existing code instead of duplicating. 
+- Reuse and extend existing code instead of duplicating.
 </RULES>
 
 ### If "plosson"
 Behave normally - I am very smart
 
-## Vision
+## Coding Guidelines
 
-A lightweight desktop app where you organize your work by **projects** (folders) and **sessions** (Claude Code terminals running in those folders). Think of it as an IDE-like shell around Claude Code — sidebar for project/session navigation, tabbed terminal area for active sessions.
+- **Stack**: Electron 28+, xterm.js 6, node-pty, esbuild, vanilla JS, plain CSS — no framework
+- **Package manager**: `npm` only
+- **Process separation**: Main (node-pty, IPC handlers, services), Preload (context bridge), Renderer (UI)
+- **Data flow**: Renderer ↔ IPC ↔ Main ↔ PTY. Use `invoke` for request/response, `send` for fire-and-forget
+- **Style**: Vanilla JS modules with explicit imports/exports; no classes in renderer, plain functions
+- **State**: Renderer state lives in module-level variables with getter/setter exports
+- **Services**: Main-process logic is organized into `src/main/services/*.js` (one service per concern)
+- **IPC**: Handlers are organized into `src/main/ipc/*.ipc.js` (one file per domain)
+- **Config**: Per-project and global config handled by ConfigService / ProjectConfigService
+- **Testing**: Run `npm run start` to test — never `npm run build` (build triggers signing and is slow)
 
-## Core Concepts
-
-- **Project**: A folder on disk. Appears in the sidebar. Can have multiple sessions.
-- **Session**: A running Claude Code terminal (spawned via `claude` CLI) in a project's folder. Appears as a tab in the main area. Rendered with xterm.js connected to a real PTY.
-
-## Architecture
-
-Electron app with proper process separation:
-
-- **Main process**: Window management, PTY spawning via `node-pty`, IPC handlers
-- **Preload**: Context bridge exposing safe APIs (`contextIsolation: true`, `nodeIntegration: false`)
-- **Renderer**: UI with xterm.js terminals, sidebar, tabs — vanilla JS, no framework
-
-### Data Flow
+## Project Structure
 
 ```
-Renderer (xterm.js) → IPC 'terminal-input' → Main → ptyProcess.write()
-PTY stdout → Main (onData) → IPC 'terminal-data' → Renderer → terminal.write()
+src/
+  main/
+    windows/MainWindow.js        — Electron BrowserWindow setup
+    preload.js                   — Context bridge (contextIsolation: true, nodeIntegration: false)
+    services/                    — Main-process services (Config, Terminal, Sound, Hooks, Updater, etc.)
+    ipc/                         — IPC handler registration (terminal, config, project, sound-theme, log)
+  renderer/
+    index.js                     — Entry point: init, action registry, DOM wiring
+    terminal.js                  — Session lifecycle, theme, font zoom, status bar
+    tabs.js                      — Tab creation, drag/drop, rename, context menu, navigation
+    sidebar.js                   — Project list, selection, auto-hide, resize, glow
+    overlays.js                  — Project picker, search bar, shortcut help, debug pane
+    keybindings.js               — Data-driven keyboard shortcuts and dispatch
+    settings.js                  — Settings tab and audio trim UI
+    projectColors.js             — Project color assignment
 ```
 
-## Tech Stack
+## Do & Don't
 
-| Layer | Technology |
-|-------|-----------|
-| Desktop | Electron 28+ |
-| Terminal | xterm.js 6 + FitAddon + WebglAddon |
-| PTY | node-pty |
-| Bundler | esbuild |
-| UI | Vanilla JS (no framework) |
-| Styling | Plain CSS |
-
-## Reference
-
-The project `../claude-terminal` is a mature Electron terminal app. Use it as a reference for:
-- Electron main/preload/renderer patterns
-- xterm.js + node-pty integration
-- IPC architecture (invoke for request/response, send for fire-and-forget)
-- Adaptive data batching for PTY → xterm
-- Window state persistence
-- macOS app conventions
-
-Do NOT copy its feature set — only adopt its architectural patterns where relevant.
-
-## Development Rules
-
-- Use `npm` for Node.js package management
+**DO:**
 - Go step by step — small increments, test stability at each step before moving on
 - Prefer editing existing files over creating new ones
-- No over-engineering — build only what the current step requires
-- Don't `npm run build` to test as it takes agents because of signing. Use `npm run start` 
+- Check if a feature already exists before implementing
+- Reuse and extend existing code instead of duplicating
+- Follow existing patterns found in the codebase
+- Use `../claude-terminal` as architectural reference (patterns only, not features)
+
+**DON'T:**
+- Don't over-engineer — build only what the current step requires
+- Don't create files unless absolutely necessary
+- Don't copy `../claude-terminal`'s feature set — only adopt its patterns
+- Don't use `npm run build` for testing (triggers signing, very slow)
+- Don't introduce frameworks or libraries without discussion
+- Don't make large sweeping changes — always proceed incrementally
