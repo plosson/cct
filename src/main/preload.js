@@ -17,10 +17,6 @@ function createListener(channel) {
 contextBridge.exposeInMainWorld('electron_api', {
   getVersion: () => ipcRenderer.invoke('get-version'),
 
-  config: {
-    spawnCommand: process.env.CLAUDIU_COMMAND || undefined
-  },
-
   terminal: {
     create: (params) => ipcRenderer.invoke('terminal-create', params),
     input: ({ id, data }) => ipcRenderer.send('terminal-input', { id, data }),

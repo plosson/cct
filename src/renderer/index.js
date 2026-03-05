@@ -20,8 +20,6 @@ window._claudiuProjectColors = { getProjectColor };
 const sessions = new Map(); // id -> { terminal, fitAddon, panelEl, tabEl, cleanup, projectPath, sessionId, type, createdAt }
 let activeId = null;
 let selectedProjectPath = null;
-let sessionCounter = 0;
-
 // MRU ordering for project picker (most recently selected first)
 const projectMRU = [];
 
@@ -136,8 +134,6 @@ function applyThemeSetting(theme) {
   for (const sess of sessions.values()) {
     if (sess.terminal) sess.terminal.options.theme = xtermTheme;
   }
-  // Update project accent colors for the new theme
-  updateProjectIdentity();
 }
 
 const TERMINAL_OPTIONS = {
@@ -382,11 +378,6 @@ function selectProject(projectPath) {
 
   renderSidebar();
   updateStatusBar();
-  updateProjectIdentity();
-}
-
-function updateProjectIdentity() {
-  // No-op — per-project accent colors removed; kept for call-site compatibility
 }
 
 /** Get all session [id, session] entries for a given project path */
@@ -442,7 +433,6 @@ async function removeProject(projectPath) {
   }
 
   renderSidebar();
-  updateProjectIdentity();
 }
 
 // ── Sessions / Tabs ──────────────────────────────────────────
@@ -457,7 +447,6 @@ async function createSession(type = 'claude', { claudeSessionId } = {}) {
   const project = projects.find(p => p.path === selectedProjectPath);
   if (!project) return;
 
-  sessionCounter++;
   const num = countSessionsForProject(project.path) + 1;
   const isClaude = type === 'claude';
 
@@ -1936,7 +1925,6 @@ async function renderSettingsTab(panelEl) {
     headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">Source</span><span class="settings-sound-actions">Actions</span>';
     table.appendChild(headerRow);
 
-    console.log('[sounds] resolvedSoundMap:', resolvedSoundMap, 'currentTheme:', currentTheme);
     for (const eventName of ALL_HOOK_EVENTS) {
       const entry = resolvedSoundMap && resolvedSoundMap[eventName];
       const hasSound = !!entry;
@@ -2602,7 +2590,6 @@ window._claudiuReloadProjects = (projectList) => {
     selectedProjectPath = null;
   }
   renderSidebar();
-  updateProjectIdentity();
 };
 
 // Select a project programmatically (used by tests)
@@ -2737,9 +2724,7 @@ async function init() {
 
     // Apply theme setting
     const resolvedTheme = await api.appConfig.resolve('theme', null);
-    console.log('[THEME DEBUG] resolved:', resolvedTheme, '| data-theme before:', document.documentElement.getAttribute('data-theme'), '| prefers-light:', window.matchMedia('(prefers-color-scheme: light)').matches);
     applyThemeSetting(resolvedTheme || 'system');
-    console.log('[THEME DEBUG] after apply | data-theme:', document.documentElement.getAttribute('data-theme'), '| --bg-app:', getComputedStyle(document.documentElement).getPropertyValue('--bg-app'));
 
     // Listen for OS theme changes (relevant when theme is 'system')
     window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
@@ -2751,7 +2736,6 @@ async function init() {
         for (const sess of sessions.values()) {
           sess.terminal.options.theme = xtermTheme;
         }
-        updateProjectIdentity();
       }
     });
 

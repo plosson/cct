@@ -307,7 +307,7 @@ class SoundThemeService {
       return { success: false, error: 'Theme not found' };
     }
     // Safety: ensure we're removing from themes dir only
-    if (!themeDir.startsWith(this._themesDir)) {
+    if (!themeDir.startsWith(this._themesDir + path.sep)) {
       return { success: false, error: 'Invalid theme path' };
     }
     fs.rmSync(themeDir, { recursive: true, force: true });

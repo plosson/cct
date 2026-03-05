@@ -74,15 +74,19 @@ class ConfigService {
     fs.writeFileSync(this._globalPath, JSON.stringify(this._global, null, 2));
   }
 
-  /** Apply a map of key/value pairs to a config object, skipping unknown keys.
-   *  Empty/null/undefined values unset the key; non-empty values set it. */
-  _applyValues(config, values) {
-    for (const [key, value] of Object.entries(values)) {
-      if (!(key in CONFIG_SCHEMA)) continue;
-      if (value === undefined || value === null || value === '') {
-        delete config[key];
+  /** Replace all schema keys on a config object from a values map.
+   *  Keys present in values are set (empty/null/undefined clears); absent keys are removed. */
+  _replaceAll(config, values) {
+    for (const key of Object.keys(CONFIG_SCHEMA)) {
+      if (key in values) {
+        const value = values[key];
+        if (value === undefined || value === null || value === '') {
+          delete config[key];
+        } else {
+          config[key] = value;
+        }
       } else {
-        config[key] = value;
+        delete config[key];
       }
     }
   }
@@ -95,18 +99,7 @@ class ConfigService {
   /** Bulk-set global config values — replaces all schema keys.
    *  Keys present in values are set; schema keys absent from values are removed. */
   setGlobalAll(values) {
-    for (const key of Object.keys(CONFIG_SCHEMA)) {
-      if (key in values) {
-        const value = values[key];
-        if (value === undefined || value === null || value === '') {
-          delete this._global[key];
-        } else {
-          this._global[key] = value;
-        }
-      } else {
-        delete this._global[key];
-      }
-    }
+    this._replaceAll(this._global, values);
     this._saveGlobal();
   }
 
@@ -153,18 +146,7 @@ class ConfigService {
    *  Keys present in values are set; schema keys absent from values are removed. */
   setProjectAll(projectPath, values) {
     const config = this._loadProject(projectPath);
-    for (const key of Object.keys(CONFIG_SCHEMA)) {
-      if (key in values) {
-        const value = values[key];
-        if (value === undefined || value === null || value === '') {
-          delete config[key];
-        } else {
-          config[key] = value;
-        }
-      } else {
-        delete config[key];
-      }
-    }
+    this._replaceAll(config, values);
     this._saveProject(projectPath, config);
   }
 
