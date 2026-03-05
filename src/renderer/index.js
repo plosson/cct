@@ -49,52 +49,12 @@ import {
   loadSoundTheme, initSoundTheme,
   updateStatusBar, formatUptime,
 } from './terminal.js';
+import { keybindings, actions, initKeyboardDispatch } from './keybindings.js';
 
 const api = window.electron_api;
 
 // Expose for testing
 window._claudiuProjectColors = { getProjectColor };
-
-// Data-driven keybindings
-const DEFAULT_KEYBINDINGS = {
-  'Meta+n': 'createClaudeSession',
-  'Meta+t': 'createTerminalSession',
-  'Meta+w': 'closeActiveTab',
-  'Meta+e': 'openProjectPicker',
-  'Meta+o': 'addProject',
-  'Meta+ArrowLeft': 'prevTab',
-  'Meta+ArrowRight': 'nextTab',
-  'Meta+ArrowUp': 'prevProject',
-  'Meta+ArrowDown': 'nextProject',
-  'Meta+f': 'openSearchBar',
-  'Meta+=': 'zoomIn',
-  'Meta+-': 'zoomOut',
-  'Meta+0': 'zoomReset',
-  'Meta+k': 'clearTerminal',
-  'Shift+Meta+C': 'copySelection',
-  'Shift+Meta+V': 'pasteClipboard',
-  'Shift+Meta+ArrowLeft': 'moveTabLeft',
-  'Shift+Meta+ArrowRight': 'moveTabRight',
-  'Meta+a': 'selectAll',
-  'Meta+b': 'toggleSidebar',
-  'Shift+Meta+W': 'closeOtherTabs',
-  'Meta+,': 'openSettings',
-  'Meta+/': 'showShortcutHelp',
-  'Meta+1': 'goToTab1',
-  'Meta+2': 'goToTab2',
-  'Meta+3': 'goToTab3',
-  'Meta+4': 'goToTab4',
-  'Meta+5': 'goToTab5',
-  'Meta+6': 'goToTab6',
-  'Meta+7': 'goToTab7',
-  'Meta+8': 'goToTab8',
-  'Meta+9': 'goToLastTab',
-  'Meta+j': 'toggleDebugPane',
-};
-
-let keybindings = { ...DEFAULT_KEYBINDINGS };
-
-export const actions = new Map();
 
 // Static DOM elements (populated in init)
 let sidebarProjectsEl;
@@ -106,7 +66,6 @@ let debugPaneCountEl;
 let debugPaneResizeHandle;
 
 // Getter functions for let variables (used by extracted modules)
-export function getKeybindings() { return keybindings; }
 export function getDebugPaneEl() { return debugPaneEl; }
 export function getDebugPaneEntriesEl() { return debugPaneEntriesEl; }
 export function getDebugPaneCountEl() { return debugPaneCountEl; }
@@ -186,18 +145,6 @@ window._claudiuSelectProject = (projectPath) => {
   selectProject(projectPath);
 };
 window._claudiuAddDebugEntry = addDebugEntry;
-
-// ── Keybindings ──────────────────────────────────────────────
-
-function normalizeKeyEvent(e) {
-  const parts = [];
-  if (e.ctrlKey) parts.push('Ctrl');
-  if (e.altKey) parts.push('Alt');
-  if (e.shiftKey) parts.push('Shift');
-  if (e.metaKey) parts.push('Meta');
-  parts.push(e.key);
-  return parts.join('+');
-}
 
 // ── Init ─────────────────────────────────────────────────────
 
@@ -369,15 +316,7 @@ async function init() {
   actions.set('goToLastTab', () => goToTab(-1));
 
   // Data-driven keyboard dispatch
-  document.addEventListener('keydown', (e) => {
-    const key = normalizeKeyEvent(e);
-    const actionName = keybindings[key];
-    if (!actionName) return;
-    const handler = actions.get(actionName);
-    if (!handler) return;
-    e.preventDefault();
-    handler();
-  });
+  initKeyboardDispatch();
 
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
 

@@ -9,9 +9,9 @@ import {
   getActiveSession,
 } from './terminal.js';
 import {
-  getKeybindings,
   getDebugPaneEl, getDebugPaneEntriesEl, getDebugPaneCountEl, getDebugPaneResizeHandle,
 } from './index.js';
+import { keybindings } from './keybindings.js';
 import { projects, projectMRU, selectProject } from './sidebar.js';
 
 const api = window.electron_api;
@@ -373,7 +373,6 @@ function showShortcutHelp() {
   const list = document.createElement('div');
   list.className = 'shortcut-help-list';
 
-  const keybindings = getKeybindings();
   for (const [combo, actionName] of Object.entries(keybindings)) {
     const label = ACTION_LABELS[actionName] || actionName;
     const row = document.createElement('div');
