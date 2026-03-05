@@ -10,8 +10,9 @@ import {
   getSelectedProjectPath, getTerminalsContainer, getTabBarTabs,
   projects,
   activateTab, closeTab, renderSidebar,
-  showPromptOverlay, loadSoundTheme, applyThemeSetting,
+  loadSoundTheme, applyThemeSetting,
 } from './index.js';
+import { showPromptOverlay } from './overlays.js';
 
 const api = window.electron_api;
 
