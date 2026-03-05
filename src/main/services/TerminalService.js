@@ -41,13 +41,19 @@ class TerminalService {
     // Merge caller-provided env vars
     if (extraEnv) Object.assign(env, extraEnv);
 
-    const ptyProcess = pty.spawn(cmd, args, {
-      name: 'xterm-256color',
-      cols,
-      rows,
-      cwd: cwd || os.homedir(),
-      env
-    });
+    let ptyProcess;
+    try {
+      ptyProcess = pty.spawn(cmd, args, {
+        name: 'xterm-256color',
+        cols,
+        rows,
+        cwd: cwd || os.homedir(),
+        env
+      });
+    } catch (err) {
+      if (this._logService) this._logService.error('terminal', `PTY spawn failed: ${err.message || err}`);
+      return { success: false, id, error: err.message || String(err) };
+    }
 
     // Adaptive batching: accumulate data and flush at intervals
     // Starts at 4ms, increases to 16ms then 32ms under heavy output

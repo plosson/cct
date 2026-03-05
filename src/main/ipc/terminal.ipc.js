@@ -7,6 +7,10 @@
 const { ipcMain, app } = require('electron');
 const crypto = require('crypto');
 
+// Allowed command basenames the renderer may request.
+// Anything not in this set is rejected to prevent arbitrary command injection.
+const ALLOWED_COMMANDS = new Set(['claude', 'bash', 'zsh', 'sh', 'fish']);
+
 /**
  * Register all terminal-related IPC handlers
  * @param {import('../services/TerminalService').TerminalService} terminalService
@@ -45,6 +49,14 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
       commandArgs = parts.slice(1);
     }
 
+    // Security: only allow known command basenames to prevent arbitrary execution
+    if (command) {
+      const basename = require('path').basename(command);
+      if (!ALLOWED_COMMANDS.has(basename)) {
+        return { success: false, error: `Command not allowed: ${basename}` };
+      }
+    }
+
     // Build extra env vars
     const env = {};
     if (cwd && projectConfigService) {
@@ -67,6 +79,11 @@ function registerTerminalIPC(terminalService, projectConfigService, configServic
     };
 
     const result = terminalService.create({ ...params, command, args: [...commandArgs, ...args], env, onExit });
+
+    // If PTY spawn failed, return the error without recording a session
+    if (!result.success) {
+      return result;
+    }
 
     // Record session in .claudiu/sessions.json
     if (cwd && projectConfigService) {

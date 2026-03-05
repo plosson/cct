@@ -75,6 +75,35 @@ function createMainWindow(windowStateService, configService) {
     }
   });
 
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    const { reason } = details;
+    // 'clean-exit' is normal (e.g. window.close()); only recover from crashes
+    if (reason === 'clean-exit') return;
+
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: 'Renderer Crashed',
+      message: `The window crashed (${reason}).`,
+      detail: 'The app will reload. Active terminal sessions may need to be reconnected.',
+      buttons: ['Reload'],
+    }).then(() => {
+      mainWindow.webContents.reload();
+    });
+  });
+
+  mainWindow.webContents.on('unresponsive', () => {
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: 'Window Unresponsive',
+      message: 'The window is not responding.',
+      detail: 'Would you like to wait or reload?',
+      buttons: ['Wait', 'Reload'],
+      defaultId: 0,
+    }).then(({ response }) => {
+      if (response === 1) mainWindow.webContents.reload();
+    });
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

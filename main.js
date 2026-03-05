@@ -2,9 +2,25 @@
  * Claudiu - Main Process Entry Point
  */
 
-const { app, BrowserWindow, ipcMain, Menu, shell, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, shell, protocol, net, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+// Global crash handlers — catch unhandled errors before they silently kill the process
+process.on('uncaughtException', (err) => {
+  const msg = `Uncaught exception: ${err.stack || err}`;
+  // eslint-disable-next-line no-console
+  console.error(msg);
+  try {
+    dialog.showErrorBox('Claudiu — Unexpected Error', msg);
+  } catch { /* dialog may not be available yet */ }
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = `Unhandled rejection: ${reason instanceof Error ? reason.stack : reason}`;
+  // eslint-disable-next-line no-console
+  console.error(msg);
+});
 
 
 // Fix env on macOS — apps launched from Finder have a minimal environment.
