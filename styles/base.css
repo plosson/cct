@@ -213,7 +213,7 @@ html, body {
   width: 220px;
   min-width: 180px;
   flex-shrink: 0;
-  background: var(--bg-surface);
+  background: var(--bg-app);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
