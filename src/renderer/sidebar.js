@@ -3,7 +3,7 @@
  */
 
 import { getProjectColor } from './projectColors.js';
-import { openSettings } from './settings.js';
+import { openSettings, refreshSettingsTab } from './settings.js';
 import {
   sessions, setActiveId,
   activateTab, closeTab, restoreSessions, updateStatusBar,
@@ -145,7 +145,9 @@ function selectProject(projectPath) {
 
   // Show/hide tabs and panels for the selected project (settings tabs always visible)
   for (const s of sessions.values()) {
-    const belongsToProject = s.projectPath === projectPath || s.type === 'settings';
+    // Keep settings tab's projectPath in sync so activateTab deactivation works
+    if (s.type === 'settings') s.projectPath = projectPath;
+    const belongsToProject = s.projectPath === projectPath;
     s.tabEl.style.display = belongsToProject ? '' : 'none';
     if (!belongsToProject) {
       s.panelEl.classList.remove('active');
@@ -169,11 +171,12 @@ function selectProject(projectPath) {
 
   renderSidebar();
   updateStatusBar();
+  refreshSettingsTab();
 }
 
 /** Get all session [id, session] entries for a given project path */
 function sessionsForProject(projectPath) {
-  return [...sessions.entries()].filter(([, s]) => s.projectPath === projectPath);
+  return [...sessions.entries()].filter(([, s]) => s.projectPath === projectPath && s.type !== 'settings');
 }
 
 function countSessionsForProject(projectPath) {

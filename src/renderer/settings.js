@@ -44,6 +44,34 @@ function findSettingsTab() {
   return null;
 }
 
+/** Re-render the settings tab for the currently selected project (if open) */
+async function refreshSettingsTab() {
+  const existing = findSettingsTab();
+  if (existing === null) return;
+  const session = sessions.get(existing);
+  if (!session) return;
+
+  // Update tab icon color to match new project
+  const selectedProject = getSelectedProjectPath();
+  const selectedProjectName = selectedProject
+    ? projects.find(p => p.path === selectedProject)?.name || null
+    : null;
+  const iconEl = session.tabEl.querySelector('.tab-icon-settings');
+  if (iconEl) {
+    if (selectedProjectName) {
+      const pc = getProjectColor(selectedProjectName);
+      const col = `hsl(${pc.hue}, ${pc.s}%, ${pc.l}%)`;
+      iconEl.style.cssText = `background:hsla(${pc.hue}, ${pc.s}%, ${pc.l}%, 0.15);color:${col}`;
+    } else {
+      iconEl.style.cssText = 'background:var(--hover-bg);color:var(--text-primary)';
+    }
+  }
+
+  // Re-render content
+  session.panelEl.innerHTML = '';
+  await renderSettingsTab(session.panelEl);
+}
+
 /** Open (or focus) the settings tab */
 async function openSettings() {
   // If a settings tab already exists, just focus it
@@ -99,12 +127,11 @@ async function openSettings() {
 /** Render the full settings tab UI into a panel element */
 async function renderSettingsTab(panelEl) {
   const selectedProjectPath = getSelectedProjectPath();
-  const [schema, globalConfig, projectConfig, themes, version] = await Promise.all([
+  const [schema, globalConfig, projectConfig, themes] = await Promise.all([
     api.appConfig.getSchema(),
     api.appConfig.getGlobal(),
     selectedProjectPath ? api.appConfig.getProject(selectedProjectPath) : Promise.resolve(null),
     api.soundThemes ? api.soundThemes.list() : Promise.resolve([]),
-    api.getVersion().catch(() => '?'),
   ]);
 
   let resolvedSoundMap = null;
@@ -213,7 +240,6 @@ async function renderSettingsTab(panelEl) {
   const sections = [
     { id: 'general', label: 'General', icon: '\u2699' },
     { id: 'sounds', label: 'Sound & Hooks', icon: '\uD83D\uDD0A' },
-    { id: 'about', label: 'About', icon: '\u2139' },
   ];
 
   for (const sec of sections) {
@@ -247,7 +273,6 @@ async function renderSettingsTab(panelEl) {
     switch (activeSection) {
       case 'general': renderGeneralSection(); break;
       case 'sounds': renderSoundsSection(); break;
-      case 'about': renderAboutSection(); break;
     }
   }
 
@@ -841,30 +866,9 @@ async function renderSettingsTab(panelEl) {
     contentArea.appendChild(wrapper);
   }
 
-  function renderAboutSection() {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'settings-section';
-
-    const heading = document.createElement('h3');
-    heading.className = 'settings-section-title';
-    heading.textContent = 'About';
-    wrapper.appendChild(heading);
-
-    const infoGrid = document.createElement('div');
-    infoGrid.className = 'settings-about-grid';
-    infoGrid.innerHTML = `
-      <div class="settings-about-row"><span class="settings-about-label">Version</span><span class="settings-about-value">${version}</span></div>
-      <div class="settings-about-row"><span class="settings-about-label">Electron</span><span class="settings-about-value">${navigator.userAgent.match(/Electron\/([^\s]+)/)?.[1] || '\u2014'}</span></div>
-      <div class="settings-about-row"><span class="settings-about-label">Chrome</span><span class="settings-about-value">${navigator.userAgent.match(/Chrome\/([^\s]+)/)?.[1] || '\u2014'}</span></div>
-      <div class="settings-about-row"><span class="settings-about-label">Platform</span><span class="settings-about-value">${navigator.platform}</span></div>
-    `;
-    wrapper.appendChild(infoGrid);
-
-    contentArea.appendChild(wrapper);
-  }
 
   // Initial render
   renderActiveSection();
 }
 
-export { openSettings, findSettingsTab };
+export { openSettings, findSettingsTab, refreshSettingsTab };

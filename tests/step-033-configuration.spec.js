@@ -225,10 +225,6 @@ test('15 - settings nav sections work', async () => {
     await window.waitForSelector('[data-testid="settings-nav-general"]', { timeout: 3000 });
   }
 
-  // Click About
-  await window.locator('[data-testid="settings-nav-about"]').click();
-  await window.waitForTimeout(200);
-
   // Click Sound & Hooks
   await window.locator('[data-testid="settings-nav-sounds"]').click();
   await window.waitForTimeout(200);
