@@ -64,6 +64,10 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     return soundThemeService.getResolvedSoundMap(themeName);
   });
 
+  ipcMain.handle('sound-theme-get-sound-map', (_event, dirName) => {
+    return soundThemeService.getResolvedSoundMap(dirName);
+  });
+
   ipcMain.handle('sound-theme-remove-sound', (_event, { dirName, eventName }) => {
     return soundThemeService.removeSoundFromTheme(dirName, eventName);
   });

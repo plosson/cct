@@ -61,6 +61,7 @@ class ConfigService {
   _loadGlobal() {
     try {
       this._global = JSON.parse(fs.readFileSync(this._globalPath, 'utf8'));
+      if (this._logService) this._logService.info('config', `Loaded global config from ${this._globalPath}`);
     } catch (e) {
       this._global = {};
       if (this._logService) this._logService.warn('config', 'Failed to load global config: ' + (e.message || e));

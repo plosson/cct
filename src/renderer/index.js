@@ -1748,8 +1748,10 @@ async function renderSettingsTab(panelEl) {
     const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
     themeSelect.value = currentTheme;
 
-    themeSelect.addEventListener('change', () => {
+    themeSelect.addEventListener('change', async () => {
       values.soundTheme = themeSelect.value;
+      resolvedSoundMap = await api.soundThemes.getSoundMap(themeSelect.value) || {};
+      renderActiveSection();
     });
 
     themeInputRow.appendChild(themeSelect);

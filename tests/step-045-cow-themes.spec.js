@@ -31,7 +31,7 @@ test.beforeAll(async () => {
 
   electronApp = await electron.launch({
     args: [appPath],
-    env: launchEnv(),
+    env,
     timeout: 90000,
   });
   window = await electronApp.firstWindow({ timeout: 90000 });
