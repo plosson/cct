@@ -2,8 +2,10 @@
 const { defineConfig } = require('@playwright/test');
 const { execSync } = require('child_process');
 
-// Hide the Electron window during tests
-process.env.CLAUDIU_HEADLESS = '1';
+// Hide the Electron window during tests (override with CLAUDIU_HEADLESS=0)
+if (process.env.CLAUDIU_HEADLESS === undefined) {
+  process.env.CLAUDIU_HEADLESS = '1';
+}
 
 // Disable macOS window restoration to suppress "unexpectedly quit" dialog
 if (process.platform === 'darwin') {

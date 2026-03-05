@@ -21,4 +21,17 @@ function launchEnv(extra = {}) {
   };
 }
 
-module.exports = { appPath, launchEnv };
+/**
+ * Show and center the Electron window when CLAUDIU_HEADLESS=0.
+ * Call after electronApp.firstWindow() in beforeAll.
+ */
+async function showWindow(electronApp) {
+  if (process.env.CLAUDIU_HEADLESS === '0') {
+    await electronApp.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) { win.show(); win.center(); }
+    });
+  }
+}
+
+module.exports = { appPath, launchEnv, showWindow };
