@@ -40,6 +40,14 @@ const CONFIG_SCHEMA = {
     default: 'default',
     description: 'Active sound theme directory name (or "none" to disable)',
   },
+  glowIntensity: {
+    label: 'Glow intensity',
+    type: 'range',
+    min: 0,
+    max: 100,
+    default: 100,
+    description: 'Sidebar glow effect opacity (0% = off, 100% = full)',
+  },
 };
 
 class ConfigService {
