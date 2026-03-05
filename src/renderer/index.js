@@ -6,50 +6,40 @@
 import { getProjectColor } from './projectColors.js';
 import { openSettings } from './settings.js';
 import {
-  openProjectPicker, closeProjectPicker,
-  openSearchBar, closeSearchBar,
-  showShortcutHelp, closeShortcutHelp,
+  openProjectPicker,
+  openSearchBar,
+  showShortcutHelp,
   toggleDebugPane, initDebugPaneResize, addDebugEntry, clearDebugPane,
-  updateDebugPaneCount,
   setDebugPaneOpen, getDebugPaneHeight, setDebugPaneHeight,
   setDebugAutoScroll,
 } from './overlays.js';
 import {
   projects, projectMRU, projectActivity,
   getSelectedProjectPath, setSelectedProjectPath,
-  sessionsForProject, countSessionsForProject, refreshProjectList,
-  renderSidebar, selectProject, addProject, removeProject, cycleProject,
-  updateProjectActivityBadge,
+  sessionsForProject, refreshProjectList,
+  renderSidebar, selectProject, addProject, cycleProject,
   toggleSidebar, initSidebarResize, initSidebarAutoHide,
-  updateEmptyState, updateAppGlow,
-  showProjectContextMenu,
-  getEmptyStateMessage,
   getSidebarMode, setSidebarMode, getSidebarRevealed,
   getSidebarWidth, setSidebarWidth,
 } from './sidebar.js';
 import {
-  createTabElement,
-  clearDropIndicators,
-  startTabRename,
-  showTabContextMenu,
   closeOtherTabs, closeAllTabs,
   cycleTab, goToTab, moveTab,
 } from './tabs.js';
 import {
   sessions,
-  getActiveId, setActiveId, getActiveSession,
-  getTerminalsContainer, getTabBarTabs,
+  getActiveId,
+  getTabBarTabs,
   initTerminal, initStatusBar,
   TERMINAL_OPTIONS,
-  currentFontSize, setInitialFontSize,
-  createSession, activateTab, closeTab, restoreSessions,
-  setFontSize, zoomIn, zoomOut, zoomReset,
+  setInitialFontSize,
+  createSession, closeTab,
+  zoomIn, zoomOut, zoomReset,
   clearTerminal, copySelection, pasteClipboard, selectAll,
-  applyThemeSetting, getTerminalTheme, getCurrentThemeMode,
-  loadSoundTheme, initSoundTheme,
-  updateStatusBar, formatUptime,
+  applyThemeSetting, getTerminalTheme,
+  initSoundTheme,
 } from './terminal.js';
-import { keybindings, actions, initKeyboardDispatch } from './keybindings.js';
+import { actions, initKeyboardDispatch } from './keybindings.js';
 
 const api = window.electron_api;
 
