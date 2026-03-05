@@ -1,6 +1,5 @@
 /**
  * Tabs — tab creation, drag/drop, rename, context menu, navigation
- * Extracted from renderer/index.js
  */
 
 import {

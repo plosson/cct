@@ -1,14 +1,13 @@
 /**
  * Sidebar — project list, selection, auto-hide, resize, glow
- * Extracted from renderer/index.js
  */
 
 import { getProjectColor } from './projectColors.js';
 import { openSettings } from './settings.js';
 import {
-  sessions,
-  getActiveId, setActiveId,
+  sessions, setActiveId,
   activateTab, closeTab, restoreSessions, updateStatusBar,
+  refitActiveTerminal,
 } from './terminal.js';
 import {
   getSidebarProjectsEl, getSidebarEl, getEmptyStateEl,
@@ -145,7 +144,7 @@ function selectProject(projectPath) {
   projectMRU.unshift(projectPath);
 
   // Show/hide tabs and panels for the selected project (settings tabs always visible)
-  for (const [, s] of sessions.entries()) {
+  for (const s of sessions.values()) {
     const belongsToProject = s.projectPath === projectPath || s.type === 'settings';
     s.tabEl.style.display = belongsToProject ? '' : 'none';
     if (!belongsToProject) {
@@ -385,12 +384,7 @@ function initSidebarResize() {
     const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + delta));
     sidebarEl.style.width = newWidth + 'px';
     document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
-    // Refit active terminal
-    const activeId = getActiveId();
-    if (activeId) {
-      const session = sessions.get(activeId);
-      if (session) session.fitAddon.fit();
-    }
+    refitActiveTerminal();
   });
 
   document.addEventListener('mouseup', () => {
@@ -431,20 +425,18 @@ function updateAppGlow(projectNameOrPath) {
 
 export {
   // State
-  selectedProjectPath, projects, projectMRU, projectActivity,
+  projects, projectMRU, projectActivity,
   // State access
   getSelectedProjectPath, setSelectedProjectPath,
   sessionsForProject, countSessionsForProject, refreshProjectList,
-  // Functions
+  // Sidebar mode
+  getSidebarMode, setSidebarMode, getSidebarRevealed,
+  getSidebarWidth, setSidebarWidth,
+  // UI
   renderSidebar, selectProject, addProject, removeProject, cycleProject,
   updateProjectActivityBadge,
   toggleSidebar, initSidebarResize, initSidebarAutoHide,
   updateEmptyState, updateAppGlow,
   showProjectContextMenu,
   getEmptyStateMessage,
-  // Sidebar state
-  sidebarMode, sidebarWidth, sidebarRevealed,
-  // Auto-hide state getters/setters
-  getSidebarMode, setSidebarMode, getSidebarRevealed,
-  getSidebarWidth, setSidebarWidth,
 };

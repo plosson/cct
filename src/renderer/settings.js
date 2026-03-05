@@ -1,6 +1,5 @@
 /**
  * Settings tab + Audio Trim UI
- * Extracted from renderer/index.js
  */
 
 import WaveSurfer from 'wavesurfer.js';
@@ -73,11 +72,9 @@ async function openSettings() {
   });
   tabEl.querySelector('.tab-close').addEventListener('click', () => closeTab(id));
 
-  const cleanup = () => {}; // no PTY to dispose
-
   sessions.set(id, {
     terminal: null, fitAddon: null, searchAddon: null,
-    panelEl, tabEl, cleanup,
+    panelEl, tabEl, cleanup() {}, // no PTY to dispose
     projectPath: getSelectedProjectPath() || '__global__',
     sessionId: null, type: 'settings', createdAt: Date.now(),
   });
@@ -109,6 +106,13 @@ async function renderSettingsTab(panelEl) {
   let settingsScope = 'global'; // 'global' or 'project'
   const editGlobal = { ...globalConfig };
   const editProject = projectConfig ? { ...projectConfig } : {};
+
+  /** Re-fetch the themes list from disk and update the in-memory array */
+  async function refreshThemesList() {
+    const updated = await api.soundThemes.list();
+    themes.length = 0;
+    themes.push(...updated);
+  }
 
   const container = document.createElement('div');
   container.className = 'settings-container';
@@ -413,9 +417,7 @@ async function renderSettingsTab(panelEl) {
       const result = await api.soundThemes.duplicate(srcDir, newName);
       if (result.success) {
         values.soundTheme = result.dirName;
-        const newThemes = await api.soundThemes.list();
-        themes.length = 0;
-        themes.push(...newThemes);
+        await refreshThemesList();
         resolvedSoundMap = await api.soundThemes.getSoundMap(result.dirName) || {};
         renderActiveSection();
       } else {
@@ -437,9 +439,7 @@ async function renderSettingsTab(panelEl) {
       const result = await api.soundThemes.rename(dirName, newName);
       if (result.success) {
         values.soundTheme = result.dirName;
-        const newThemes = await api.soundThemes.list();
-        themes.length = 0;
-        themes.push(...newThemes);
+        await refreshThemesList();
         resolvedSoundMap = await api.soundThemes.getSoundMap(result.dirName) || {};
         renderActiveSection();
       } else {
@@ -460,9 +460,7 @@ async function renderSettingsTab(panelEl) {
       const result = await api.soundThemes.remove(dirName);
       if (result.success) {
         values.soundTheme = 'default';
-        const newThemes = await api.soundThemes.list();
-        themes.length = 0;
-        themes.push(...newThemes);
+        await refreshThemesList();
         resolvedSoundMap = await api.soundThemes.getSounds(selectedProjectPath) || {};
         renderActiveSection();
       } else {
@@ -484,9 +482,7 @@ async function renderSettingsTab(panelEl) {
       const result = await api.soundThemes.installFromZip();
       if (result.success) {
         // Refresh themes list
-        const newThemes = await api.soundThemes.list();
-        themes.length = 0;
-        themes.push(...newThemes);
+        await refreshThemesList();
         renderActiveSection();
       }
     });
@@ -499,9 +495,7 @@ async function renderSettingsTab(panelEl) {
       if (!url) return;
       const result = await api.soundThemes.installFromGitHub(url);
       if (result.success) {
-        const newThemes = await api.soundThemes.list();
-        themes.length = 0;
-        themes.push(...newThemes);
+        await refreshThemesList();
         renderActiveSection();
       } else {
         alert('Failed: ' + (result.error || 'Unknown error'));

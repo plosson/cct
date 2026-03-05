@@ -1,7 +1,6 @@
 /**
  * Terminal — theme, session lifecycle, font zoom, terminal actions,
  * sound theme, status bar.
- * Extracted from renderer/index.js
  */
 
 import { Terminal } from '@xterm/xterm';
@@ -106,6 +105,12 @@ export const TERMINAL_OPTIONS = {
 /** Return the active session or null — avoids repeated null-check boilerplate */
 export function getActiveSession() {
   return activeId ? sessions.get(activeId) || null : null;
+}
+
+/** Refit the active terminal after a layout change (sidebar/debug pane resize) */
+export function refitActiveTerminal() {
+  const session = getActiveSession();
+  if (session) session.fitAddon.fit();
 }
 
 // ── Sessions / Tabs ──────────────────────────────────────────
@@ -328,7 +333,7 @@ export function setInitialFontSize(size) {
 
 export function setFontSize(size) {
   currentFontSize = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
-  for (const [, session] of sessions) {
+  for (const session of sessions.values()) {
     session.terminal.options.fontSize = currentFontSize;
     session.fitAddon.fit();
   }

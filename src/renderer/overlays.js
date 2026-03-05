@@ -1,12 +1,10 @@
 /**
- * Overlay UIs + Debug pane
- * Extracted from renderer/index.js
+ * Overlay UIs — project picker, search bar, shortcut help, debug pane
  */
 
 import {
-  sessions,
   getActiveId, getTerminalsContainer,
-  getActiveSession,
+  getActiveSession, refitActiveTerminal,
 } from './terminal.js';
 import {
   getDebugPaneEl, getDebugPaneEntriesEl, getDebugPaneCountEl, getDebugPaneResizeHandle,
@@ -212,12 +210,9 @@ function renderPickerList(listEl, filter) {
 let searchBarEl = null;
 
 function openSearchBar() {
-  const activeId = getActiveId();
-  if (!activeId) return;
+  if (!getActiveId()) return;
   if (searchBarEl) { focusSearchBar(); return; }
-
-  const session = sessions.get(activeId);
-  if (!session) return;
+  if (!getActiveSession()) return;
 
   searchBarEl = document.createElement('div');
   searchBarEl.className = 'search-bar';
@@ -258,7 +253,7 @@ function openSearchBar() {
   mainArea.insertBefore(searchBarEl, getTerminalsContainer());
 
   const doSearch = (direction = 'next') => {
-    const s = sessions.get(getActiveId());
+    const s = getActiveSession();
     if (!s || !input.value) { count.textContent = ''; return; }
     const found = direction === 'next'
       ? s.searchAddon.findNext(input.value)
@@ -437,12 +432,7 @@ function toggleDebugPane() {
   if (api.windowState) {
     api.windowState.setDebugPaneOpen(debugPaneOpen);
   }
-  // Refit active terminal since available space changed
-  const activeId = getActiveId();
-  if (activeId) {
-    const session = sessions.get(activeId);
-    if (session) session.fitAddon.fit();
-  }
+  refitActiveTerminal();
 }
 
 // ── Debug pane resize ────────────────────────────────────────
@@ -474,12 +464,7 @@ function initDebugPaneResize() {
     const delta = startY - e.clientY; // dragging up increases height
     const newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, startHeight + delta));
     debugPaneEl.style.height = newHeight + 'px';
-    // Refit active terminal
-    const activeId = getActiveId();
-    if (activeId) {
-      const session = sessions.get(activeId);
-      if (session) session.fitAddon.fit();
-    }
+    refitActiveTerminal();
   });
 
   document.addEventListener('mouseup', () => {

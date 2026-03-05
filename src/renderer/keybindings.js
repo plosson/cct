@@ -1,9 +1,7 @@
 /**
  * Keybindings — data-driven keyboard shortcuts and dispatch
- * Extracted from renderer/index.js
  */
 
-// Data-driven keybindings
 const DEFAULT_KEYBINDINGS = {
   'Meta+n': 'createClaudeSession',
   'Meta+t': 'createTerminalSession',

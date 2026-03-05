@@ -55,7 +55,7 @@ let debugPaneEntriesEl;
 let debugPaneCountEl;
 let debugPaneResizeHandle;
 
-// Getter functions for let variables (used by extracted modules)
+// DOM element accessors (used by overlays and sidebar modules)
 export function getDebugPaneEl() { return debugPaneEl; }
 export function getDebugPaneEntriesEl() { return debugPaneEntriesEl; }
 export function getDebugPaneCountEl() { return debugPaneCountEl; }
@@ -276,12 +276,15 @@ async function init() {
   actions.set('createClaudeSession', () => createSession('claude'));
   actions.set('createTerminalSession', () => createSession('terminal'));
   actions.set('closeActiveTab', () => { if (getActiveId() !== null) closeTab(getActiveId()); });
+  actions.set('closeOtherTabs', () => { if (getActiveId() !== null) closeOtherTabs(getActiveId()); });
   actions.set('openProjectPicker', openProjectPicker);
   actions.set('addProject', addProject);
   actions.set('prevTab', () => cycleTab('prev'));
   actions.set('nextTab', () => cycleTab('next'));
   actions.set('prevProject', () => cycleProject('prev'));
   actions.set('nextProject', () => cycleProject('next'));
+  actions.set('moveTabLeft', () => moveTab('left'));
+  actions.set('moveTabRight', () => moveTab('right'));
   actions.set('openSearchBar', openSearchBar);
   actions.set('zoomIn', zoomIn);
   actions.set('zoomOut', zoomOut);
@@ -289,14 +292,8 @@ async function init() {
   actions.set('clearTerminal', clearTerminal);
   actions.set('copySelection', copySelection);
   actions.set('pasteClipboard', pasteClipboard);
-  actions.set('moveTabLeft', () => moveTab('left'));
-  actions.set('moveTabRight', () => moveTab('right'));
   actions.set('selectAll', selectAll);
   actions.set('toggleSidebar', toggleSidebar);
-
-  // Sidebar toggle button in titlebar
-  document.querySelector('.sidebar-toggle-btn')?.addEventListener('click', toggleSidebar);
-  actions.set('closeOtherTabs', () => { if (getActiveId() !== null) closeOtherTabs(getActiveId()); });
   actions.set('openSettings', openSettings);
   actions.set('showShortcutHelp', showShortcutHelp);
   actions.set('toggleDebugPane', toggleDebugPane);
@@ -305,11 +302,11 @@ async function init() {
   }
   actions.set('goToLastTab', () => goToTab(-1));
 
-  // Data-driven keyboard dispatch
   initKeyboardDispatch();
 
+  // Wire up UI buttons
+  document.querySelector('.sidebar-toggle-btn')?.addEventListener('click', toggleSidebar);
   document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
-
   document.querySelector('.ess-card[data-action="claude"]').addEventListener('click', () => createSession('claude'));
   document.querySelector('.ess-card[data-action="terminal"]').addEventListener('click', () => createSession('terminal'));
 
