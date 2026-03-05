@@ -1,7 +1,8 @@
 /**
  * HooksService
  * Manages Claude Code CLI hooks installation in ~/.claude/settings.json
- * Installs HTTP hooks for all 17 Claude Code events, pointing to Claudiu's local hook server.
+ * Installs command hooks for all 17 Claude Code events via emit.sh,
+ * which forwards to Claudiu's local hook server and silently swallows errors.
  */
 
 const fs = require('fs');
@@ -13,9 +14,15 @@ const CLAUDE_SETTINGS_PATH = process.env.CLAUDIU_USER_DATA
   ? path.join(process.env.CLAUDIU_USER_DATA, 'claude-settings.json')
   : path.join(os.homedir(), '.claude', 'settings.json');
 
-// Claude Code hook events — HTTP hooks work for all except SessionStart
-const HTTP_HOOK_EVENTS = [
-  'SessionEnd',
+// Path to the installed emit.sh script
+const EMIT_SCRIPT_SOURCE = path.join(__dirname, 'emit.sh');
+const EMIT_SCRIPT_DEST = process.env.CLAUDIU_USER_DATA
+  ? path.join(process.env.CLAUDIU_USER_DATA, 'claudiu-emit.sh')
+  : path.join(os.homedir(), '.claude', 'claudiu-emit.sh');
+
+// All Claude Code hook events — all use command hooks via emit.sh
+const HOOK_EVENTS = [
+  'SessionStart', 'SessionEnd',
   'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
   'PermissionRequest', 'Notification',
   'SubagentStart', 'SubagentStop',
@@ -24,9 +31,6 @@ const HTTP_HOOK_EVENTS = [
   'TeammateIdle', 'TaskCompleted',
   'WorktreeCreate', 'WorktreeRemove',
 ];
-
-// SessionStart requires a command hook (Claude Code skips HTTP hooks for it)
-const COMMAND_HOOK_EVENTS = ['SessionStart'];
 
 let _logService = null;
 
@@ -60,26 +64,33 @@ function writeClaudeSettings(settings) {
 }
 
 /**
- * Build an HTTP hook entry
- * @param {number} port — hook server port
+ * Install the emit.sh script to ~/.claude/claudiu-emit.sh
+ * Copies from source and ensures it's executable.
  */
-function buildHttpHookEntry(port) {
-  return {
-    hooks: [
-      {
-        type: 'http',
-        url: `http://localhost:${port}/hooks`,
-        headers: {
-          'X-Claudiu-Hook': 'true',
-        },
-      }
-    ],
-  };
+function installEmitScript() {
+  const dir = path.dirname(EMIT_SCRIPT_DEST);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.copyFileSync(EMIT_SCRIPT_SOURCE, EMIT_SCRIPT_DEST);
+  fs.chmodSync(EMIT_SCRIPT_DEST, 0o755);
 }
 
 /**
- * Build a command hook entry that forwards stdin to the HTTP server.
- * Used for events where Claude Code doesn't support HTTP hooks (e.g. SessionStart).
+ * Remove the emit.sh script from ~/.claude/
+ */
+function removeEmitScript() {
+  try {
+    if (fs.existsSync(EMIT_SCRIPT_DEST)) {
+      fs.unlinkSync(EMIT_SCRIPT_DEST);
+    }
+  } catch {
+    // best-effort cleanup
+  }
+}
+
+/**
+ * Build a command hook entry that forwards stdin via emit.sh
  * @param {number} port — hook server port
  */
 function buildCommandHookEntry(port) {
@@ -87,7 +98,7 @@ function buildCommandHookEntry(port) {
     hooks: [
       {
         type: 'command',
-        command: `curl -s -X POST http://localhost:${port}/hooks -H 'Content-Type: application/json' -H 'X-Claudiu-Hook: true' -H "X-Claudiu-Session-Id: $CLAUDIU_SESSION_ID" -d @-`,
+        command: `${EMIT_SCRIPT_DEST} ${port}`,
       }
     ],
     allowedEnvVars: ['CLAUDIU_SESSION_ID'],
@@ -104,35 +115,35 @@ function asArray(value) {
 
 /**
  * Check if a hook entry is one of ours.
- * Detects HTTP hooks by X-Claudiu-Hook header, command hooks by the curl + X-Claudiu-Hook pattern.
- * Also recognizes legacy X-CCT-Hook headers from before the rename.
+ * Detects command hooks by claudiu-emit.sh, and legacy HTTP hooks by X-Claudiu-Hook/X-CCT-Hook headers.
  */
 function isOurHook(hookEntry) {
   if (!hookEntry || !hookEntry.hooks) return false;
   return hookEntry.hooks.some(h =>
-    (h.type === 'http' && h.headers && (h.headers['X-Claudiu-Hook'] === 'true' || h.headers['X-CCT-Hook'] === 'true')) ||
-    (h.type === 'command' && h.command && (h.command.includes('X-Claudiu-Hook') || h.command.includes('X-CCT-Hook')))
+    (h.type === 'command' && h.command && (h.command.includes('claudiu-emit.sh') || h.command.includes('X-Claudiu-Hook') || h.command.includes('X-CCT-Hook'))) ||
+    (h.type === 'http' && h.headers && (h.headers['X-Claudiu-Hook'] === 'true' || h.headers['X-CCT-Hook'] === 'true'))
   );
 }
 
 /**
  * Install Claudiu hooks into ~/.claude/settings.json
- * Non-destructive: appends alongside existing user hooks
+ * Non-destructive: appends alongside existing user hooks.
+ * Also installs emit.sh to ~/.claude/claudiu-emit.sh.
  * @param {number} port — hook server port
  */
 function installHooks(port) {
   try {
+    // Install the emit.sh script first
+    installEmitScript();
+
     const settings = readClaudeSettings();
 
     if (!settings.hooks) {
       settings.hooks = {};
     }
 
-    const allEvents = [...HTTP_HOOK_EVENTS, ...COMMAND_HOOK_EVENTS];
-    for (const event of allEvents) {
-      const newEntry = COMMAND_HOOK_EVENTS.includes(event)
-        ? buildCommandHookEntry(port)
-        : buildHttpHookEntry(port);
+    for (const event of HOOK_EVENTS) {
+      const newEntry = buildCommandHookEntry(port);
       // Keep existing non-Claudiu hooks, replace any previous Claudiu hook (port may have changed)
       const filtered = asArray(settings.hooks[event]).filter(entry => !isOurHook(entry));
       filtered.push(newEntry);
@@ -140,7 +151,7 @@ function installHooks(port) {
     }
 
     writeClaudeSettings(settings);
-    if (_logService) _logService.info('hooks', `Installed ${allEvents.length} hooks on port ${port}`);
+    if (_logService) _logService.info('hooks', `Installed ${HOOK_EVENTS.length} command hooks on port ${port}`);
     return { success: true };
   } catch (e) {
     if (_logService) _logService.error('hooks', 'Failed to install hooks: ' + e.message);
@@ -150,18 +161,19 @@ function installHooks(port) {
 
 /**
  * Remove Claudiu hooks from ~/.claude/settings.json
- * Only removes our hooks (detected by X-Claudiu-Hook header)
+ * Removes our hooks (detected by claudiu-emit.sh or legacy X-Claudiu-Hook markers)
+ * and cleans up the emit.sh script.
  */
 function removeHooks() {
   try {
     const settings = readClaudeSettings();
 
     if (!settings.hooks) {
+      removeEmitScript();
       return { success: true };
     }
 
-    const allEvents = [...HTTP_HOOK_EVENTS, ...COMMAND_HOOK_EVENTS];
-    for (const event of allEvents) {
+    for (const event of HOOK_EVENTS) {
       const filtered = asArray(settings.hooks[event]).filter(entry => !isOurHook(entry));
       if (filtered.length === 0) {
         delete settings.hooks[event];
@@ -176,6 +188,7 @@ function removeHooks() {
     }
 
     writeClaudeSettings(settings);
+    removeEmitScript();
     return { success: true };
   } catch (e) {
     if (_logService) _logService.error('hooks', 'Failed to remove hooks: ' + e.message);
@@ -183,4 +196,4 @@ function removeHooks() {
   }
 }
 
-module.exports = { installHooks, removeHooks, setLogService, HTTP_HOOK_EVENTS, COMMAND_HOOK_EVENTS };
+module.exports = { installHooks, removeHooks, setLogService, HOOK_EVENTS };

@@ -598,9 +598,9 @@ test('29 - sessions are restored on app restart', async () => {
   await expect(count).toHaveText('2', { timeout: 5000 });
 });
 
-// ── Claude Code HTTP hooks ────────────────────────────────────
+// ── Claude Code command hooks ────────────────────────────────────
 
-test('30 - hooks are installed for all 17 events', async () => {
+test('30 - hooks are installed for all 17 events via emit.sh', async () => {
   // Hooks are written to CLAUDIU_USER_DATA/claude-settings.json in test mode
   const settingsPath = path.join(testEnv.CLAUDIU_USER_DATA, 'claude-settings.json');
   expect(fs.existsSync(settingsPath)).toBe(true);
@@ -608,19 +608,17 @@ test('30 - hooks are installed for all 17 events', async () => {
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   expect(settings.hooks).toBeTruthy();
 
-  // Events using HTTP hooks
-  const httpEvents = [
-    'SessionEnd', 'PreToolUse', 'PostToolUse',
-    'PostToolUseFailure', 'PermissionRequest', 'Notification',
+  // All events use command hooks via emit.sh
+  const allEvents = [
+    'SessionStart', 'SessionEnd',
+    'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
+    'PermissionRequest', 'Notification',
     'SubagentStart', 'SubagentStop', 'PreCompact', 'ConfigChange',
     'UserPromptSubmit', 'Stop', 'TeammateIdle', 'TaskCompleted',
     'WorktreeCreate', 'WorktreeRemove',
   ];
 
-  // Events using command hooks (Claude Code doesn't support HTTP for these)
-  const commandEvents = ['SessionStart'];
-
-  for (const eventName of httpEvents) {
+  for (const eventName of allEvents) {
     expect(settings.hooks[eventName]).toBeTruthy();
     const arr = Array.isArray(settings.hooks[eventName])
       ? settings.hooks[eventName]
@@ -628,36 +626,28 @@ test('30 - hooks are installed for all 17 events', async () => {
 
     const ourHook = arr.find(entry =>
       entry.hooks && entry.hooks.some(h =>
-        h.type === 'http' && h.headers && h.headers['X-Claudiu-Hook'] === 'true'
+        h.type === 'command' && h.command && h.command.includes('claudiu-emit.sh')
       )
     );
     expect(ourHook).toBeTruthy();
 
-    const httpHook = ourHook.hooks.find(h => h.type === 'http');
-    expect(httpHook.url).toMatch(/^http:\/\/localhost:\d+\/hooks$/);
+    const cmdHook = ourHook.hooks.find(h => h.type === 'command');
+    expect(cmdHook.command).toMatch(/claudiu-emit\.sh \d+$/);
   }
 
-  for (const eventName of commandEvents) {
-    expect(settings.hooks[eventName]).toBeTruthy();
-    const arr = Array.isArray(settings.hooks[eventName])
-      ? settings.hooks[eventName]
-      : [settings.hooks[eventName]];
-
-    const ourHook = arr.find(entry =>
-      entry.hooks && entry.hooks.some(h =>
-        h.type === 'command' && h.command && h.command.includes('X-Claudiu-Hook')
-      )
-    );
-    expect(ourHook).toBeTruthy();
-  }
+  // Verify emit.sh was installed
+  const emitScriptPath = path.join(testEnv.CLAUDIU_USER_DATA, 'claudiu-emit.sh');
+  expect(fs.existsSync(emitScriptPath)).toBe(true);
 });
 
 test('31 - hook server accepts POST and returns 200', async () => {
-  // Extract the port from an HTTP hook event (SessionStart uses command hooks, not HTTP)
+  // Extract the port from a command hook entry
   const settingsPath = path.join(testEnv.CLAUDIU_USER_DATA, 'claude-settings.json');
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
   const hookEntry = settings.hooks.Stop[0];
-  const url = hookEntry.hooks.find(h => h.type === 'http').url;
+  const cmdHook = hookEntry.hooks.find(h => h.type === 'command');
+  const port = cmdHook.command.match(/(\d+)$/)[1];
+  const url = `http://localhost:${port}/hooks`;
 
   // POST to the hook server
   const http = require('http');

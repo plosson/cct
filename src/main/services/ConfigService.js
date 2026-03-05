@@ -91,10 +91,21 @@ class ConfigService {
     return { ...this._global };
   }
 
-  /** Bulk-set global config values — merges into existing global config.
-   *  Only known schema keys are kept; empty/null/undefined values unset the key. */
+  /** Bulk-set global config values — replaces all schema keys.
+   *  Keys present in values are set; schema keys absent from values are removed. */
   setGlobalAll(values) {
-    this._applyValues(this._global, values);
+    for (const key of Object.keys(CONFIG_SCHEMA)) {
+      if (key in values) {
+        const value = values[key];
+        if (value === undefined || value === null || value === '') {
+          delete this._global[key];
+        } else {
+          this._global[key] = value;
+        }
+      } else {
+        delete this._global[key];
+      }
+    }
     this._saveGlobal();
   }
 
@@ -137,11 +148,22 @@ class ConfigService {
     return { ...this._loadProject(projectPath) };
   }
 
-  /** Bulk-set per-project config values — merges into existing project config.
-   *  Only known schema keys are kept; empty/null/undefined values unset the key. */
+  /** Bulk-set per-project config values — replaces all schema keys.
+   *  Keys present in values are set; schema keys absent from values are removed. */
   setProjectAll(projectPath, values) {
     const config = this._loadProject(projectPath);
-    this._applyValues(config, values);
+    for (const key of Object.keys(CONFIG_SCHEMA)) {
+      if (key in values) {
+        const value = values[key];
+        if (value === undefined || value === null || value === '') {
+          delete config[key];
+        } else {
+          config[key] = value;
+        }
+      } else {
+        delete config[key];
+      }
+    }
     this._saveProject(projectPath, config);
   }
 
