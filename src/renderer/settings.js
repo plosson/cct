@@ -7,10 +7,12 @@ import {
   getTerminalsContainer, getTabBarTabs,
   activateTab, closeTab,
   loadSoundTheme, applyThemeSetting,
+  applyProjectBackground,
 } from './terminal.js';
 import { openTrimUI } from './audioTrim.js';
-import { projects, getSelectedProjectPath, renderSidebar } from './sidebar.js';
+import { projects, getSelectedProjectPath, renderSidebar, updateGlowIntensity } from './sidebar.js';
 import { showPromptOverlay } from './overlays.js';
+import { getProjectColor } from './projectColors.js';
 
 const api = window.electron_api;
 
@@ -57,13 +59,23 @@ async function openSettings() {
   panelEl.className = 'terminal-panel settings-tab-panel';
   getTerminalsContainer().appendChild(panelEl);
 
-  // Build settings icon for tab
+  // Build settings icon for tab — use project color if a project is selected
   const settingsSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v1.2M8 13.3v1.2M1.5 8h1.2M13.3 8h1.2M3.4 3.4l.85.85M11.75 11.75l.85.85M3.4 12.6l.85-.85M11.75 4.25l.85-.85"/></svg>`;
+  const selectedProject = getSelectedProjectPath();
+  const selectedProjectName = selectedProject
+    ? projects.find(p => p.path === selectedProject)?.name || null
+    : null;
+  let tabIconStyle = 'background:var(--hover-bg);color:var(--text-primary)';
+  if (selectedProjectName) {
+    const pc = getProjectColor(selectedProjectName);
+    const col = `hsl(${pc.hue}, ${pc.s}%, ${pc.l}%)`;
+    tabIconStyle = `background:hsla(${pc.hue}, ${pc.s}%, ${pc.l}%, 0.15);color:${col}`;
+  }
   const tabEl = document.createElement('div');
   tabEl.className = 'tab-item';
   tabEl.dataset.testid = 'tab';
   tabEl.dataset.tabId = String(id);
-  tabEl.innerHTML = `<span class="tab-icon tab-icon-settings" style="background:var(--accent-bg);color:var(--accent)">${settingsSvg}</span><span class="tab-label" data-testid="tab-label">Settings</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
+  tabEl.innerHTML = `<span class="tab-icon tab-icon-settings" style="${tabIconStyle}">${settingsSvg}</span><span class="tab-label" data-testid="tab-label">Settings</span><button class="tab-close" data-testid="tab-close">&times;</button>`;
   getTabBarTabs().appendChild(tabEl);
 
   tabEl.addEventListener('click', (e) => {
@@ -113,6 +125,22 @@ async function renderSettingsTab(panelEl) {
     themes.push(...updated);
   }
 
+  /** Debounced auto-save for general settings (400ms) */
+  let autoSaveTimer = null;
+  function autoSave() {
+    if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+      const isProject = settingsScope === 'project';
+      if (isProject && selectedProjectPath) {
+        await api.appConfig.setProject(selectedProjectPath, editProject);
+      } else {
+        await api.appConfig.setGlobal(editGlobal);
+      }
+      const resolvedTheme = await api.appConfig.resolve('theme', selectedProjectPath);
+      applyThemeSetting(resolvedTheme || 'system');
+    }, 400);
+  }
+
   const container = document.createElement('div');
   container.className = 'settings-container';
 
@@ -134,14 +162,36 @@ async function renderSettingsTab(panelEl) {
   scopeProjectBtn.textContent = currentProjectName;
   scopeProjectBtn.disabled = !selectedProjectPath;
 
+  // Compute project color for the scope tab
+  let projectColorHsl = null;
+  if (selectedProjectPath && currentProjectName !== 'Project') {
+    const pc = getProjectColor(currentProjectName);
+    projectColorHsl = `hsl(${pc.hue}, ${pc.s}%, ${pc.l}%)`;
+  }
+
   scopeBar.appendChild(scopeGlobalBtn);
   scopeBar.appendChild(scopeProjectBtn);
   container.appendChild(scopeBar);
+
+  function updateScopeColors() {
+    if (settingsScope === 'project' && projectColorHsl) {
+      scopeProjectBtn.style.color = projectColorHsl;
+      scopeProjectBtn.style.setProperty('--scope-underline-color', projectColorHsl);
+      scopeGlobalBtn.style.color = '';
+      scopeGlobalBtn.style.removeProperty('--scope-underline-color');
+    } else {
+      scopeProjectBtn.style.color = '';
+      scopeProjectBtn.style.removeProperty('--scope-underline-color');
+      scopeGlobalBtn.style.color = '';
+      scopeGlobalBtn.style.removeProperty('--scope-underline-color');
+    }
+  }
 
   scopeGlobalBtn.addEventListener('click', () => {
     settingsScope = 'global';
     scopeGlobalBtn.classList.add('active');
     scopeProjectBtn.classList.remove('active');
+    updateScopeColors();
     renderActiveSection();
   });
   scopeProjectBtn.addEventListener('click', () => {
@@ -149,6 +199,7 @@ async function renderSettingsTab(panelEl) {
     settingsScope = 'project';
     scopeProjectBtn.classList.add('active');
     scopeGlobalBtn.classList.remove('active');
+    updateScopeColors();
     renderActiveSection();
   });
 
@@ -261,6 +312,7 @@ async function renderSettingsTab(panelEl) {
               delete editProject[key];
               select.value = globalValue;
               clearBtn.remove();
+              autoSave();
             });
             inputRow.appendChild(clearBtn);
           }
@@ -268,8 +320,132 @@ async function renderSettingsTab(panelEl) {
           select.value = values[key] !== undefined ? values[key] : schemaDef.default;
         }
 
-        select.addEventListener('change', () => { values[key] = select.value; });
+        select.addEventListener('change', () => {
+          values[key] = select.value;
+          autoSave();
+        });
         inputEl = select;
+      } else if (schemaDef.type === 'range') {
+        const rangeWrap = document.createElement('div');
+        rangeWrap.className = 'settings-range-wrap';
+
+        const range = document.createElement('input');
+        range.className = 'settings-range';
+        range.dataset.testid = `settings-input-${key}`;
+        range.type = 'range';
+        range.min = schemaDef.min;
+        range.max = schemaDef.max;
+
+        const currentValue = isProject
+          ? (values[key] !== undefined ? values[key] : (editGlobal[key] ?? schemaDef.default))
+          : (values[key] !== undefined ? values[key] : schemaDef.default);
+        range.value = currentValue;
+
+        const valueLabel = document.createElement('span');
+        valueLabel.className = 'settings-range-value';
+        valueLabel.textContent = `${currentValue}%`;
+
+        range.addEventListener('input', () => {
+          const v = Number(range.value);
+          values[key] = v;
+          valueLabel.textContent = `${v}%`;
+          updateGlowIntensity(v);
+          autoSave();
+        });
+
+        rangeWrap.appendChild(range);
+        rangeWrap.appendChild(valueLabel);
+
+        if (isProject && values[key] !== undefined) {
+          const globalValue = editGlobal[key] ?? schemaDef.default;
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'settings-clear-btn';
+          clearBtn.dataset.testid = `settings-clear-${key}`;
+          clearBtn.textContent = '\u00d7';
+          clearBtn.title = 'Use global default';
+          clearBtn.addEventListener('click', () => {
+            delete editProject[key];
+            range.value = globalValue;
+            valueLabel.textContent = `${globalValue}%`;
+            updateGlowIntensity(globalValue);
+            clearBtn.remove();
+            autoSave();
+          });
+          rangeWrap.appendChild(clearBtn);
+        }
+
+        inputRow.appendChild(rangeWrap);
+        inputEl = null; // already appended via rangeWrap
+      } else if (schemaDef.type === 'file') {
+        const fileWrap = document.createElement('div');
+        fileWrap.className = 'settings-file-wrap';
+
+        const currentValue = isProject
+          ? (values[key] !== undefined ? values[key] : '')
+          : (values[key] !== undefined ? values[key] : '');
+
+        // Thumbnail preview
+        if (currentValue) {
+          const thumb = document.createElement('img');
+          thumb.className = 'settings-file-thumb';
+          thumb.src = `file://${currentValue}`;
+          thumb.alt = 'Preview';
+          fileWrap.appendChild(thumb);
+        }
+
+        const fileInput = document.createElement('input');
+        fileInput.className = 'settings-input settings-file-input';
+        fileInput.dataset.testid = `settings-input-${key}`;
+        fileInput.type = 'text';
+        fileInput.readOnly = true;
+        fileInput.value = currentValue ? currentValue.split('/').pop() : '';
+        fileInput.placeholder = 'No file selected';
+        fileWrap.appendChild(fileInput);
+
+        const browseBtn = document.createElement('button');
+        browseBtn.className = 'settings-btn-secondary';
+        browseBtn.textContent = 'Browse\u2026';
+        browseBtn.addEventListener('click', async () => {
+          const filePath = await api.appConfig.pickFile({
+            filters: schemaDef.fileFilters || [],
+          });
+          if (!filePath) return;
+          values[key] = filePath;
+          autoSave();
+          applyProjectBackground(selectedProjectPath, filePath);
+          renderActiveSection();
+        });
+        fileWrap.appendChild(browseBtn);
+
+        if (isProject && values[key] !== undefined) {
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'settings-clear-btn';
+          clearBtn.dataset.testid = `settings-clear-${key}`;
+          clearBtn.textContent = '\u00d7';
+          clearBtn.title = 'Use global default';
+          clearBtn.addEventListener('click', () => {
+            delete editProject[key];
+            autoSave();
+            applyProjectBackground(selectedProjectPath, '');
+            renderActiveSection();
+          });
+          fileWrap.appendChild(clearBtn);
+        } else if (!isProject && values[key]) {
+          const clearBtn = document.createElement('button');
+          clearBtn.className = 'settings-clear-btn';
+          clearBtn.textContent = '\u00d7';
+          clearBtn.title = 'Clear';
+          clearBtn.addEventListener('click', () => {
+            delete values[key];
+            autoSave();
+            applyProjectBackground(selectedProjectPath, '');
+            renderActiveSection();
+          });
+          fileWrap.appendChild(clearBtn);
+        }
+
+        inputRow.appendChild(fileWrap);
+        inputEl = null;
       } else {
         const input = document.createElement('input');
         input.className = 'settings-input';
@@ -292,6 +468,7 @@ async function renderSettingsTab(panelEl) {
               delete editProject[key];
               input.value = '';
               clearBtn.remove();
+              autoSave();
             });
             inputRow.appendChild(clearBtn);
           }
@@ -304,38 +481,17 @@ async function renderSettingsTab(panelEl) {
           const trimmed = input.value.trim();
           if (trimmed) values[key] = trimmed;
           else delete values[key];
+          autoSave();
         });
 
         inputEl = input;
       }
 
-      inputRow.insertBefore(inputEl, inputRow.firstChild);
+      if (inputEl) inputRow.insertBefore(inputEl, inputRow.firstChild);
       row.appendChild(inputRow);
       wrapper.appendChild(row);
     }
 
-    // Save button
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'settings-actions';
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'settings-save-btn';
-    saveBtn.dataset.testid = 'settings-save-btn';
-    saveBtn.textContent = 'Save';
-    saveBtn.addEventListener('click', async () => {
-      if (isProject && selectedProjectPath) {
-        await api.appConfig.setProject(selectedProjectPath, editProject);
-      } else {
-        await api.appConfig.setGlobal(editGlobal);
-      }
-      const resolvedTheme = await api.appConfig.resolve('theme', selectedProjectPath);
-      applyThemeSetting(resolvedTheme || 'system');
-      saveBtn.textContent = 'Saved!';
-      setTimeout(() => { saveBtn.textContent = 'Save'; }, 1500);
-    });
-
-    actionsDiv.appendChild(saveBtn);
-    wrapper.appendChild(actionsDiv);
     contentArea.appendChild(wrapper);
   }
 
@@ -468,59 +624,41 @@ async function renderSettingsTab(panelEl) {
     });
     themeManageRow.appendChild(deleteBtn);
 
-    wrapper.appendChild(themeManageRow);
-
-    // Theme install buttons
-    const installRow = document.createElement('div');
-    installRow.className = 'settings-row settings-theme-install-row';
-
-    const installZipBtn = document.createElement('button');
-    installZipBtn.className = 'settings-btn-secondary';
-    installZipBtn.textContent = 'Install from ZIP';
-    installZipBtn.addEventListener('click', async () => {
-      const result = await api.soundThemes.installFromZip();
-      if (result.success) {
-        // Refresh themes list
-        await refreshThemesList();
-        renderActiveSection();
-      }
-    });
-
-    const installGhBtn = document.createElement('button');
-    installGhBtn.className = 'settings-btn-secondary';
-    installGhBtn.textContent = 'Install from GitHub';
-    installGhBtn.addEventListener('click', async () => {
-      const url = await showPromptOverlay('Enter GitHub repository URL:');
-      if (!url) return;
-      const result = await api.soundThemes.installFromGitHub(url);
-      if (result.success) {
-        await refreshThemesList();
-        renderActiveSection();
-      } else {
-        alert('Failed: ' + (result.error || 'Unknown error'));
-      }
-    });
-
-    const exportBtn = document.createElement('button');
-    exportBtn.className = 'settings-btn-secondary';
-    exportBtn.textContent = 'Export as ZIP';
-    exportBtn.addEventListener('click', async () => {
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'settings-btn-secondary';
+    downloadBtn.textContent = 'Download';
+    downloadBtn.disabled = currentTheme === 'none';
+    downloadBtn.addEventListener('click', async () => {
       const themeDirName = themeSelect.value;
       if (!themeDirName || themeDirName === 'none') return;
       const result = await api.soundThemes.export(themeDirName);
       if (result && result.success) {
-        const origText = exportBtn.textContent;
-        exportBtn.textContent = 'Exported!';
-        setTimeout(() => { exportBtn.textContent = origText; }, 2000);
+        const origText = downloadBtn.textContent;
+        downloadBtn.textContent = 'Downloaded!';
+        setTimeout(() => { downloadBtn.textContent = origText; }, 2000);
       } else if (result && !result.success && result.error) {
-        alert('Export failed: ' + result.error);
+        alert('Download failed: ' + result.error);
       }
     });
+    themeManageRow.appendChild(downloadBtn);
 
-    installRow.appendChild(installZipBtn);
-    installRow.appendChild(installGhBtn);
-    installRow.appendChild(exportBtn);
-    wrapper.appendChild(installRow);
+    const importBtn = document.createElement('button');
+    importBtn.className = 'settings-btn-secondary';
+    importBtn.textContent = 'Import';
+    importBtn.addEventListener('click', async () => {
+      const result = await api.soundThemes.installFromZip();
+      if (result && result.success) {
+        await refreshThemesList();
+        if (result.dirName) values.soundTheme = result.dirName;
+        resolvedSoundMap = await api.soundThemes.getSoundMap(values.soundTheme || themeSelect.value) || {};
+        renderActiveSection();
+      } else if (result && !result.success && result.error) {
+        alert('Import failed: ' + result.error);
+      }
+    });
+    themeManageRow.appendChild(importBtn);
+
+    wrapper.appendChild(themeManageRow);
 
     // Save theme setting (above the event table so it stays visible)
     const actionsDiv = document.createElement('div');
@@ -563,7 +701,7 @@ async function renderSettingsTab(panelEl) {
     // Header row
     const headerRow = document.createElement('div');
     headerRow.className = 'settings-sound-row settings-sound-header';
-    headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">Source</span><span class="settings-sound-actions">Actions</span>';
+    headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">File</span><span class="settings-sound-actions">Actions</span>';
     table.appendChild(headerRow);
 
     for (const eventName of ALL_HOOK_EVENTS) {
@@ -581,8 +719,8 @@ async function renderSettingsTab(panelEl) {
 
       const sourceCell = document.createElement('span');
       sourceCell.className = 'settings-sound-source';
-      if (hasSound) {
-        sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : (currentThemeMeta ? currentThemeMeta.name : 'Theme');
+      if (hasSound && entry.url) {
+        sourceCell.textContent = decodeURIComponent(entry.url.split('/').pop());
       } else {
         sourceCell.textContent = '\u2014';
       }
@@ -597,7 +735,7 @@ async function renderSettingsTab(panelEl) {
         playBtn.className = 'settings-btn-icon';
         playBtn.dataset.testid = `settings-sound-play-${eventName}`;
         playBtn.title = 'Play';
-        playBtn.textContent = '\u25B6';
+        playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,1.5 10,6 3,10.5"/></svg>';
         playBtn.addEventListener('click', () => {
           if (window._settingsPreviewAudio) {
             window._settingsPreviewAudio.pause();
@@ -621,7 +759,7 @@ async function renderSettingsTab(panelEl) {
       uploadBtn.className = 'settings-btn-icon';
       uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
       uploadBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Upload custom sound';
-      uploadBtn.textContent = '\u2191';
+      uploadBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8"/></svg>';
       uploadBtn.disabled = isCurrentBuiltIn;
       uploadBtn.addEventListener('click', async () => {
         const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
@@ -648,7 +786,7 @@ async function renderSettingsTab(panelEl) {
         trimBtn.className = 'settings-btn-icon';
         trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
         trimBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Trim sound';
-        trimBtn.textContent = '\u2702';
+        trimBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h2l1.5 3L3 9H1M7 3h4M7 6h4M7 9h4"/></svg>';
         trimBtn.disabled = isCurrentBuiltIn;
         trimBtn.addEventListener('click', () => {
           openTrimUI(eventName, entry.url, wrapper, settingsScope, entry.trimStart, entry.trimEnd, async (trimResult) => {
@@ -669,7 +807,7 @@ async function renderSettingsTab(panelEl) {
         removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
         removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
         removeBtn.title = 'Remove sound from theme';
-        removeBtn.textContent = '\u2715';
+        removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h8M4.5 3V2h3v1M3 3v7a1 1 0 001 1h4a1 1 0 001-1V3"/></svg>';
         removeBtn.addEventListener('click', async () => {
           if (window._settingsPreviewAudio) {
             window._settingsPreviewAudio.pause();

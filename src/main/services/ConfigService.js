@@ -40,6 +40,21 @@ const CONFIG_SCHEMA = {
     default: 'default',
     description: 'Active sound theme directory name (or "none" to disable)',
   },
+  glowIntensity: {
+    label: 'Glow intensity',
+    type: 'range',
+    min: 0,
+    max: 100,
+    default: 100,
+    description: 'Sidebar glow effect opacity (0% = off, 100% = full)',
+  },
+  backgroundImage: {
+    label: 'Background image',
+    type: 'file',
+    default: '',
+    description: 'Image behind terminal panels (PNG, JPG, WebP)',
+    fileFilters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+  },
 };
 
 class ConfigService {

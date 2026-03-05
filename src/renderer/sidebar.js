@@ -7,7 +7,7 @@ import { openSettings } from './settings.js';
 import {
   sessions, setActiveId,
   activateTab, closeTab, restoreSessions, updateStatusBar,
-  refitActiveTerminal,
+  refitActiveTerminal, applyProjectBackground,
 } from './terminal.js';
 import {
   getSidebarProjectsEl, getSidebarEl, getEmptyStateEl,
@@ -153,8 +153,9 @@ function selectProject(projectPath) {
     }
   }
 
-  // Update app glow to match selected project
+  // Update app glow and background image to match selected project
   updateAppGlow(projectPath);
+  applyProjectBackground(projectPath);
 
   // Activate the last active tab for this project, or clear
   const projectSessionIds = sessionsForProject(projectPath).map(([id]) => id);
@@ -406,7 +407,7 @@ function initSidebarResize() {
 // ── App glow ─────────────────────────────────────────────────
 
 /** Update the app-shell glow color based on the active project */
-function updateAppGlow(projectNameOrPath) {
+async function updateAppGlow(projectNameOrPath) {
   const appEl = document.querySelector('.app');
   if (!projectNameOrPath) {
     appEl.classList.remove('has-glow');
@@ -416,9 +417,19 @@ function updateAppGlow(projectNameOrPath) {
   const proj = projects.find(p => p.path === projectNameOrPath);
   const name = proj ? proj.name : projectNameOrPath;
   const color = getProjectColor(name);
-  appEl.style.setProperty('--glow-color', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.55)`);
-  appEl.style.setProperty('--glow-color-dim', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.25)`);
+  appEl.style.setProperty('--glow-color', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 1)`);
+  appEl.style.setProperty('--glow-color-dim', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.7)`);
   appEl.classList.add('has-glow');
+
+  // Apply glow intensity from config
+  const intensity = await api.appConfig.resolve('glowIntensity', selectedProjectPath);
+  appEl.style.setProperty('--glow-intensity', (intensity != null ? intensity : 100) / 100);
+}
+
+/** Live-update glow intensity (called from settings slider) */
+function updateGlowIntensity(value) {
+  const appEl = document.querySelector('.app');
+  appEl.style.setProperty('--glow-intensity', value / 100);
 }
 
 // ── Exports ──────────────────────────────────────────────────
@@ -436,7 +447,7 @@ export {
   renderSidebar, selectProject, addProject, removeProject, cycleProject,
   updateProjectActivityBadge,
   toggleSidebar, initSidebarResize, initSidebarAutoHide,
-  updateEmptyState, updateAppGlow,
+  updateEmptyState, updateAppGlow, updateGlowIntensity,
   showProjectContextMenu,
   getEmptyStateMessage,
 };
