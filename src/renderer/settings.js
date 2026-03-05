@@ -239,7 +239,7 @@ async function renderSettingsTab(panelEl) {
   nav.className = 'settings-nav';
   const sections = [
     { id: 'general', label: 'General', icon: '\u2699' },
-    { id: 'sounds', label: 'Sound & Hooks', icon: '\uD83D\uDD0A' },
+    { id: 'sounds', label: 'Theme', icon: '\uD83D\uDD0A' },
   ];
 
   for (const sec of sections) {
@@ -521,33 +521,47 @@ async function renderSettingsTab(panelEl) {
   }
 
   function renderSoundsSection() {
+    const isProject = settingsScope === 'project';
+    const values = isProject ? editProject : editGlobal;
+    const currentTheme = values.soundTheme !== undefined ? values.soundTheme : (editGlobal.soundTheme || schema.soundTheme.default || 'none');
+    const currentThemeMeta = themes.find(t => t.dirName === currentTheme);
+    const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
+    const isNone = currentTheme === 'none';
+
     const wrapper = document.createElement('div');
     wrapper.className = 'settings-section';
 
-    const heading = document.createElement('h3');
-    heading.className = 'settings-section-title';
-    heading.textContent = 'Sound & Hooks';
-    wrapper.appendChild(heading);
+    // ── Theme header (persistent across sub-tabs) ──────────────
+    const header = document.createElement('div');
+    header.className = 'theme-header';
+    header.dataset.testid = 'theme-header';
 
-    // Theme selector
-    const themeRow = document.createElement('div');
-    themeRow.className = 'settings-row';
+    // Left side: theme info
+    const headerInfo = document.createElement('div');
+    headerInfo.className = 'theme-header-info';
 
-    const themeLabel = document.createElement('label');
-    themeLabel.className = 'settings-label';
-    themeLabel.textContent = 'Sound theme';
-    themeRow.appendChild(themeLabel);
+    const themeName = document.createElement('span');
+    themeName.className = 'theme-header-name';
+    themeName.textContent = isNone ? 'No theme' : (currentThemeMeta ? currentThemeMeta.name : currentTheme);
+    headerInfo.appendChild(themeName);
 
-    const themeDesc = document.createElement('div');
-    themeDesc.className = 'settings-description';
-    themeDesc.textContent = 'Select a sound theme or "none" to disable all sounds';
-    themeRow.appendChild(themeDesc);
+    if (isCurrentBuiltIn) {
+      const badge = document.createElement('span');
+      badge.className = 'theme-header-badge';
+      badge.textContent = 'built-in \u00b7 read-only';
+      headerInfo.appendChild(badge);
+    } else if (!isNone) {
+      const badge = document.createElement('span');
+      badge.className = 'theme-header-badge theme-header-badge-custom';
+      badge.textContent = 'custom';
+      headerInfo.appendChild(badge);
+    }
 
-    const themeInputRow = document.createElement('div');
-    themeInputRow.className = 'settings-input-row';
+    header.appendChild(headerInfo);
 
+    // Right side: theme switcher
     const themeSelect = document.createElement('select');
-    themeSelect.className = 'settings-select';
+    themeSelect.className = 'settings-select theme-header-select';
     themeSelect.dataset.testid = 'settings-sound-theme-select';
 
     const noneOpt = document.createElement('option');
@@ -561,12 +575,6 @@ async function renderSettingsTab(panelEl) {
       opt.textContent = t.builtIn ? `${t.name} (built-in)` : t.name;
       themeSelect.appendChild(opt);
     }
-
-    const isProject = settingsScope === 'project';
-    const values = isProject ? editProject : editGlobal;
-    const currentTheme = values.soundTheme !== undefined ? values.soundTheme : (editGlobal.soundTheme || schema.soundTheme.default || 'none');
-    const currentThemeMeta = themes.find(t => t.dirName === currentTheme);
-    const isCurrentBuiltIn = currentThemeMeta ? currentThemeMeta.builtIn : false;
     themeSelect.value = currentTheme;
 
     themeSelect.addEventListener('change', async () => {
@@ -574,19 +582,18 @@ async function renderSettingsTab(panelEl) {
       resolvedSoundMap = await api.soundThemes.getSoundMap(themeSelect.value) || {};
       renderActiveSection();
     });
+    header.appendChild(themeSelect);
 
-    themeInputRow.appendChild(themeSelect);
-    themeRow.appendChild(themeInputRow);
-    wrapper.appendChild(themeRow);
+    wrapper.appendChild(header);
 
-    // Theme management buttons (Duplicate / Rename / Delete)
-    const themeManageRow = document.createElement('div');
-    themeManageRow.className = 'settings-row settings-theme-install-row';
+    // ── Theme management actions ───────────────────────────────
+    const actions = document.createElement('div');
+    actions.className = 'theme-actions';
 
     const duplicateBtn = document.createElement('button');
     duplicateBtn.className = 'settings-btn-secondary';
     duplicateBtn.textContent = 'Duplicate';
-    duplicateBtn.disabled = currentTheme === 'none';
+    duplicateBtn.disabled = isNone;
     duplicateBtn.addEventListener('click', async () => {
       const srcDir = themeSelect.value;
       if (!srcDir || srcDir === 'none') return;
@@ -604,12 +611,12 @@ async function renderSettingsTab(panelEl) {
         alert('Duplicate failed: ' + (result.error || 'Unknown error'));
       }
     });
-    themeManageRow.appendChild(duplicateBtn);
+    actions.appendChild(duplicateBtn);
 
     const renameBtn = document.createElement('button');
     renameBtn.className = 'settings-btn-secondary';
     renameBtn.textContent = 'Rename';
-    renameBtn.disabled = isCurrentBuiltIn || currentTheme === 'none';
+    renameBtn.disabled = isCurrentBuiltIn || isNone;
     renameBtn.addEventListener('click', async () => {
       const dirName = themeSelect.value;
       if (!dirName || dirName === 'none') return;
@@ -626,12 +633,12 @@ async function renderSettingsTab(panelEl) {
         alert('Rename failed: ' + (result.error || 'Unknown error'));
       }
     });
-    themeManageRow.appendChild(renameBtn);
+    actions.appendChild(renameBtn);
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'settings-btn-secondary settings-btn-danger';
     deleteBtn.textContent = 'Delete';
-    deleteBtn.disabled = isCurrentBuiltIn || currentTheme === 'none';
+    deleteBtn.disabled = isCurrentBuiltIn || isNone;
     deleteBtn.addEventListener('click', async () => {
       const dirName = themeSelect.value;
       if (!dirName || dirName === 'none') return;
@@ -647,12 +654,12 @@ async function renderSettingsTab(panelEl) {
         alert('Delete failed: ' + (result.error || 'Unknown error'));
       }
     });
-    themeManageRow.appendChild(deleteBtn);
+    actions.appendChild(deleteBtn);
 
     const downloadBtn = document.createElement('button');
     downloadBtn.className = 'settings-btn-secondary';
     downloadBtn.textContent = 'Download';
-    downloadBtn.disabled = currentTheme === 'none';
+    downloadBtn.disabled = isNone;
     downloadBtn.addEventListener('click', async () => {
       const themeDirName = themeSelect.value;
       if (!themeDirName || themeDirName === 'none') return;
@@ -665,7 +672,7 @@ async function renderSettingsTab(panelEl) {
         alert('Download failed: ' + result.error);
       }
     });
-    themeManageRow.appendChild(downloadBtn);
+    actions.appendChild(downloadBtn);
 
     const importBtn = document.createElement('button');
     importBtn.className = 'settings-btn-secondary';
@@ -681,188 +688,202 @@ async function renderSettingsTab(panelEl) {
         alert('Import failed: ' + result.error);
       }
     });
-    themeManageRow.appendChild(importBtn);
+    actions.appendChild(importBtn);
 
-    wrapper.appendChild(themeManageRow);
+    wrapper.appendChild(actions);
 
-    // Save theme setting (above the event table so it stays visible)
-    const actionsDiv = document.createElement('div');
-    actionsDiv.className = 'settings-actions';
+    // ── Sub-tab bar ────────────────────────────────────────────
+    const subTabBar = document.createElement('div');
+    subTabBar.className = 'theme-subtabs';
 
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'settings-save-btn';
-    saveBtn.dataset.testid = 'settings-sound-save-btn';
-    saveBtn.textContent = 'Save Sound Settings';
-    saveBtn.addEventListener('click', async () => {
-      if (isProject && selectedProjectPath) {
-        await api.appConfig.setProject(selectedProjectPath, editProject);
-      } else {
-        await api.appConfig.setGlobal(editGlobal);
-      }
-      // Reload sound cache
-      await loadSoundTheme();
-      saveBtn.textContent = 'Saved!';
-      setTimeout(() => { saveBtn.textContent = 'Save Sound Settings'; }, 1500);
-    });
-    actionsDiv.appendChild(saveBtn);
-    wrapper.appendChild(actionsDiv);
+    const soundsSubTab = document.createElement('button');
+    soundsSubTab.className = 'theme-subtab active';
+    soundsSubTab.dataset.testid = 'theme-subtab-sounds';
+    soundsSubTab.textContent = 'Sounds';
+    subTabBar.appendChild(soundsSubTab);
 
-    // Event sound table
-    const tableHeading = document.createElement('h4');
-    tableHeading.className = 'settings-subsection-title';
-    tableHeading.textContent = 'Event Sounds';
-    wrapper.appendChild(tableHeading);
+    wrapper.appendChild(subTabBar);
 
-    const tableDesc = document.createElement('div');
-    tableDesc.className = 'settings-description';
-    tableDesc.textContent = isCurrentBuiltIn
-      ? 'Built-in themes are read-only. Duplicate to customize sounds.'
-      : 'Upload custom sounds per event.';
-    wrapper.appendChild(tableDesc);
+    // ── Sub-tab content: Sounds ────────────────────────────────
+    const subContent = document.createElement('div');
+    subContent.className = 'theme-subcontent';
 
-    const table = document.createElement('div');
-    table.className = 'settings-sound-table';
+    if (isNone) {
+      const noTheme = document.createElement('div');
+      noTheme.className = 'settings-description';
+      noTheme.style.padding = '16px 0';
+      noTheme.textContent = 'Select a theme to configure sounds.';
+      subContent.appendChild(noTheme);
+    } else {
+      // Save button
+      const actionsDiv = document.createElement('div');
+      actionsDiv.className = 'settings-actions';
 
-    // Header row
-    const headerRow = document.createElement('div');
-    headerRow.className = 'settings-sound-row settings-sound-header';
-    headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">File</span><span class="settings-sound-actions">Actions</span>';
-    table.appendChild(headerRow);
-
-    for (const eventName of ALL_HOOK_EVENTS) {
-      const entry = resolvedSoundMap && resolvedSoundMap[eventName];
-      const hasSound = !!entry;
-
-      const row = document.createElement('div');
-      row.className = 'settings-sound-row';
-      row.dataset.testid = `settings-sound-row-${eventName}`;
-
-      const eventCell = document.createElement('span');
-      eventCell.className = 'settings-sound-event';
-      eventCell.textContent = eventName;
-      row.appendChild(eventCell);
-
-      const sourceCell = document.createElement('span');
-      sourceCell.className = 'settings-sound-source';
-      if (hasSound && entry.url) {
-        const filename = decodeURIComponent(entry.url.split('/').pop());
-        sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : filename;
-      } else {
-        sourceCell.textContent = '\u2014';
-      }
-      row.appendChild(sourceCell);
-
-      const actionsCell = document.createElement('span');
-      actionsCell.className = 'settings-sound-actions';
-
-      // Play button
-      if (entry) {
-        const playBtn = document.createElement('button');
-        playBtn.className = 'settings-btn-icon';
-        playBtn.dataset.testid = `settings-sound-play-${eventName}`;
-        playBtn.title = 'Play';
-        playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,1.5 10,6 3,10.5"/></svg>';
-        playBtn.addEventListener('click', () => {
-          if (window._settingsPreviewAudio) {
-            window._settingsPreviewAudio.pause();
-            window._settingsPreviewAudio.currentTime = 0;
-          }
-          const a = new Audio(entry.url);
-          if (entry.trimStart != null) a.currentTime = entry.trimStart;
-          if (entry.trimEnd != null) {
-            a.addEventListener('timeupdate', () => {
-              if (a.currentTime >= entry.trimEnd) a.pause();
-            });
-          }
-          window._settingsPreviewAudio = a;
-          a.play().catch(() => {});
-        });
-        actionsCell.appendChild(playBtn);
-      }
-
-      // Upload button (disabled for built-in themes)
-      const uploadBtn = document.createElement('button');
-      uploadBtn.className = 'settings-btn-icon';
-      uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
-      uploadBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Upload custom sound';
-      uploadBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8"/></svg>';
-      uploadBtn.disabled = isCurrentBuiltIn;
-      uploadBtn.addEventListener('click', async () => {
-        const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
-        const result = await api.soundThemes.uploadSound(eventName, projectPath);
-        if (result && result.success) {
-          if (result.forked) {
-            values.soundTheme = result.dirName;
-            const newThemes = await api.soundThemes.list();
-            themes.length = 0;
-            themes.push(...newThemes);
-          }
-          resolvedSoundMap = await api.soundThemes.getSoundMap(result.dirName || themeSelect.value) || {};
-          await loadSoundTheme();
-          renderActiveSection();
-        } else if (result && !result.success && result.error) {
-          alert('Upload failed: ' + result.error);
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'settings-save-btn';
+      saveBtn.dataset.testid = 'settings-sound-save-btn';
+      saveBtn.textContent = 'Save Sound Settings';
+      saveBtn.addEventListener('click', async () => {
+        if (isProject && selectedProjectPath) {
+          await api.appConfig.setProject(selectedProjectPath, editProject);
+        } else {
+          await api.appConfig.setGlobal(editGlobal);
         }
+        await loadSoundTheme();
+        saveBtn.textContent = 'Saved!';
+        setTimeout(() => { saveBtn.textContent = 'Save Sound Settings'; }, 1500);
       });
-      actionsCell.appendChild(uploadBtn);
+      actionsDiv.appendChild(saveBtn);
+      subContent.appendChild(actionsDiv);
 
-      // Trim button (disabled for built-in themes)
-      if (entry) {
-        const trimBtn = document.createElement('button');
-        trimBtn.className = 'settings-btn-icon';
-        trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
-        trimBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Trim sound';
-        trimBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h2l1.5 3L3 9H1M7 3h4M7 6h4M7 9h4"/></svg>';
-        trimBtn.disabled = isCurrentBuiltIn;
-        trimBtn.addEventListener('click', () => {
-          openTrimUI(eventName, entry.url, wrapper, settingsScope, entry.trimStart, entry.trimEnd, async (trimResult) => {
-            if (trimResult && trimResult.forked) {
-              values.soundTheme = trimResult.dirName;
-              await refreshThemesList();
-            }
-            resolvedSoundMap = await api.soundThemes.getSounds(getSelectedProjectPath()) || {};
-            renderActiveSection();
-          });
-        });
-        actionsCell.appendChild(trimBtn);
+      if (isCurrentBuiltIn) {
+        const readOnlyNote = document.createElement('div');
+        readOnlyNote.className = 'settings-description';
+        readOnlyNote.textContent = 'Built-in themes are read-only. Duplicate to customize sounds.';
+        subContent.appendChild(readOnlyNote);
       }
 
-      // Remove sound button (only for custom themes, not built-in)
-      if (hasSound && !isCurrentBuiltIn) {
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
-        removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
-        removeBtn.title = 'Remove sound from theme';
-        removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h8M4.5 3V2h3v1M3 3v7a1 1 0 001 1h4a1 1 0 001-1V3"/></svg>';
-        removeBtn.addEventListener('click', async () => {
-          if (window._settingsPreviewAudio) {
-            window._settingsPreviewAudio.pause();
-            window._settingsPreviewAudio.currentTime = 0;
-            window._settingsPreviewAudio = null;
-          }
-          const trimPanel = document.querySelector('.trim-ui');
-          if (trimPanel) {
-            trimPanel.querySelector('.trim-ui-close')?.click();
-          }
-          const liveTheme = themeSelect.value;
-          const result = await api.soundThemes.removeSound(liveTheme, eventName);
+      // Event sound table
+      const table = document.createElement('div');
+      table.className = 'settings-sound-table';
+
+      const headerRow = document.createElement('div');
+      headerRow.className = 'settings-sound-row settings-sound-header';
+      headerRow.innerHTML = '<span class="settings-sound-event">Event</span><span class="settings-sound-source">File</span><span class="settings-sound-actions">Actions</span>';
+      table.appendChild(headerRow);
+
+      for (const eventName of ALL_HOOK_EVENTS) {
+        const entry = resolvedSoundMap && resolvedSoundMap[eventName];
+        const hasSound = !!entry;
+
+        const row = document.createElement('div');
+        row.className = 'settings-sound-row';
+        row.dataset.testid = `settings-sound-row-${eventName}`;
+
+        const eventCell = document.createElement('span');
+        eventCell.className = 'settings-sound-event';
+        eventCell.textContent = eventName;
+        row.appendChild(eventCell);
+
+        const sourceCell = document.createElement('span');
+        sourceCell.className = 'settings-sound-source';
+        if (hasSound && entry.url) {
+          const filename = decodeURIComponent(entry.url.split('/').pop());
+          sourceCell.textContent = isCurrentBuiltIn ? 'Built-in' : filename;
+        } else {
+          sourceCell.textContent = '\u2014';
+        }
+        row.appendChild(sourceCell);
+
+        const actionsCell = document.createElement('span');
+        actionsCell.className = 'settings-sound-actions';
+
+        if (entry) {
+          const playBtn = document.createElement('button');
+          playBtn.className = 'settings-btn-icon';
+          playBtn.dataset.testid = `settings-sound-play-${eventName}`;
+          playBtn.title = 'Play';
+          playBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,1.5 10,6 3,10.5"/></svg>';
+          playBtn.addEventListener('click', () => {
+            if (window._settingsPreviewAudio) {
+              window._settingsPreviewAudio.pause();
+              window._settingsPreviewAudio.currentTime = 0;
+            }
+            const a = new Audio(entry.url);
+            if (entry.trimStart != null) a.currentTime = entry.trimStart;
+            if (entry.trimEnd != null) {
+              a.addEventListener('timeupdate', () => {
+                if (a.currentTime >= entry.trimEnd) a.pause();
+              });
+            }
+            window._settingsPreviewAudio = a;
+            a.play().catch(() => {});
+          });
+          actionsCell.appendChild(playBtn);
+        }
+
+        const uploadBtn = document.createElement('button');
+        uploadBtn.className = 'settings-btn-icon';
+        uploadBtn.dataset.testid = `settings-sound-upload-${eventName}`;
+        uploadBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Upload custom sound';
+        uploadBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8V2M3.5 4.5L6 2l2.5 2.5M2 10h8"/></svg>';
+        uploadBtn.disabled = isCurrentBuiltIn;
+        uploadBtn.addEventListener('click', async () => {
+          const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
+          const result = await api.soundThemes.uploadSound(eventName, projectPath);
           if (result && result.success) {
-            resolvedSoundMap = await api.soundThemes.getSoundMap(liveTheme) || {};
+            if (result.forked) {
+              values.soundTheme = result.dirName;
+              const newThemes = await api.soundThemes.list();
+              themes.length = 0;
+              themes.push(...newThemes);
+            }
+            resolvedSoundMap = await api.soundThemes.getSoundMap(result.dirName || themeSelect.value) || {};
             await loadSoundTheme();
             renderActiveSection();
-          } else if (result && !result.success) {
-            alert('Remove failed: ' + (result.error || 'Unknown error'));
+          } else if (result && !result.success && result.error) {
+            alert('Upload failed: ' + result.error);
           }
         });
-        actionsCell.appendChild(removeBtn);
+        actionsCell.appendChild(uploadBtn);
+
+        if (entry) {
+          const trimBtn = document.createElement('button');
+          trimBtn.className = 'settings-btn-icon';
+          trimBtn.dataset.testid = `settings-sound-trim-${eventName}`;
+          trimBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Trim sound';
+          trimBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h2l1.5 3L3 9H1M7 3h4M7 6h4M7 9h4"/></svg>';
+          trimBtn.disabled = isCurrentBuiltIn;
+          trimBtn.addEventListener('click', () => {
+            openTrimUI(eventName, entry.url, subContent, settingsScope, entry.trimStart, entry.trimEnd, async (trimResult) => {
+              if (trimResult && trimResult.forked) {
+                values.soundTheme = trimResult.dirName;
+                await refreshThemesList();
+              }
+              resolvedSoundMap = await api.soundThemes.getSounds(getSelectedProjectPath()) || {};
+              renderActiveSection();
+            });
+          });
+          actionsCell.appendChild(trimBtn);
+        }
+
+        if (hasSound && !isCurrentBuiltIn) {
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'settings-btn-icon settings-btn-icon-danger';
+          removeBtn.dataset.testid = `settings-sound-remove-${eventName}`;
+          removeBtn.title = 'Remove sound from theme';
+          removeBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h8M4.5 3V2h3v1M3 3v7a1 1 0 001 1h4a1 1 0 001-1V3"/></svg>';
+          removeBtn.addEventListener('click', async () => {
+            if (window._settingsPreviewAudio) {
+              window._settingsPreviewAudio.pause();
+              window._settingsPreviewAudio.currentTime = 0;
+              window._settingsPreviewAudio = null;
+            }
+            const trimPanel = document.querySelector('.trim-ui');
+            if (trimPanel) {
+              trimPanel.querySelector('.trim-ui-close')?.click();
+            }
+            const liveTheme = themeSelect.value;
+            const result = await api.soundThemes.removeSound(liveTheme, eventName);
+            if (result && result.success) {
+              resolvedSoundMap = await api.soundThemes.getSoundMap(liveTheme) || {};
+              await loadSoundTheme();
+              renderActiveSection();
+            } else if (result && !result.success) {
+              alert('Remove failed: ' + (result.error || 'Unknown error'));
+            }
+          });
+          actionsCell.appendChild(removeBtn);
+        }
+
+        row.appendChild(actionsCell);
+        table.appendChild(row);
       }
 
-      row.appendChild(actionsCell);
-      table.appendChild(row);
+      subContent.appendChild(table);
     }
 
-    wrapper.appendChild(table);
-
+    wrapper.appendChild(subContent);
     contentArea.appendChild(wrapper);
   }
 
