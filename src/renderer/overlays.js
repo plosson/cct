@@ -4,12 +4,12 @@
  */
 
 import {
-  sessions, projects, projectMRU,
+  sessions,
   getActiveId, getTerminalsContainer,
   getActiveSession, getKeybindings,
-  selectProject,
   getDebugPaneEl, getDebugPaneEntriesEl, getDebugPaneCountEl, getDebugPaneResizeHandle,
 } from './index.js';
+import { projects, projectMRU, selectProject } from './sidebar.js';
 
 const api = window.electron_api;
 

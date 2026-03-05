@@ -7,11 +7,11 @@ import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import {
   sessions,
-  getSelectedProjectPath, getTerminalsContainer, getTabBarTabs,
-  projects,
-  activateTab, closeTab, renderSidebar,
+  getTerminalsContainer, getTabBarTabs,
+  activateTab, closeTab,
   loadSoundTheme, applyThemeSetting,
 } from './index.js';
+import { projects, getSelectedProjectPath, renderSidebar } from './sidebar.js';
 import { showPromptOverlay } from './overlays.js';
 
 const api = window.electron_api;
