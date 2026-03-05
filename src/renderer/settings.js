@@ -10,7 +10,7 @@ import {
   getTerminalsContainer, getTabBarTabs,
   activateTab, closeTab,
   loadSoundTheme, applyThemeSetting,
-} from './index.js';
+} from './terminal.js';
 import { projects, getSelectedProjectPath, renderSidebar } from './sidebar.js';
 import { showPromptOverlay } from './overlays.js';
 

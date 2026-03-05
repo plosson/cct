@@ -9,6 +9,8 @@ import {
   sessions,
   getActiveId, setActiveId,
   activateTab, closeTab, restoreSessions, updateStatusBar,
+} from './terminal.js';
+import {
   getSidebarProjectsEl, getSidebarEl, getEmptyStateEl,
 } from './index.js';
 

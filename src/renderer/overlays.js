@@ -6,7 +6,10 @@
 import {
   sessions,
   getActiveId, getTerminalsContainer,
-  getActiveSession, getKeybindings,
+  getActiveSession,
+} from './terminal.js';
+import {
+  getKeybindings,
   getDebugPaneEl, getDebugPaneEntriesEl, getDebugPaneCountEl, getDebugPaneResizeHandle,
 } from './index.js';
 import { projects, projectMRU, selectProject } from './sidebar.js';

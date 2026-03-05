@@ -7,7 +7,7 @@ import {
   sessions, getActiveId, getActiveSession,
   activateTab, closeTab, createSession,
   getTabBarTabs,
-} from './index.js';
+} from './terminal.js';
 import {
   getSelectedProjectPath, sessionsForProject,
 } from './sidebar.js';
