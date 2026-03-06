@@ -128,19 +128,18 @@ test('6 - clearing background image removes it', async () => {
   await expect(container).not.toHaveClass(/has-bg-image/, { timeout: 3000 });
 });
 
-test('7 - theme tint overlay (::before) exists when background is set', async () => {
+test('7 - background uses layered tint via linear-gradient', async () => {
   // Switch back to project A which has the image
   await window.evaluate((dir) => window._claudiuSelectProject(dir), projectDirA);
   await window.waitForTimeout(300);
 
-  const beforeOpacity = await window.evaluate(() => {
+  const bgImage = await window.evaluate(() => {
     const el = document.getElementById('terminals');
-    const style = getComputedStyle(el, '::before');
-    return style.opacity;
+    return getComputedStyle(el).backgroundImage;
   });
-  // ::before is the theme tint overlay at 0.7
-  expect(parseFloat(beforeOpacity)).toBeGreaterThan(0);
-  expect(parseFloat(beforeOpacity)).toBeLessThanOrEqual(1);
+  // Should have both a linear-gradient tint AND the image url
+  expect(bgImage).toContain('linear-gradient');
+  expect(bgImage).toContain('test-bg.png');
 });
 
 test('8 - schema includes backgroundImage with type file', async () => {
@@ -177,16 +176,16 @@ test('10 - settings UI shows thumbnail preview', async () => {
   expect(src).toContain('test-bg.png');
 });
 
-test('11 - background image overlay uses ::after pseudo-element', async () => {
+test('11 - background image is set as CSS background on container', async () => {
   // Switch to project A which has bg image
   await window.evaluate((dir) => window._claudiuSelectProject(dir), projectDirA);
   await window.waitForTimeout(300);
 
-  // Verify the ::after overlay has the background image
-  const afterBgImage = await window.evaluate(() => {
+  // Verify the container element itself has the background image
+  const bgImage = await window.evaluate(() => {
     const container = document.getElementById('terminals');
     if (!container.classList.contains('has-bg-image')) return '';
-    return getComputedStyle(container, '::after').backgroundImage;
+    return getComputedStyle(container).backgroundImage;
   });
-  expect(afterBgImage).toContain('test-bg.png');
+  expect(bgImage).toContain('test-bg.png');
 });

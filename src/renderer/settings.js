@@ -7,10 +7,9 @@ import {
   getTerminalsContainer, getTabBarTabs,
   activateTab, closeTab,
   loadSoundTheme, applyThemeSetting,
-  applyProjectBackground,
 } from './terminal.js';
 import { openTrimUI } from './audioTrim.js';
-import { projects, getSelectedProjectPath, renderSidebar, updateGlowIntensity } from './sidebar.js';
+import { projects, getSelectedProjectPath, renderSidebar, updateGlowIntensity, updateGlowStyle } from './sidebar.js';
 import { showPromptOverlay } from './overlays.js';
 import { getProjectColor } from './projectColors.js';
 
@@ -163,8 +162,6 @@ async function renderSettingsTab(panelEl) {
       } else {
         await api.appConfig.setGlobal(editGlobal);
       }
-      const resolvedTheme = await api.appConfig.resolve('theme', selectedProjectPath);
-      applyThemeSetting(resolvedTheme || 'system');
     }, 400);
   }
 
@@ -294,6 +291,7 @@ async function renderSettingsTab(panelEl) {
 
       const row = document.createElement('div');
       row.className = 'settings-row';
+      row.dataset.settingsKey = key;
 
       const label = document.createElement('label');
       label.className = 'settings-label';
@@ -348,6 +346,12 @@ async function renderSettingsTab(panelEl) {
         select.addEventListener('change', () => {
           values[key] = select.value;
           autoSave();
+          if (key === 'glowStyle') {
+            updateGlowStyle(select.value);
+            const intensityRow = row.parentElement.querySelector('[data-settings-key="glowIntensity"]');
+            if (intensityRow) intensityRow.style.display = (select.value === 'glow' || select.value === 'border') ? '' : 'none';
+          }
+          if (key === 'theme') applyThemeSetting(select.value);
         });
         inputEl = select;
       } else if (schemaDef.type === 'range') {
@@ -437,7 +441,7 @@ async function renderSettingsTab(panelEl) {
           if (!filePath) return;
           values[key] = filePath;
           autoSave();
-          applyProjectBackground(selectedProjectPath, filePath);
+
           renderActiveSection();
         });
         fileWrap.appendChild(browseBtn);
@@ -451,7 +455,7 @@ async function renderSettingsTab(panelEl) {
           clearBtn.addEventListener('click', () => {
             delete editProject[key];
             autoSave();
-            applyProjectBackground(selectedProjectPath, '');
+
             renderActiveSection();
           });
           fileWrap.appendChild(clearBtn);
@@ -463,7 +467,7 @@ async function renderSettingsTab(panelEl) {
           clearBtn.addEventListener('click', () => {
             delete values[key];
             autoSave();
-            applyProjectBackground(selectedProjectPath, '');
+
             renderActiveSection();
           });
           fileWrap.appendChild(clearBtn);
@@ -516,6 +520,11 @@ async function renderSettingsTab(panelEl) {
       row.appendChild(inputRow);
       wrapper.appendChild(row);
     }
+
+    // Hide glowIntensity when glowStyle is not 'glow'
+    const glowStyle = values.glowStyle || (isProject ? editGlobal.glowStyle : null) || schema.glowStyle.default;
+    const intensityRow = wrapper.querySelector('[data-settings-key="glowIntensity"]');
+    if (intensityRow && glowStyle !== 'glow' && glowStyle !== 'border') intensityRow.style.display = 'none';
 
     contentArea.appendChild(wrapper);
   }

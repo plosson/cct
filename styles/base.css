@@ -149,6 +149,46 @@ html, body {
   animation: glow-breathe 4s ease-in-out infinite;
 }
 
+/* Border beam — animated gradient traveling along app edges */
+.app.has-border-glow {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Subtle static border for base visibility */
+.app.has-border-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--glow-color) 25%, transparent);
+  pointer-events: none;
+  z-index: 9998;
+}
+
+/* Traveling beam — follows the rounded border path */
+.app.has-border-glow::after {
+  content: '';
+  position: absolute;
+  z-index: 9999;
+  pointer-events: none;
+  width: 200px;
+  height: 6px;
+  background: linear-gradient(to right, transparent, var(--glow-color), var(--glow-color), transparent);
+  border-radius: 4px;
+  filter: blur(2px);
+  offset-path: inset(0px round 8px);
+  offset-anchor: 50% 50%;
+  offset-rotate: auto;
+  animation: border-beam 4s linear infinite;
+  opacity: var(--glow-intensity, 1);
+}
+
+@keyframes border-beam {
+  to { offset-distance: 100%; }
+}
+
 .titlebar-drag-region {
   height: 38px;
   -webkit-app-region: drag;
@@ -186,7 +226,6 @@ html, body {
   margin-left: calc(max(0px, var(--sidebar-width) - 74px - 28px - 1px));
   transition: margin-left 0.2s ease;
   border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
 }
 
 /* App body — horizontal split */
@@ -195,6 +234,7 @@ html, body {
   flex: 1;
   overflow: hidden;
   position: relative;
+  background: var(--bg-app);
 }
 
 /* Sidebar trigger zone — invisible strip at left edge for autohide hover detection */
@@ -416,7 +456,7 @@ html, body {
   height: 100%;
   cursor: pointer;
   font-size: 12px;
-  color: var(--text-dim);
+  color: #888;
   white-space: nowrap;
   user-select: none;
   -webkit-app-region: no-drag;
@@ -551,6 +591,7 @@ html, body {
 .tab-new-btn {
   background: none;
   border: none;
+  border-left: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   color: var(--text-dim);
   font-size: 16px;
@@ -667,32 +708,6 @@ html, body {
   background: var(--bg-app);
 }
 
-/* Background image — overlay ABOVE terminal content.
-   pointer-events:none lets clicks/scrolls pass through to the terminal. */
-.terminals-container.has-bg-image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.15;
-  pointer-events: none;
-}
-
-/* Theme-aware tint: darkens the image so text stays readable.
-   Sits above the image overlay. */
-.terminals-container.has-bg-image::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 11;
-  background: var(--bg-app);
-  opacity: 0.7;
-  pointer-events: none;
-}
 
 .terminal-panel {
   position: absolute;
@@ -708,6 +723,37 @@ html, body {
 @keyframes glow-breathe {
   0%, 100% { opacity: calc(0.6 * var(--glow-intensity, 1)); }
   50%      { opacity: var(--glow-intensity, 1); }
+}
+
+
+/* Notes tab panel */
+.notes-tab-panel {
+  padding: 0;
+  flex-direction: column;
+}
+
+.notes-tab-textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Fira Code', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 16px 20px;
+  overflow-y: auto;
+  tab-size: 2;
+}
+
+.notes-tab-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.tab-icon-notes {
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .terminal-panel.active {
@@ -995,7 +1041,9 @@ html, body {
 .settings-tab-panel {
   background: var(--bg-app);
   overflow: hidden;
+  position: relative;
 }
+
 
 .settings-container {
   display: flex;
@@ -1563,7 +1611,7 @@ html, body {
 }
 
 .trim-ui-waveform-wrap {
-  background: #1a1a1a;
+  background: var(--bg-deep);
   border-radius: 8px;
   padding: 12px 6px;
   position: relative;
@@ -1822,4 +1870,39 @@ html, body {
   border-radius: 4px;
   width: 5px !important;
   left: 1px !important;
+}
+
+/* Mute overlay */
+.mute-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 32px;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 16px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  pointer-events: none;
+  animation: mute-fade-in 0.15s ease-out;
+}
+
+.mute-overlay.fade-out {
+  animation: mute-fade-out 0.3s ease-out forwards;
+}
+
+@keyframes mute-fade-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes mute-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }

@@ -37,6 +37,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+9': 'goToLastTab',
   'Meta+j': 'toggleDebugPane',
   'Meta+l': 'toggleNotes',
+  'Meta+m': 'toggleMute',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };

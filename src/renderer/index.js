@@ -33,8 +33,8 @@ import {
   initTerminal, initStatusBar,
   TERMINAL_OPTIONS,
   setInitialFontSize,
-  createSession, closeTab,
-  zoomIn, zoomOut, zoomReset,
+  createSession, createNotesTab, closeTab,
+  zoomIn, zoomOut, zoomReset, toggleMute,
   clearTerminal, copySelection, pasteClipboard, selectAll,
   applyThemeSetting, getTerminalTheme,
   initSoundTheme,
@@ -298,7 +298,8 @@ async function init() {
   actions.set('openSettings', openSettings);
   actions.set('showShortcutHelp', showShortcutHelp);
   actions.set('toggleDebugPane', toggleDebugPane);
-  actions.set('toggleNotes', toggleNotes);
+  actions.set('toggleNotes', createNotesTab);
+  actions.set('toggleMute', toggleMute);
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
   }
@@ -308,9 +309,20 @@ async function init() {
 
   // Wire up UI buttons
   document.querySelector('.sidebar-toggle-btn')?.addEventListener('click', toggleSidebar);
-  document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
+  document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', async () => {
+    const action = await api.contextMenu.show([
+      { label: 'Claude\t\t⌘N', action: 'claude' },
+      { label: 'Terminal\t\t⌘T', action: 'terminal' },
+      { type: 'separator' },
+      { label: 'Notes\t\t⌘L', action: 'notes' },
+    ]);
+    if (action === 'claude') createSession('claude');
+    else if (action === 'terminal') createSession('terminal');
+    else if (action === 'notes') createNotesTab();
+  });
   document.querySelector('.ess-card[data-action="claude"]').addEventListener('click', () => createSession('claude'));
   document.querySelector('.ess-card[data-action="terminal"]').addEventListener('click', () => createSession('terminal'));
+  document.querySelector('.ess-card[data-action="notes"]').addEventListener('click', () => createNotesTab());
 
   // Sound theme — play sounds on hook events
   initSoundTheme();

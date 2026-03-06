@@ -40,6 +40,13 @@ const CONFIG_SCHEMA = {
     default: 'default',
     description: 'Active sound theme directory name (or "none" to disable)',
   },
+  glowStyle: {
+    label: 'Glow style',
+    type: 'select',
+    options: ['glow', 'border'],
+    default: 'glow',
+    description: 'Visual style: inset glow or rotating border',
+  },
   glowIntensity: {
     label: 'Glow intensity',
     type: 'range',
@@ -47,13 +54,6 @@ const CONFIG_SCHEMA = {
     max: 100,
     default: 100,
     description: 'Sidebar glow effect opacity (0% = off, 100% = full)',
-  },
-  backgroundImage: {
-    label: 'Background image',
-    type: 'file',
-    default: '',
-    description: 'Image behind terminal panels (PNG, JPG, WebP)',
-    fileFilters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
   },
 };
 
