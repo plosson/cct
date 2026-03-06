@@ -19,7 +19,7 @@ module.exports = defineConfig({
   testDir: './tests',
   timeout: 30000,
   retries: 0,
-  workers: 10,
+  workers: 4,
   use: {
     trace: 'on-first-retry',
   },
