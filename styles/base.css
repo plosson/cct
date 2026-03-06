@@ -150,46 +150,43 @@ html, body {
 }
 
 /* Border beam — animated gradient traveling along app edges */
-@property --border-beam-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 .app.has-border-glow {
   position: relative;
   border-radius: 8px;
+  overflow: hidden;
 }
 
-.app.has-border-glow::after {
+/* Subtle static border for base visibility */
+.app.has-border-glow::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--glow-color) 25%, transparent);
   pointer-events: none;
+  z-index: 9998;
+}
+
+/* Traveling beam — follows the rounded border path */
+.app.has-border-glow::after {
+  content: '';
+  position: absolute;
   z-index: 9999;
-  padding: 2px;
-  background: conic-gradient(
-    from var(--border-beam-angle),
-    transparent 0%,
-    transparent 75%,
-    var(--glow-color) 88%,
-    transparent 100%
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: border-beam-spin 4s linear infinite;
+  pointer-events: none;
+  width: 200px;
+  height: 6px;
+  background: linear-gradient(to right, transparent, var(--glow-color), var(--glow-color), transparent);
+  border-radius: 4px;
+  filter: blur(2px);
+  offset-path: inset(0px round 8px);
+  offset-anchor: 50% 50%;
+  offset-rotate: auto;
+  animation: border-beam 4s linear infinite;
   opacity: var(--glow-intensity, 1);
 }
 
-@keyframes border-beam-spin {
-  to { --border-beam-angle: 360deg; }
+@keyframes border-beam {
+  to { offset-distance: 100%; }
 }
 
 .titlebar-drag-region {

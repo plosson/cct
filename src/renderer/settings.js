@@ -349,7 +349,7 @@ async function renderSettingsTab(panelEl) {
           if (key === 'glowStyle') {
             updateGlowStyle(select.value);
             const intensityRow = row.parentElement.querySelector('[data-settings-key="glowIntensity"]');
-            if (intensityRow) intensityRow.style.display = select.value === 'glow' ? '' : 'none';
+            if (intensityRow) intensityRow.style.display = (select.value === 'glow' || select.value === 'border') ? '' : 'none';
           }
           if (key === 'theme') applyThemeSetting(select.value);
         });
@@ -524,7 +524,7 @@ async function renderSettingsTab(panelEl) {
     // Hide glowIntensity when glowStyle is not 'glow'
     const glowStyle = values.glowStyle || (isProject ? editGlobal.glowStyle : null) || schema.glowStyle.default;
     const intensityRow = wrapper.querySelector('[data-settings-key="glowIntensity"]');
-    if (intensityRow && glowStyle !== 'glow') intensityRow.style.display = 'none';
+    if (intensityRow && glowStyle !== 'glow' && glowStyle !== 'border') intensityRow.style.display = 'none';
 
     contentArea.appendChild(wrapper);
   }
