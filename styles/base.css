@@ -195,6 +195,7 @@ html, body {
   flex: 1;
   overflow: hidden;
   position: relative;
+  background: var(--bg-app);
 }
 
 /* Sidebar trigger zone — invisible strip at left edge for autohide hover detection */
@@ -667,30 +668,29 @@ html, body {
   background: var(--bg-app);
 }
 
-/* Background image — overlay ABOVE terminal content.
-   pointer-events:none lets clicks/scrolls pass through to the terminal. */
+/* Background image — ON TOP of everything (xterm canvas is opaque, image must
+   overlay it). pointer-events:none lets all clicks/scrolls pass through. */
 .terminals-container.has-bg-image::after {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 10;
+  z-index: 100;
   background-image: var(--bg-image);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.15;
+  opacity: 0.35;
   pointer-events: none;
 }
 
-/* Theme-aware tint: darkens the image so text stays readable.
-   Sits above the image overlay. */
+/* Subtle tint above the image for text contrast */
 .terminals-container.has-bg-image::before {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 11;
+  z-index: 101;
   background: var(--bg-app);
-  opacity: 0.7;
+  opacity: 0.25;
   pointer-events: none;
 }
 
@@ -995,7 +995,9 @@ html, body {
 .settings-tab-panel {
   background: var(--bg-app);
   overflow: hidden;
+  position: relative;
 }
+
 
 .settings-container {
   display: flex;
@@ -1563,7 +1565,7 @@ html, body {
 }
 
 .trim-ui-waveform-wrap {
-  background: #1a1a1a;
+  background: var(--bg-deep);
   border-radius: 8px;
   padding: 12px 6px;
   position: relative;
