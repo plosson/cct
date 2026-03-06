@@ -8,3 +8,4 @@ playwright-report/
 *.zip
 .DS_Store
 .claudiu/
+.cct/
