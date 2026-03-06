@@ -87,7 +87,7 @@ jobs:
           timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 15
-          command: npx electron-builder --mac zip dmg --arm64 --publish always --config electron-builder.config.js
+          command: npx electron-builder --mac zip --arm64 --publish always --config electron-builder.config.js
 
       - name: Build dev (no sign, no publish)
         if: steps.bump.outputs.is_dev == 'true'
@@ -98,7 +98,7 @@ jobs:
           timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 15
-          command: npx electron-builder --mac zip dmg --arm64 --config electron-builder.config.js -c.mac.notarize=false
+          command: npx electron-builder --mac zip --arm64 --config electron-builder.config.js -c.mac.notarize=false
 
       - name: Upload dev artifacts
         if: steps.bump.outputs.is_dev == 'true'
@@ -106,7 +106,6 @@ jobs:
         with:
           name: claudiu-dev-${{ steps.bump.outputs.version }}
           path: |
-            dist/*.dmg
             dist/*.zip
           retention-days: 7
 
