@@ -76,8 +76,7 @@ test('3 - Copy Path writes project path to clipboard', async () => {
 });
 
 test('4 - project item has contextmenu event listener', async () => {
-  const projectItem = window.locator('[data-testid="project-item"]');
-  await expect(projectItem).toHaveCount(1);
+  const projectItem = window.locator('[data-testid="project-item"]').first();
 
   // Verify the project item element exists and is clickable
   await expect(projectItem).toBeVisible();

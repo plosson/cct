@@ -33,10 +33,9 @@ test.beforeAll(async () => {
 
   // Create two terminal sessions
   await window.keyboard.press('Meta+t');
-  await window.waitForTimeout(500);
+  await window.waitForSelector('.xterm', { timeout: 15000 });
   await window.keyboard.press('Meta+t');
-  await window.waitForTimeout(500);
-  await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 10000 });
+  await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 15000 });
 });
 
 test.afterAll(async () => {

@@ -59,6 +59,8 @@ const TEXT_NATIVE_KEYS = new Set(['a', 'c', 'v', 'x', 'z', 'Shift+z']);
 function isTextInputFocused() {
   const el = document.activeElement;
   if (!el) return false;
+  // xterm's hidden textarea is not a real text input — app keybindings should take priority
+  if (el.classList.contains('xterm-helper-textarea')) return false;
   return el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'range' && el.type !== 'checkbox');
 }
 

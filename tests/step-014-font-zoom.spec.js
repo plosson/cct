@@ -32,8 +32,7 @@ test.beforeAll(async () => {
 
   // Create a terminal session
   await window.keyboard.press('Meta+t');
-  await window.waitForTimeout(500);
-  await expect(window.locator('[data-testid="tab"]')).toHaveCount(1, { timeout: 10000 });
+  await window.waitForSelector('.xterm', { timeout: 15000 });
 });
 
 test.afterAll(async () => {

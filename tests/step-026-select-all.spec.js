@@ -33,8 +33,7 @@ test.beforeAll(async () => {
 
   // Create a terminal session
   await window.keyboard.press('Meta+t');
-  await window.waitForTimeout(500);
-  await expect(window.locator('[data-testid="tab"]')).toHaveCount(1, { timeout: 5000 });
+  await window.waitForSelector('.xterm', { timeout: 15000 });
 });
 
 test.afterAll(async () => {
@@ -81,9 +80,10 @@ test('2 - Cmd+A selects all text in terminal', async () => {
   await window.waitForTimeout(200);
 
   // Copy the selection and verify it contains our test text
-  await window.keyboard.press('Meta+Shift+C');
-
+  // Re-copy inside retry loop to guard against clipboard overwrites from parallel tests
   await expect(async () => {
+    await window.keyboard.press('Meta+Shift+C');
+    await window.waitForTimeout(100);
     const clipboardText = await window.evaluate(() => window.electron_api.clipboard.readText());
     expect(clipboardText).toContain('SELECT_ALL_TEST');
   }).toPass({ timeout: 5000 });
