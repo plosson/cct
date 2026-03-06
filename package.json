@@ -6,6 +6,19 @@
   "bin": {
     "claudiu": "bin/claudiu"
   },
+  "files": [
+    "main.js",
+    "index.html",
+    "styles/**",
+    "fonts/**",
+    "src/main/**",
+    "scripts/build-renderer.js",
+    "dist/renderer.bundle.js",
+    "dist/renderer.bundle.js.map",
+    "assets/**",
+    "bin/**",
+    "package.json"
+  ],
   "scripts": {
     "start": "node scripts/build-renderer.js && electron . $PWD",
     "lint": "echo 'lint: ok'",
@@ -15,7 +28,8 @@
     "build:dist": "node scripts/build-renderer.js && electron-builder --config electron-builder.config.js",
     "test": "node scripts/build-renderer.js && npx playwright test",
     "generate:sounds": "node scripts/generate-sounds.js",
-    "postinstall": "electron-builder install-app-deps"
+    "prepack": "node scripts/build-renderer.js",
+    "postinstall": "node -e \"try{require('electron-builder')}catch{process.exit(0)}\" && electron-builder install-app-deps || true"
   },
   "keywords": [
     "claude",
@@ -30,12 +44,12 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.50.0",
-    "electron": "^40.6.1",
     "electron-builder": "^26.8.1",
-    "esbuild": "^0.27.3",
     "sharp": "^0.34.5"
   },
   "dependencies": {
+    "electron": "^40.6.1",
+    "esbuild": "^0.27.3",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/addon-unicode11": "^0.9.0",
