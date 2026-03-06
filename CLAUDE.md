@@ -41,20 +41,43 @@ Behave normally - I am very smart
 ## Project Structure
 
 ```
+assets/
+  banner.png                     — App banner image
+  splash-bg.mp4                  — Splash screen background video
+  splash-logo.png                — Splash screen app icon (portrait)
+  themes/                        — Sound themes (default, minimal)
 src/
   main/
     windows/MainWindow.js        — Electron BrowserWindow setup
     preload.js                   — Context bridge (contextIsolation: true, nodeIntegration: false)
-    services/                    — Main-process services (Config, Terminal, Sound, Hooks, Updater, etc.)
-    ipc/                         — IPC handler registration (terminal, config, project, sound-theme, log)
+    services/
+      ConfigService.js           — Global app config (theme, font, etc.)
+      ProjectConfigService.js    — Per-project config
+      ProjectStore.js            — Project persistence
+      TerminalService.js         — PTY lifecycle
+      SoundThemeService.js       — Sound theme playback and management
+      HooksService.js            — Claude Code hook events
+      HookServerService.js       — Hook HTTP server
+      LogService.js              — Debug log collection
+      UpdaterService.js          — Auto-updater
+      WindowStateService.js      — Window geometry and UI state persistence
+    ipc/
+      terminal.ipc.js            — Terminal/PTY IPC handlers
+      config.ipc.js              — Config IPC handlers
+      project.ipc.js             — Project CRUD IPC handlers
+      sound-theme.ipc.js         — Sound theme IPC handlers
+      notes.ipc.js               — Notes IPC handlers
+      log.ipc.js                 — Debug log IPC handlers
   renderer/
-    index.js                     — Entry point: init, action registry, DOM wiring
+    index.js                     — Entry point: init, action registry, DOM wiring, splash screen
     terminal.js                  — Session lifecycle, theme, font zoom, status bar
     tabs.js                      — Tab creation, drag/drop, rename, context menu, navigation
     sidebar.js                   — Project list, selection, auto-hide, resize, glow
     overlays.js                  — Project picker, search bar, shortcut help, debug pane
     keybindings.js               — Data-driven keyboard shortcuts and dispatch
     settings.js                  — Settings tab and audio trim UI
+    notes.js                     — Notes panel
+    audioTrim.js                 — Audio waveform trimming UI
     projectColors.js             — Project color assignment
 ```
 

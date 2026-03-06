@@ -31,10 +31,17 @@ function setSelectedProjectPath(path) { selectedProjectPath = path; }
 
 // ── Empty state ─────────────────────────────────────────────
 
+function hasActiveSettingsTab() {
+  for (const [, s] of sessions.entries()) {
+    if (s.type === 'settings') return true;
+  }
+  return false;
+}
+
 function getEmptyStateMessage() {
   if (projects.length === 0) return 'Add a project to get started';
   if (!selectedProjectPath) return 'Select a project from the sidebar';
-  if (countSessionsForProject(selectedProjectPath) === 0) return 'No sessions — click + to create one';
+  if (countSessionsForProject(selectedProjectPath) === 0 && !hasActiveSettingsTab()) return 'No sessions — click + to create one';
   return null;
 }
 

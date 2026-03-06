@@ -94,6 +94,13 @@ export function applyThemeSetting(theme) {
   }
 }
 
+export function applyBannerSetting(show) {
+  for (const sess of sessions.values()) {
+    const banner = sess.panelEl.querySelector('.terminal-project-banner');
+    if (banner) banner.style.display = show === false ? 'none' : '';
+  }
+}
+
 export const TERMINAL_OPTIONS = {
   allowProposedApi: true,
   allowTransparency: true,

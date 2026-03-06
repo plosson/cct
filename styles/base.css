@@ -197,6 +197,7 @@ html, body {
   align-items: center;
   background: var(--bg-surface);
   padding-left: 74px;
+  margin-top: 4px;
 }
 
 .sidebar-toggle-btn {
@@ -225,7 +226,6 @@ html, body {
   -webkit-app-region: no-drag;
   margin-left: calc(max(0px, var(--sidebar-width) - 74px - 28px - 1px));
   transition: margin-left 0.2s ease;
-  border-left: 1px solid var(--border);
 }
 
 /* App body — horizontal split */
@@ -591,8 +591,6 @@ html, body {
 .tab-new-btn {
   background: none;
   border: none;
-  border-left: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
   color: var(--text-dim);
   font-size: 16px;
   cursor: pointer;
@@ -1123,9 +1121,8 @@ html, body {
 
 /* Left nav */
 .settings-nav {
-  width: 180px;
+  width: 140px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
   padding: 12px 0;
   display: flex;
   flex-direction: column;
@@ -1166,7 +1163,7 @@ html, body {
 }
 
 .settings-section {
-  max-width: 560px;
+  max-width: 480px;
   margin: 0 auto;
 }
 
@@ -1218,7 +1215,7 @@ html, body {
 .settings-input,
 .settings-select {
   flex: 1;
-  padding: 6px 10px;
+  padding: 6px 24px 6px 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: 4px;
@@ -1234,7 +1231,7 @@ html, body {
 
 .settings-input:focus,
 .settings-select:focus {
-  border-color: var(--accent);
+  border-color: var(--text-secondary);
 }
 
 .settings-input::placeholder {
@@ -1279,12 +1276,12 @@ html, body {
 }
 
 .settings-toggle input:checked + .settings-toggle-slider {
-  background: var(--accent);
+  background: var(--text-secondary);
 }
 
 .settings-toggle input:checked + .settings-toggle-slider::before {
   transform: translateX(16px);
-  background: #fff;
+  background: var(--text-primary);
 }
 
 /* Range slider */
@@ -1375,21 +1372,6 @@ html, body {
   padding-top: 12px;
   border-top: 1px solid var(--border-strong);
   margin-top: 8px;
-}
-
-.settings-save-btn {
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-  background: var(--accent);
-  color: #fff;
-}
-
-.settings-save-btn:hover {
-  opacity: 0.9;
 }
 
 .settings-btn-secondary {

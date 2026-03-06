@@ -6,7 +6,7 @@ import {
   sessions,
   getTerminalsContainer, getTabBarTabs,
   activateTab, closeTab,
-  loadSoundTheme, applyThemeSetting,
+  loadSoundTheme, applyThemeSetting, applyBannerSetting,
 } from './terminal.js';
 import { openTrimUI } from './audioTrim.js';
 import { projects, getSelectedProjectPath, renderSidebar, updateGlowIntensity, updateGlowStyle } from './sidebar.js';
@@ -445,6 +445,7 @@ async function renderSettingsTab(panelEl) {
         checkbox.addEventListener('change', () => {
           values[key] = checkbox.checked;
           autoSave();
+          if (key === 'showProjectBanner') applyBannerSetting(checkbox.checked);
         });
         inputEl = toggle;
       } else if (schemaDef.type === 'file') {
@@ -631,6 +632,8 @@ async function renderSettingsTab(panelEl) {
     themeSelect.addEventListener('change', async () => {
       values.soundTheme = themeSelect.value;
       resolvedSoundMap = await api.soundThemes.getSoundMap(themeSelect.value) || {};
+      autoSave();
+      await loadSoundTheme();
       renderActiveSection();
     });
     header.appendChild(themeSelect);
@@ -766,27 +769,6 @@ async function renderSettingsTab(panelEl) {
       noTheme.textContent = 'Select a theme to configure sounds.';
       subContent.appendChild(noTheme);
     } else {
-      // Save button
-      const actionsDiv = document.createElement('div');
-      actionsDiv.className = 'settings-actions';
-
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'settings-save-btn';
-      saveBtn.dataset.testid = 'settings-sound-save-btn';
-      saveBtn.textContent = 'Save Sound Settings';
-      saveBtn.addEventListener('click', async () => {
-        if (isProject && selectedProjectPath) {
-          await api.appConfig.setProject(selectedProjectPath, editProject);
-        } else {
-          await api.appConfig.setGlobal(editGlobal);
-        }
-        await loadSoundTheme();
-        saveBtn.textContent = 'Saved!';
-        setTimeout(() => { saveBtn.textContent = 'Save Sound Settings'; }, 1500);
-      });
-      actionsDiv.appendChild(saveBtn);
-      subContent.appendChild(actionsDiv);
-
       if (isCurrentBuiltIn) {
         const readOnlyNote = document.createElement('div');
         readOnlyNote.className = 'settings-description';

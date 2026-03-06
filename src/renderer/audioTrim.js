@@ -96,15 +96,6 @@ export function openTrimUI(eventName, audioUrl, parentEl, scope, initTrimStart, 
 
   body.appendChild(controls);
 
-  // Actions
-  const btnRow = document.createElement('div');
-  btnRow.className = 'trim-ui-actions';
-  const saveBtn = document.createElement('button');
-  saveBtn.className = 'settings-save-btn';
-  saveBtn.textContent = 'Save Trimmed';
-  btnRow.appendChild(saveBtn);
-  body.appendChild(btnRow);
-
   trimPanel.appendChild(body);
   settingsContent.appendChild(trimPanel);
 
@@ -152,9 +143,24 @@ export function openTrimUI(eventName, audioUrl, parentEl, scope, initTrimStart, 
     updateTimeDisplay();
   });
 
+  // Debounced auto-save on region change
+  let trimSaveTimer = null;
+  function autoSaveTrim() {
+    if (trimSaveTimer) clearTimeout(trimSaveTimer);
+    trimSaveTimer = setTimeout(async () => {
+      if (!trimRegion || !api.soundThemes) return;
+      await api.soundThemes.saveTrim(eventName, trimRegion.start, trimRegion.end, getSelectedProjectPath());
+      await loadSoundTheme();
+      if (onSave) onSave();
+    }, 500);
+  }
+
   // Update time display when region is resized
   wsRegions.on('region-update', (region) => {
-    if (region === trimRegion) updateTimeDisplay();
+    if (region === trimRegion) {
+      updateTimeDisplay();
+      autoSaveTrim();
+    }
   });
 
   // ── Play/Pause — plays only the trimmed region ──
@@ -176,17 +182,6 @@ export function openTrimUI(eventName, audioUrl, parentEl, scope, initTrimStart, 
     if (trimRegion && ws.isPlaying() && currentTime >= trimRegion.end) {
       ws.pause();
     }
-  });
-
-  // ── Save trim metadata ──
-  saveBtn.addEventListener('click', async () => {
-    if (!trimRegion || !api.soundThemes) return;
-    const start = trimRegion.start;
-    const end = trimRegion.end;
-    const result = await api.soundThemes.saveTrim(eventName, start, end, getSelectedProjectPath());
-    await loadSoundTheme();
-    closeTrimPanel();
-    if (onSave) onSave(result);
   });
 
   // ── Cleanup when panel is removed externally (e.g. section switch) ──
