@@ -836,6 +836,87 @@ async function renderSettingsTab(panelEl) {
         });
         actionsCell.appendChild(uploadBtn);
 
+        // Record button (mic)
+        const recordBtn = document.createElement('button');
+        recordBtn.className = 'settings-btn-icon';
+        recordBtn.dataset.testid = `settings-sound-record-${eventName}`;
+        recordBtn.title = isCurrentBuiltIn ? 'Duplicate theme to customize' : 'Record from microphone';
+        recordBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1a2 2 0 00-2 2v3a2 2 0 004 0V3a2 2 0 00-2-2z"/><path d="M2.5 5.5a3.5 3.5 0 007 0"/><path d="M6 9.5V11"/></svg>';
+        recordBtn.disabled = isCurrentBuiltIn;
+        recordBtn.addEventListener('click', async () => {
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          } catch {
+            alert('Microphone access denied.');
+            return;
+          }
+
+          const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          const chunks = [];
+          let startTime = Date.now();
+
+          // Create overlay
+          const overlay = document.createElement('div');
+          overlay.className = 'recording-overlay';
+          overlay.innerHTML = `
+            <div class="recording-dot"></div>
+            <div class="recording-label">Recording...</div>
+            <div class="recording-timer">0:00</div>
+            <button class="recording-stop-btn">Stop</button>
+          `;
+          document.body.appendChild(overlay);
+
+          const timerEl = overlay.querySelector('.recording-timer');
+          const timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = String(elapsed % 60).padStart(2, '0');
+            timerEl.textContent = `${mins}:${secs}`;
+          }, 250);
+
+          const stopRecording = () => {
+            if (mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+          };
+
+          overlay.querySelector('.recording-stop-btn').addEventListener('click', stopRecording);
+          const escHandler = (e) => { if (e.key === 'Escape') stopRecording(); };
+          window.addEventListener('keydown', escHandler);
+
+          mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+          mediaRecorder.onstop = async () => {
+            clearInterval(timerInterval);
+            window.removeEventListener('keydown', escHandler);
+            stream.getTracks().forEach(t => t.stop());
+            overlay.remove();
+
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+              const base64 = reader.result.split(',')[1];
+              const projectPath = settingsScope === 'project' ? selectedProjectPath : undefined;
+              const result = await api.soundThemes.saveRecording(eventName, base64, projectPath);
+              if (result && result.success) {
+                if (result.forked) {
+                  values.soundTheme = result.dirName;
+                  const newThemes = await api.soundThemes.list();
+                  themes.length = 0;
+                  themes.push(...newThemes);
+                }
+                resolvedSoundMap = await api.soundThemes.getSoundMap(result.dirName || themeSelect.value) || {};
+                await loadSoundTheme();
+                renderActiveSection();
+              } else if (result && !result.success && result.error) {
+                alert('Recording save failed: ' + result.error);
+              }
+            };
+            reader.readAsDataURL(blob);
+          };
+
+          mediaRecorder.start();
+        });
+        actionsCell.appendChild(recordBtn);
+
         if (entry) {
           const trimBtn = document.createElement('button');
           trimBtn.className = 'settings-btn-icon';

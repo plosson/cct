@@ -4,6 +4,9 @@
  */
 
 const { ipcMain, dialog } = require('electron');
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
 
 /**
  * Register all sound-theme-related IPC handlers
@@ -106,6 +109,25 @@ function registerSoundThemeIPC(soundThemeService, configService) {
     const uploadResult = soundThemeService.uploadSoundToTheme(themeName, eventName, result.filePaths[0]);
     if (uploadResult.forked) updateConfigAfterFork(projectPath, uploadResult.dirName);
     return uploadResult;
+  });
+
+  // ── Save recording from microphone (copy-on-write) ────────
+  ipcMain.handle('sound-theme-save-recording', async (_event, { eventName, base64Data, projectPath }) => {
+    const themeName = configService.resolve('soundTheme', projectPath);
+    if (!themeName || themeName === 'none') {
+      return { success: false, error: 'No theme active' };
+    }
+    const tmpFile = path.join(os.tmpdir(), `claudiu-rec-${eventName}-${Date.now()}.webm`);
+    try {
+      fs.writeFileSync(tmpFile, Buffer.from(base64Data, 'base64'));
+      const result = soundThemeService.uploadSoundToTheme(themeName, eventName, tmpFile);
+      if (result.forked) updateConfigAfterFork(projectPath, result.dirName);
+      return result;
+    } catch (err) {
+      return { success: false, error: err.message };
+    } finally {
+      try { fs.unlinkSync(tmpFile); } catch {}
+    }
   });
 
   ipcMain.handle('sound-theme-save-trim', (_event, { eventName, trimStart, trimEnd, projectPath }) => {

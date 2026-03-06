@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld('electron_api', {
       ipcRenderer.invoke('sound-theme-upload-sound', { eventName, projectPath }),
     removeSound: (dirName, eventName) =>
       ipcRenderer.invoke('sound-theme-remove-sound', { dirName, eventName }),
+    saveRecording: (eventName, base64Data, projectPath) =>
+      ipcRenderer.invoke('sound-theme-save-recording', { eventName, base64Data, projectPath }),
     export: (dirName) => ipcRenderer.invoke('sound-theme-export', dirName),
     duplicate: (dirName, newName) => ipcRenderer.invoke('sound-theme-duplicate', { dirName, newName }),
     rename: (dirName, newName) => ipcRenderer.invoke('sound-theme-rename', { dirName, newName }),
