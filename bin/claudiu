@@ -28,19 +28,8 @@ CLAUDIU_APP="/Applications/Claudiu.app"
 if [ -d "$CLAUDIU_APP" ]; then
   open -a "$CLAUDIU_APP" -- "${ARGS[@]+"${ARGS[@]}"}"
 else
-  # Dev / npx mode: find the project root and use local electron
+  # Dev mode: find the project root (directory containing this script's parent)
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
   PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-
-  # Build renderer if not already built
-  if [ ! -f "$PROJECT_ROOT/dist/renderer.bundle.js" ]; then
-    node "$PROJECT_ROOT/scripts/build-renderer.js"
-  fi
-
-  ELECTRON="$PROJECT_ROOT/node_modules/.bin/electron"
-  if [ ! -x "$ELECTRON" ]; then
-    echo "claudiu: electron not found — run 'npm install' first" >&2
-    exit 1
-  fi
-  "$ELECTRON" "$PROJECT_ROOT" "${ARGS[@]+"${ARGS[@]}"}"
+  electron "$PROJECT_ROOT" "${ARGS[@]+"${ARGS[@]}"}"
 fi
