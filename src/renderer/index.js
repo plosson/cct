@@ -141,6 +141,8 @@ window._claudiuAddDebugEntry = addDebugEntry;
 // ── Init ─────────────────────────────────────────────────────
 
 async function init() {
+  const splashStart = Date.now();
+
   // Initialise terminal module DOM refs
   initTerminal();
   initStatusBar();
@@ -337,6 +339,15 @@ async function init() {
   requestAnimationFrame(() => {
     document.querySelector('.app-body').classList.add('sidebar-transitions');
   });
+
+  // Dismiss splash screen (minimum 2s display)
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    const elapsed = Date.now() - splashStart;
+    await new Promise(r => setTimeout(r, Math.max(0, 2000 - elapsed)));
+    splash.classList.add('splash-fade-out');
+    splash.addEventListener('transitionend', () => splash.remove());
+  }
 }
 
 if (document.readyState === 'loading') {

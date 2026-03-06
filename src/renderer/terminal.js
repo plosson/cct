@@ -136,11 +136,14 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
   const color = getProjectColor(project.name);
   updateAppGlow(project.name);
 
-  const banner = document.createElement('div');
-  banner.className = 'terminal-project-banner';
-  banner.style.borderTopColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
-  banner.textContent = project.name;
-  panelEl.appendChild(banner);
+  const showBanner = await api.appConfig.resolve('showProjectBanner', selectedProjectPath);
+  if (showBanner !== false) {
+    const banner = document.createElement('div');
+    banner.className = 'terminal-project-banner';
+    banner.style.borderTopColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+    banner.textContent = project.name;
+    panelEl.appendChild(banner);
+  }
 
   const termWrapper = document.createElement('div');
   termWrapper.className = 'terminal-wrapper';
@@ -370,11 +373,14 @@ export async function createNotesTab() {
   const panelEl = document.createElement('div');
   panelEl.className = 'terminal-panel notes-tab-panel';
 
-  const banner = document.createElement('div');
-  banner.className = 'terminal-project-banner';
-  banner.style.borderTopColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
-  banner.textContent = project.name;
-  panelEl.appendChild(banner);
+  const showBanner = await api.appConfig.resolve('showProjectBanner', selectedProjectPath);
+  if (showBanner !== false) {
+    const banner = document.createElement('div');
+    banner.className = 'terminal-project-banner';
+    banner.style.borderTopColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+    banner.textContent = project.name;
+    panelEl.appendChild(banner);
+  }
 
   const textarea = document.createElement('textarea');
   textarea.className = 'notes-tab-textarea';

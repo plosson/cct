@@ -55,6 +55,12 @@ const CONFIG_SCHEMA = {
     default: 100,
     description: 'Sidebar glow effect opacity (0% = off, 100% = full)',
   },
+  showProjectBanner: {
+    label: 'Show project banner',
+    type: 'boolean',
+    default: true,
+    description: 'Display project name banner at top of terminal sessions',
+  },
 };
 
 class ConfigService {

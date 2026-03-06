@@ -405,6 +405,48 @@ async function renderSettingsTab(panelEl) {
 
         inputRow.appendChild(rangeWrap);
         inputEl = null; // already appended via rangeWrap
+      } else if (schemaDef.type === 'boolean') {
+        const toggle = document.createElement('label');
+        toggle.className = 'settings-toggle';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.testid = `settings-input-${key}`;
+
+        const slider = document.createElement('span');
+        slider.className = 'settings-toggle-slider';
+
+        toggle.appendChild(checkbox);
+        toggle.appendChild(slider);
+
+        if (isProject) {
+          const projectValue = values[key];
+          const globalValue = editGlobal[key] ?? schemaDef.default;
+          checkbox.checked = projectValue !== undefined ? projectValue : globalValue;
+
+          if (projectValue !== undefined) {
+            const clearBtn = document.createElement('button');
+            clearBtn.className = 'settings-clear-btn';
+            clearBtn.dataset.testid = `settings-clear-${key}`;
+            clearBtn.textContent = '\u00d7';
+            clearBtn.title = 'Use global default';
+            clearBtn.addEventListener('click', () => {
+              delete editProject[key];
+              checkbox.checked = globalValue;
+              clearBtn.remove();
+              autoSave();
+            });
+            inputRow.appendChild(clearBtn);
+          }
+        } else {
+          checkbox.checked = values[key] !== undefined ? values[key] : schemaDef.default;
+        }
+
+        checkbox.addEventListener('change', () => {
+          values[key] = checkbox.checked;
+          autoSave();
+        });
+        inputEl = toggle;
       } else if (schemaDef.type === 'file') {
         const fileWrap = document.createElement('div');
         fileWrap.className = 'settings-file-wrap';
