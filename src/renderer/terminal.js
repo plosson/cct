@@ -135,6 +135,17 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
   panelEl.className = 'terminal-panel';
   const color = getProjectColor(project.name);
   updateAppGlow(project.name);
+
+  const banner = document.createElement('div');
+  banner.className = 'terminal-project-banner';
+  banner.style.borderTopColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+  banner.textContent = project.name;
+  panelEl.appendChild(banner);
+
+  const termWrapper = document.createElement('div');
+  termWrapper.className = 'terminal-wrapper';
+  panelEl.appendChild(termWrapper);
+
   terminalsContainer.appendChild(panelEl);
 
   const terminal = new Terminal({ ...TERMINAL_OPTIONS, fontSize: currentFontSize });
@@ -150,7 +161,7 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
   terminal.loadAddon(webLinksAddon);
   terminal.loadAddon(unicode11Addon);
   terminal.unicode.activeVersion = '11';
-  terminal.open(panelEl);
+  terminal.open(termWrapper);
 
   // Let app-level keybindings bypass xterm so they bubble to the document dispatcher
   terminal.attachCustomKeyEventHandler((e) => {
@@ -160,7 +171,7 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
   });
 
   // Force scrollbar flush to right edge (xterm sets inline left/width)
-  const scrollbar = panelEl.querySelector('.xterm-scrollable-element > .scrollbar.vertical');
+  const scrollbar = termWrapper.querySelector('.xterm-scrollable-element > .scrollbar.vertical');
   if (scrollbar) {
     const fixScrollbar = () => {
       scrollbar.style.setProperty('width', '7px', 'important');
@@ -238,7 +249,7 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
       }
     }, 150);
   });
-  resizeObserver.observe(panelEl);
+  resizeObserver.observe(termWrapper);
 
   const cleanup = () => {
     if (resizeTimeout) clearTimeout(resizeTimeout);
@@ -358,6 +369,12 @@ export async function createNotesTab() {
 
   const panelEl = document.createElement('div');
   panelEl.className = 'terminal-panel notes-tab-panel';
+
+  const banner = document.createElement('div');
+  banner.className = 'terminal-project-banner';
+  banner.style.borderTopColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+  banner.textContent = project.name;
+  panelEl.appendChild(banner);
 
   const textarea = document.createElement('textarea');
   textarea.className = 'notes-tab-textarea';

@@ -89,14 +89,16 @@ jobs:
           retry_wait_seconds: 15
           command: npx electron-builder --mac zip dmg --arm64 --publish always --config electron-builder.config.js
 
-      - name: Build dev (no publish)
+      - name: Build dev (no sign, no publish)
         if: steps.bump.outputs.is_dev == 'true'
         uses: nick-fields/retry@v3
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
         with:
           timeout_minutes: 20
           max_attempts: 3
           retry_wait_seconds: 15
-          command: npx electron-builder --mac zip dmg --arm64 --config electron-builder.config.js
+          command: npx electron-builder --mac zip dmg --arm64 --config electron-builder.config.js -c.mac.notarize=false
 
       - name: Upload dev artifacts
         if: steps.bump.outputs.is_dev == 'true'
@@ -107,3 +109,49 @@ jobs:
             dist/*.dmg
             dist/*.zip
           retention-days: 7
+
+      - name: Update Homebrew tap
+        if: github.event_name == 'push' || steps.bump.outputs.is_dev == 'false'
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.bump.outputs.version }}"
+          # For tag pushes, extract version from tag
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          ZIP_URL="https://github.com/plosson/cct/releases/download/v${VERSION}/Claudiu-${VERSION}-arm64-mac.zip"
+          # Wait for the release asset to be available
+          for i in $(seq 1 30); do
+            if curl -sfIL "$ZIP_URL" > /dev/null 2>&1; then break; fi
+            echo "Waiting for release asset... ($i/30)"
+            sleep 10
+          done
+          SHA256=$(curl -sfL "$ZIP_URL" | shasum -a 256 | awk '{print $1}')
+          echo "Version: $VERSION, SHA256: $SHA256"
+
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/plosson/homebrew-claudiu.git /tmp/homebrew-claudiu
+          cd /tmp/homebrew-claudiu
+          cat > Casks/claudiu.rb << CASK
+          cask "claudiu" do
+            version "$VERSION"
+            sha256 "$SHA256"
+
+            url "https://github.com/plosson/cct/releases/download/v#{version}/Claudiu-#{version}-arm64-mac.zip"
+            name "Claudiu"
+            desc "A Terminal Development Environment for Claude Code"
+            homepage "https://github.com/plosson/cct"
+
+            app "Claudiu.app"
+
+            zap trash: [
+              "~/Library/Application Support/Claudiu",
+              "~/Library/Preferences/com.claudiu.app.plist",
+            ]
+          end
+          CASK
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/claudiu.rb
+          git commit -m "Update Claudiu to $VERSION"
+          git push

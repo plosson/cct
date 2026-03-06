@@ -22,7 +22,12 @@ module.exports = {
     target: ["dmg", "zip"],
     category: "public.app-category.developer-tools",
     darkModeSupport: true,
-    icon: "build/icon.icns"
+    icon: "build/icon.icns",
+    hardenedRuntime: true,
+    gatekeeperAssess: false,
+    entitlements: "build/entitlements.mac.plist",
+    entitlementsInherit: "build/entitlements.mac.plist",
+    notarize: true
   },
   dmg: {
     background: null,
