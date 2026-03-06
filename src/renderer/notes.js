@@ -163,4 +163,16 @@ async function initNotes() {
   document.addEventListener('claudiu-project-changed', () => onProjectChanged());
 }
 
-export { toggleNotes, onProjectChanged, isNotesOpen, initNotes };
+/** Read notes content for a project path */
+async function readNotes(projectPath) {
+  if (!projectPath) return '';
+  return api.notes.read(projectPath);
+}
+
+/** Write notes content for a project path */
+async function writeNotes(projectPath, content) {
+  if (!projectPath) return;
+  return api.notes.write(projectPath, content).catch(() => {});
+}
+
+export { toggleNotes, onProjectChanged, isNotesOpen, initNotes, readNotes, writeNotes };

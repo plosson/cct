@@ -19,6 +19,7 @@ import {
 } from './sidebar.js';
 import { addDebugEntry } from './overlays.js';
 import { keybindings, normalizeKeyEvent } from './keybindings.js';
+import { readNotes, writeNotes } from './notes.js';
 
 const api = window.electron_api;
 
@@ -213,8 +214,7 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
 
   const onBellDisposable = terminal.onBell(() => {
     if (activeId !== id) {
-      tabEl.classList.add('tab-bell');
-      setTimeout(() => tabEl.classList.remove('tab-bell'), 1000);
+      // Bell flash disabled
     }
   });
 
@@ -280,6 +280,8 @@ export function activateTab(id) {
     session.fitAddon.fit();
     api.terminal.resize({ id, cols: session.terminal.cols, rows: session.terminal.rows });
     session.terminal.focus();
+  } else if (session.textarea) {
+    session.textarea.focus();
   }
   updateStatusBar();
 }
@@ -291,7 +293,7 @@ export function closeTab(id) {
 
   const projectPath = session.projectPath;
 
-  if (session.type !== 'settings') api.terminal.kill({ id });
+  if (session.type !== 'settings' && session.type !== 'notes') api.terminal.kill({ id });
   session.cleanup();
   session.panelEl.remove();
   session.tabEl.remove();
@@ -325,6 +327,132 @@ export async function restoreSessions(projectPath) {
       claudeSessionId: entry.claudeSessionId
     });
   }
+}
+
+// ── Notes Tab ────────────────────────────────────────────────
+
+let notesTabIdCounter = -1000; // negative IDs to avoid collisions with PTY session IDs
+
+/**
+ * Open a Notes tab for the current project.
+ * Only one notes tab per project — if already open, just activates it.
+ */
+export async function createNotesTab() {
+  const selectedProjectPath = getSelectedProjectPath();
+  if (!selectedProjectPath) return;
+
+  const project = projects.find(p => p.path === selectedProjectPath);
+  if (!project) return;
+
+  // Check if a notes tab already exists for this project
+  for (const [id, sess] of sessions) {
+    if (sess.type === 'notes' && sess.projectPath === selectedProjectPath) {
+      activateTab(id);
+      return;
+    }
+  }
+
+  const color = getProjectColor(project.name);
+  updateAppGlow(project.name);
+
+  const panelEl = document.createElement('div');
+  panelEl.className = 'terminal-panel notes-tab-panel';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'notes-tab-textarea';
+  textarea.placeholder = 'Write notes here...';
+  textarea.spellcheck = false;
+  panelEl.appendChild(textarea);
+
+  terminalsContainer.appendChild(panelEl);
+
+  const id = notesTabIdCounter--;
+  const projColor = `hsl(${color.hue}, ${color.s}%, ${color.l}%)`;
+  const projColorBg = `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.15)`;
+
+  const notesSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z"/><line x1="6" y1="5" x2="10" y2="5"/><line x1="6" y1="8" x2="10" y2="8"/><line x1="6" y1="11" x2="8" y2="11"/></svg>`;
+  const icon = `<span class="tab-icon tab-icon-notes" style="background:${projColorBg};color:${projColor}">${notesSvg}</span>`;
+  const dot = `<span class="tab-color-dot" style="background:${projColor}"></span>`;
+
+  const tabEl = document.createElement('div');
+  tabEl.className = 'tab-item';
+  tabEl.dataset.testid = 'tab';
+  tabEl.dataset.tabId = String(id);
+  tabEl.innerHTML = `${icon}<span class="tab-label" data-testid="tab-label">Notes</span>${dot}<button class="tab-close" data-testid="tab-close">&times;</button>`;
+
+  tabEl.addEventListener('click', (e) => {
+    if (!e.target.closest('.tab-close')) activateTab(id);
+  });
+  tabEl.querySelector('.tab-close').addEventListener('click', () => closeTab(id));
+
+  tabBarTabs.appendChild(tabEl);
+
+  // Autosave logic
+  let notesSaveTimer = null;
+  let notesDirty = false;
+  let notesProjectPath = selectedProjectPath;
+
+  textarea.addEventListener('input', () => {
+    notesDirty = true;
+    if (notesSaveTimer) clearTimeout(notesSaveTimer);
+    notesSaveTimer = setTimeout(() => {
+      if (notesDirty && notesProjectPath) {
+        notesDirty = false;
+        writeNotes(notesProjectPath, textarea.value);
+      }
+    }, 1000);
+  });
+
+  // Load initial content
+  textarea.value = await readNotes(selectedProjectPath);
+
+  const cleanup = () => {
+    // Save pending changes on close
+    if (notesDirty && notesProjectPath) {
+      if (notesSaveTimer) clearTimeout(notesSaveTimer);
+      writeNotes(notesProjectPath, textarea.value);
+    }
+  };
+
+  // Listen for project changes to reload notes
+  const onProjectChanged = async () => {
+    const sess = sessions.get(id);
+    if (!sess) return;
+    const newPath = getSelectedProjectPath();
+    if (newPath && newPath !== notesProjectPath) {
+      // Save old
+      if (notesDirty) {
+        if (notesSaveTimer) clearTimeout(notesSaveTimer);
+        notesDirty = false;
+        await writeNotes(notesProjectPath, textarea.value);
+      }
+      notesProjectPath = newPath;
+      textarea.value = await readNotes(newPath);
+    }
+  };
+  document.addEventListener('claudiu-project-changed', onProjectChanged);
+
+  const fullCleanup = () => {
+    cleanup();
+    document.removeEventListener('claudiu-project-changed', onProjectChanged);
+  };
+
+  sessions.set(id, {
+    terminal: null,
+    fitAddon: null,
+    searchAddon: null,
+    panelEl,
+    tabEl,
+    cleanup: fullCleanup,
+    projectPath: selectedProjectPath,
+    sessionId: null,
+    type: 'notes',
+    createdAt: Date.now(),
+    textarea,
+  });
+
+  activateTab(id);
+  renderSidebar();
 }
 
 // ── Font size zoom ───────────────────────────────────────────
@@ -484,6 +612,9 @@ export function updateStatusBar() {
   if (session) {
     if (session.type === 'settings') {
       statusSessionTypeEl.textContent = 'Settings';
+      statusTerminalSizeEl.textContent = '';
+    } else if (session.type === 'notes') {
+      statusSessionTypeEl.textContent = 'Notes';
       statusTerminalSizeEl.textContent = '';
     } else {
       statusSessionTypeEl.textContent = session.type === 'claude' ? 'Claude' : 'Terminal';

@@ -149,10 +149,47 @@ html, body {
   animation: glow-breathe 4s ease-in-out infinite;
 }
 
-/* Simple 1px project-colored border around the app */
+/* Border beam — animated gradient traveling along app edges */
+@property --border-beam-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 .app.has-border-glow {
-  border: 1px solid var(--glow-color);
+  position: relative;
   border-radius: 8px;
+}
+
+.app.has-border-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 9999;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--border-beam-angle),
+    transparent 0%,
+    transparent 75%,
+    var(--glow-color) 88%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: border-beam-spin 4s linear infinite;
+  opacity: var(--glow-intensity, 1);
+}
+
+@keyframes border-beam-spin {
+  to { --border-beam-angle: 360deg; }
 }
 
 .titlebar-drag-region {
@@ -423,7 +460,7 @@ html, body {
   height: 100%;
   cursor: pointer;
   font-size: 12px;
-  color: var(--text-dim);
+  color: #888;
   white-space: nowrap;
   user-select: none;
   -webkit-app-region: no-drag;
@@ -573,6 +610,25 @@ html, body {
   color: var(--text-primary);
 }
 
+.tab-new-chevron {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+  flex-shrink: 0;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.tab-new-chevron:hover {
+  color: var(--text-primary);
+}
+
 /* Main content row — horizontal split for terminals + notes panel */
 .main-content-row {
   display: flex;
@@ -691,6 +747,36 @@ html, body {
   50%      { opacity: var(--glow-intensity, 1); }
 }
 
+
+/* Notes tab panel */
+.notes-tab-panel {
+  padding: 0;
+  flex-direction: column;
+}
+
+.notes-tab-textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Fira Code', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 16px 20px;
+  overflow-y: auto;
+  tab-size: 2;
+}
+
+.notes-tab-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.tab-icon-notes {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
 
 .terminal-panel.active {
   display: flex;

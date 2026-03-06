@@ -13,8 +13,6 @@ import {
 
 const api = window.electron_api;
 
-// Tab drag-and-drop state
-let draggedTabId = null;
 
 // ── Tab element creation ─────────────────────────────────────
 
@@ -45,17 +43,8 @@ export function createTabElement(id, { projectName, projectColor, type, num }, {
   tabEl.dataset.tabId = String(id);
   tabEl.innerHTML = `${icon}<span class="tab-label" data-testid="tab-label">${displayLabel}</span>${dot}<button class="tab-close" data-testid="tab-close">&times;</button>`;
 
-  tabEl.draggable = true;
-
   tabEl.addEventListener('click', (e) => {
     if (!e.target.closest('.tab-close')) onActivate();
-  });
-
-  // Double-click to rename tab
-  const labelEl = tabEl.querySelector('.tab-label');
-  labelEl.addEventListener('dblclick', (e) => {
-    e.stopPropagation();
-    startTabRename(id, labelEl);
   });
 
   tabEl.addEventListener('contextmenu', (e) => {
@@ -63,114 +52,11 @@ export function createTabElement(id, { projectName, projectColor, type, num }, {
     showTabContextMenu(id);
   });
 
-  tabEl.addEventListener('dragstart', (e) => {
-    draggedTabId = id;
-    tabEl.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(id));
-  });
-
-  tabEl.addEventListener('dragend', () => {
-    tabEl.classList.remove('dragging');
-    draggedTabId = null;
-    clearDropIndicators();
-  });
-
-  tabEl.addEventListener('dragover', (e) => {
-    if (draggedTabId === null || draggedTabId === id) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    clearDropIndicators();
-    const rect = tabEl.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
-    tabEl.classList.add(e.clientX < midX ? 'drop-before' : 'drop-after');
-  });
-
-  tabEl.addEventListener('dragleave', () => {
-    tabEl.classList.remove('drop-before', 'drop-after');
-  });
-
-  tabEl.addEventListener('drop', (e) => {
-    e.preventDefault();
-    if (draggedTabId === null || draggedTabId === id) return;
-    const draggedSession = sessions.get(draggedTabId);
-    if (!draggedSession) return;
-
-    const tabBarTabs = getTabBarTabs();
-    const rect = tabEl.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
-    const insertBefore = e.clientX < midX;
-
-    if (insertBefore) {
-      tabBarTabs.insertBefore(draggedSession.tabEl, tabEl);
-    } else {
-      tabBarTabs.insertBefore(draggedSession.tabEl, tabEl.nextSibling);
-    }
-    clearDropIndicators();
-  });
-
   tabEl.querySelector('.tab-close').addEventListener('click', () => onClose());
 
   return tabEl;
 }
 
-// ── Tab drag helpers ─────────────────────────────────────────
-
-function clearDropIndicators() {
-  const tabBarTabs = getTabBarTabs();
-  for (const el of tabBarTabs.querySelectorAll('.drop-before, .drop-after')) {
-    el.classList.remove('drop-before', 'drop-after');
-  }
-}
-
-// ── Tab rename ───────────────────────────────────────────────
-
-function startTabRename(tabId, labelEl) {
-  const session = sessions.get(tabId);
-  if (!session) return;
-
-  const currentText = labelEl.textContent;
-  const input = document.createElement('input');
-  input.className = 'tab-rename-input';
-  input.dataset.testid = 'tab-rename-input';
-  input.value = currentText;
-  input.style.width = Math.max(60, labelEl.offsetWidth + 10) + 'px';
-
-  labelEl.textContent = '';
-  labelEl.appendChild(input);
-  input.focus();
-  input.select();
-
-  let cancelled = false;
-
-  const finishRename = (commit) => {
-    if (!input.parentElement) return; // already removed
-    const newName = input.value.trim();
-    input.remove();
-    if (commit && newName) {
-      labelEl.textContent = newName;
-      session.customLabel = newName;
-    } else {
-      labelEl.textContent = session.customLabel || currentText;
-    }
-  };
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      finishRename(true);
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelled = true;
-      finishRename(false);
-    }
-    e.stopPropagation(); // prevent keybindings while editing
-  });
-
-  input.addEventListener('blur', () => {
-    if (!cancelled) finishRename(true);
-  });
-}
 
 // ── Tab context menu ─────────────────────────────────────────
 
@@ -289,8 +175,6 @@ function moveTab(direction) {
 // ── Exports ──────────────────────────────────────────────────
 
 export {
-  clearDropIndicators,
-  startTabRename,
   showTabContextMenu,
   closeOtherTabs, closeAllTabs,
   cycleTab, goToTab, moveTab,
