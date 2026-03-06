@@ -248,9 +248,9 @@ function openSearchBar() {
   searchBarEl.appendChild(nextBtn);
   searchBarEl.appendChild(closeBtn);
 
-  // Insert into the active panel's parent (main area)
-  const mainArea = document.querySelector('.main-area');
-  mainArea.insertBefore(searchBarEl, getTerminalsContainer());
+  // Insert before the terminals container within its parent
+  const tc = getTerminalsContainer();
+  tc.parentElement.insertBefore(searchBarEl, tc);
 
   const doSearch = (direction = 'next') => {
     const s = getActiveSession();

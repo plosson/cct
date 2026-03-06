@@ -63,6 +63,7 @@ function isTextInputFocused() {
 }
 
 function initKeyboardDispatch() {
+  // Use capture phase so app keybindings fire before xterm.js can stopPropagation
   document.addEventListener('keydown', (e) => {
     const key = normalizeKeyEvent(e);
     const actionName = keybindings[key];
@@ -78,8 +79,9 @@ function initKeyboardDispatch() {
     const handler = actions.get(actionName);
     if (!handler) return;
     e.preventDefault();
+    e.stopPropagation();
     handler();
-  });
+  }, true);
 }
 
 export {

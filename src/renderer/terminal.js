@@ -18,6 +18,7 @@ import {
   updateProjectActivityBadge,
 } from './sidebar.js';
 import { addDebugEntry } from './overlays.js';
+import { keybindings, normalizeKeyEvent } from './keybindings.js';
 
 const api = window.electron_api;
 
@@ -148,6 +149,13 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
   terminal.loadAddon(unicode11Addon);
   terminal.unicode.activeVersion = '11';
   terminal.open(panelEl);
+
+  // Let app-level keybindings bypass xterm so they bubble to the document dispatcher
+  terminal.attachCustomKeyEventHandler((e) => {
+    const key = normalizeKeyEvent(e);
+    if (keybindings[key]) return false;
+    return true;
+  });
 
   // Force scrollbar flush to right edge (xterm sets inline left/width)
   const scrollbar = panelEl.querySelector('.xterm-scrollable-element > .scrollbar.vertical');
