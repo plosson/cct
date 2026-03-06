@@ -524,6 +524,31 @@ export function selectAll() {
 
 /** Cached Audio objects keyed by event name */
 const soundCache = new Map();
+let audioMuted = false;
+
+/** Toggle mute state and show a brief overlay indicator */
+export function toggleMute() {
+  audioMuted = !audioMuted;
+  showMuteOverlay(audioMuted);
+}
+
+function showMuteOverlay(muted) {
+  // Remove any existing overlay
+  const existing = document.querySelector('.mute-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'mute-overlay';
+  overlay.innerHTML = muted
+    ? `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg><span>Muted</span>`
+    : `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg><span>Unmuted</span>`;
+  document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    overlay.classList.add('fade-out');
+    overlay.addEventListener('animationend', () => overlay.remove());
+  }, 800);
+}
 
 /** Load (or reload) the active sound theme into the cache */
 export async function loadSoundTheme() {
@@ -541,6 +566,7 @@ export async function loadSoundTheme() {
 
 /** Play the sound for a hook event (if mapped) */
 function playEventSound(eventName) {
+  if (audioMuted) return;
   const entry = soundCache.get(eventName);
   if (!entry) return;
   const clone = entry.audio.cloneNode();

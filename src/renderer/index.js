@@ -34,7 +34,7 @@ import {
   TERMINAL_OPTIONS,
   setInitialFontSize,
   createSession, createNotesTab, closeTab,
-  zoomIn, zoomOut, zoomReset,
+  zoomIn, zoomOut, zoomReset, toggleMute,
   clearTerminal, copySelection, pasteClipboard, selectAll,
   applyThemeSetting, getTerminalTheme,
   initSoundTheme,
@@ -299,6 +299,7 @@ async function init() {
   actions.set('showShortcutHelp', showShortcutHelp);
   actions.set('toggleDebugPane', toggleDebugPane);
   actions.set('toggleNotes', createNotesTab);
+  actions.set('toggleMute', toggleMute);
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
   }
@@ -308,8 +309,7 @@ async function init() {
 
   // Wire up UI buttons
   document.querySelector('.sidebar-toggle-btn')?.addEventListener('click', toggleSidebar);
-  document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', () => createSession('claude'));
-  document.querySelector('[data-testid="new-tab-chevron"]').addEventListener('click', async () => {
+  document.querySelector('[data-testid="new-tab-btn"]').addEventListener('click', async () => {
     const action = await api.contextMenu.show([
       { label: 'Claude\t\t⌘N', action: 'claude' },
       { label: 'Terminal\t\t⌘T', action: 'terminal' },
