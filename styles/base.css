@@ -149,6 +149,12 @@ html, body {
   animation: glow-breathe 4s ease-in-out infinite;
 }
 
+/* Simple 1px project-colored border around the app */
+.app.has-border-glow {
+  border: 1px solid var(--glow-color);
+  border-radius: 8px;
+}
+
 .titlebar-drag-region {
   height: 38px;
   -webkit-app-region: drag;
@@ -668,31 +674,6 @@ html, body {
   background: var(--bg-app);
 }
 
-/* Background image — ON TOP of everything (xterm canvas is opaque, image must
-   overlay it). pointer-events:none lets all clicks/scrolls pass through. */
-.terminals-container.has-bg-image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 100;
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-/* Subtle tint above the image for text contrast */
-.terminals-container.has-bg-image::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 101;
-  background: var(--bg-app);
-  opacity: 0.25;
-  pointer-events: none;
-}
 
 .terminal-panel {
   position: absolute;
@@ -709,6 +690,7 @@ html, body {
   0%, 100% { opacity: calc(0.6 * var(--glow-intensity, 1)); }
   50%      { opacity: var(--glow-intensity, 1); }
 }
+
 
 .terminal-panel.active {
   display: flex;

@@ -7,7 +7,7 @@ import { openSettings, refreshSettingsTab } from './settings.js';
 import {
   sessions, setActiveId,
   activateTab, closeTab, restoreSessions, updateStatusBar,
-  refitActiveTerminal, applyProjectBackground,
+  refitActiveTerminal,
 } from './terminal.js';
 import {
   getSidebarProjectsEl, getSidebarEl, getEmptyStateEl,
@@ -155,9 +155,8 @@ function selectProject(projectPath) {
     }
   }
 
-  // Update app glow and background image to match selected project
+  // Update app glow to match selected project
   updateAppGlow(projectPath);
-  applyProjectBackground(projectPath);
 
   // Activate the last active tab for this project, or clear
   const projectSessionIds = sessionsForProject(projectPath).map(([id]) => id);
@@ -416,7 +415,7 @@ function initSidebarResize() {
 async function updateAppGlow(projectNameOrPath) {
   const appEl = document.querySelector('.app');
   if (!projectNameOrPath) {
-    appEl.classList.remove('has-glow');
+    appEl.classList.remove('has-glow', 'has-border-glow');
     return;
   }
   // Accept either a project name or path — look up name from projects array if it's a path
@@ -425,7 +424,11 @@ async function updateAppGlow(projectNameOrPath) {
   const color = getProjectColor(name);
   appEl.style.setProperty('--glow-color', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 1)`);
   appEl.style.setProperty('--glow-color-dim', `hsla(${color.hue}, ${color.s}%, ${color.l}%, 0.7)`);
-  appEl.classList.add('has-glow');
+
+  // Pick glow class based on glowStyle config
+  const glowStyle = await api.appConfig.resolve('glowStyle', selectedProjectPath);
+  appEl.classList.remove('has-glow', 'has-border-glow');
+  appEl.classList.add(glowStyle === 'border' ? 'has-border-glow' : 'has-glow');
 
   // Apply glow intensity from config
   const intensity = await api.appConfig.resolve('glowIntensity', selectedProjectPath);
@@ -436,6 +439,13 @@ async function updateAppGlow(projectNameOrPath) {
 function updateGlowIntensity(value) {
   const appEl = document.querySelector('.app');
   appEl.style.setProperty('--glow-intensity', value / 100);
+}
+
+/** Live-update glow style (called from settings select) */
+function updateGlowStyle(value) {
+  const appEl = document.querySelector('.app');
+  appEl.classList.remove('has-glow', 'has-border-glow');
+  appEl.classList.add(value === 'border' ? 'has-border-glow' : 'has-glow');
 }
 
 // ── Exports ──────────────────────────────────────────────────
@@ -453,7 +463,7 @@ export {
   renderSidebar, selectProject, addProject, removeProject, cycleProject,
   updateProjectActivityBadge,
   toggleSidebar, initSidebarResize, initSidebarAutoHide,
-  updateEmptyState, updateAppGlow, updateGlowIntensity,
+  updateEmptyState, updateAppGlow, updateGlowIntensity, updateGlowStyle,
   showProjectContextMenu,
   getEmptyStateMessage,
 };
