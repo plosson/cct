@@ -133,7 +133,10 @@ function isOurHook(hookEntry) {
  */
 function installHooks(port) {
   try {
-    // Install the emit.sh script first
+    // Remove stale hooks first (e.g. from a previous crash where before-quit didn't fire)
+    removeHooks();
+
+    // Install the emit.sh script
     installEmitScript();
 
     const settings = readClaudeSettings();
