@@ -34,4 +34,22 @@ async function showWindow(electronApp) {
   }
 }
 
-module.exports = { appPath, launchEnv, showWindow };
+/**
+ * Close an Electron app with a hard-kill fallback.
+ * Prevents test hangs when electronApp.close() blocks.
+ */
+async function closeApp(electronApp, timeoutMs = 5000) {
+  if (!electronApp) return;
+  const pid = electronApp.process().pid;
+  const kill = () => { try { process.kill(pid, 'SIGKILL'); } catch {} };
+  const timer = setTimeout(kill, timeoutMs);
+  try {
+    await electronApp.close();
+  } catch {
+    kill();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+module.exports = { appPath, launchEnv, showWindow, closeApp };

@@ -338,7 +338,7 @@ export function setFontSize(size) {
     session.fitAddon.fit();
   }
   if (api.windowState) {
-    api.windowState.setFontSize(currentFontSize);
+    api.windowState.set('fontSize', currentFontSize);
   }
   updateStatusBar();
 }

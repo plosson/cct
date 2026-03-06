@@ -8,7 +8,7 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 let electronApp;
 let window;
@@ -42,7 +42,7 @@ test.afterAll(async () => {
         await win.evaluate((path) => window.electron_api.projects.remove(path), p.path);
       }
     } catch { /* app may already be closed */ }
-    await electronApp.close();
+    await closeApp(electronApp);
   }
 });
 
@@ -88,7 +88,7 @@ test('5 - app closes gracefully via app.quit() even with active sessions', async
 
   // electronApp.close() calls app.quit() which triggers before-quit → forceClose
   // If this doesn't work, the test will timeout (dialog would block)
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = null;
 
   // If we reach here, the app closed successfully without dialog blocking

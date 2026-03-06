@@ -6,7 +6,7 @@
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 let electronApp;
 let window;
@@ -22,7 +22,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  if (electronApp) await electronApp.close();
+  if (electronApp) await closeApp(electronApp);
 });
 
 test('1 - window-state.json is created in userData', async () => {
@@ -139,7 +139,7 @@ test('6 - window state persists across app restart', async () => {
   expect(before.height).toBe(actual.h);
 
   // Restart the app
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = await electron.launch({
     args: [appPath],
     env: testEnv,
@@ -164,7 +164,7 @@ test('7 - sidebar width is restored on app restart', async () => {
   await window.waitForTimeout(500);
 
   // Restart the app
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = await electron.launch({
     args: [appPath],
     env: testEnv,

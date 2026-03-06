@@ -18,6 +18,7 @@ const DEFAULTS = {
   fontSize: 14,
   debugPaneHeight: 200,
   debugPaneOpen: false,
+  notesPanelWidth: 320,
 };
 
 class WindowStateService {
@@ -109,48 +110,16 @@ class WindowStateService {
     return this._state.isMaximized;
   }
 
-  get sidebarWidth() {
-    return this._state.sidebarWidth;
+  /** Get a persisted state value by key */
+  get(key) {
+    if (!(key in DEFAULTS)) return undefined;
+    return this._state[key];
   }
 
-  set sidebarWidth(value) {
-    this._state.sidebarWidth = value;
-    this._debouncedSave();
-  }
-
-  get sidebarMode() {
-    return this._state.sidebarMode;
-  }
-
-  set sidebarMode(value) {
-    this._state.sidebarMode = value;
-    this._debouncedSave();
-  }
-
-  get fontSize() {
-    return this._state.fontSize;
-  }
-
-  set fontSize(value) {
-    this._state.fontSize = value;
-    this._debouncedSave();
-  }
-
-  get debugPaneHeight() {
-    return this._state.debugPaneHeight;
-  }
-
-  set debugPaneHeight(value) {
-    this._state.debugPaneHeight = value;
-    this._debouncedSave();
-  }
-
-  get debugPaneOpen() {
-    return this._state.debugPaneOpen;
-  }
-
-  set debugPaneOpen(value) {
-    this._state.debugPaneOpen = value;
+  /** Set a persisted state value by key */
+  set(key, value) {
+    if (!(key in DEFAULTS)) return;
+    this._state[key] = value;
     this._debouncedSave();
   }
 

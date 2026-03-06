@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect, _electron: electron } = require('@playwright/test');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 /** @type {import('@playwright/test').ElectronApplication} */
 let electronApp;
@@ -15,7 +15,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await electronApp.close();
+  await closeApp(electronApp);
 });
 
 test('sidebar background is semi-transparent in dark theme (vibrancy)', async () => {

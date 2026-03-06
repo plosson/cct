@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execSync } = require('child_process');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 /** @type {import('@playwright/test').ElectronApplication} */
 let electronApp;
@@ -48,7 +48,7 @@ test.afterAll(async () => {
         await win.evaluate((path) => window.electron_api.projects.remove(path), p.path);
       }
     } catch { /* app may already be closed */ }
-    await electronApp.close();
+    await closeApp(electronApp);
   }
 });
 

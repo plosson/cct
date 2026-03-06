@@ -28,17 +28,9 @@ contextBridge.exposeInMainWorld('electron_api', {
   },
 
   windowState: {
-    getSidebarWidth: () => ipcRenderer.invoke('get-sidebar-width'),
-    setSidebarWidth: (width) => ipcRenderer.send('set-sidebar-width', width),
-    getSidebarMode: () => ipcRenderer.invoke('get-sidebar-mode'),
-    setSidebarMode: (mode) => ipcRenderer.send('set-sidebar-mode', mode),
-    getFontSize: () => ipcRenderer.invoke('get-font-size'),
-    setFontSize: (size) => ipcRenderer.send('set-font-size', size),
+    get: (key) => ipcRenderer.invoke('window-state-get', key),
+    set: (key, value) => ipcRenderer.send('window-state-set', { key, value }),
     getConfigPath: () => ipcRenderer.invoke('get-window-state-path'),
-    getDebugPaneHeight: () => ipcRenderer.invoke('get-debug-pane-height'),
-    setDebugPaneHeight: (h) => ipcRenderer.send('set-debug-pane-height', h),
-    getDebugPaneOpen: () => ipcRenderer.invoke('get-debug-pane-open'),
-    setDebugPaneOpen: (open) => ipcRenderer.send('set-debug-pane-open', open),
   },
 
   contextMenu: {
@@ -92,6 +84,11 @@ contextBridge.exposeInMainWorld('electron_api', {
 
   hooks: {
     onEvent: createListener('hook-event'),
+  },
+
+  notes: {
+    read: (projectPath) => ipcRenderer.invoke('notes-read', { projectPath }),
+    write: (projectPath, content) => ipcRenderer.invoke('notes-write', { projectPath, content }),
   },
 
   soundThemes: {

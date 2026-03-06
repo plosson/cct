@@ -172,6 +172,9 @@ function selectProject(projectPath) {
   renderSidebar();
   updateStatusBar();
   refreshSettingsTab();
+
+  // Notify listeners of project change
+  document.dispatchEvent(new CustomEvent('claudiu-project-changed', { detail: { projectPath } }));
 }
 
 /** Get all session [id, session] entries for a given project path */
@@ -308,7 +311,7 @@ function toggleSidebar() {
   }
 
   if (api.windowState) {
-    api.windowState.setSidebarMode(sidebarMode);
+    api.windowState.set('sidebarMode', sidebarMode);
   }
 }
 
@@ -402,7 +405,7 @@ function initSidebarResize() {
     sidebarWidth = finalWidth;
     document.documentElement.style.setProperty('--sidebar-width', finalWidth + 'px');
     if (api.windowState) {
-      api.windowState.setSidebarWidth(finalWidth);
+      api.windowState.set('sidebarWidth', finalWidth);
     }
   });
 }

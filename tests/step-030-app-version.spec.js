@@ -5,7 +5,7 @@
 
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 const pkg = require(path.join(appPath, 'package.json'));
 
 let electronApp;
@@ -22,7 +22,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  if (electronApp) await electronApp.close();
+  if (electronApp) await closeApp(electronApp);
 });
 
 test('1 - version element exists in status bar', async () => {

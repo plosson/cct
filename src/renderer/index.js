@@ -40,6 +40,7 @@ import {
   initSoundTheme,
 } from './terminal.js';
 import { actions, initKeyboardDispatch } from './keybindings.js';
+import { toggleNotes, initNotes } from './notes.js';
 
 const api = window.electron_api;
 
@@ -175,11 +176,11 @@ async function init() {
 
   // Restore sidebar width, mode, and font size from persisted state
   if (api.windowState) {
-    const savedWidth = await api.windowState.getSidebarWidth();
+    const savedWidth = await api.windowState.get('sidebarWidth');
     if (savedWidth && savedWidth > 0) {
       setSidebarWidth(savedWidth);
     }
-    const savedMode = await api.windowState.getSidebarMode();
+    const savedMode = await api.windowState.get('sidebarMode');
     if (savedMode === 'pinned' || savedMode === 'autohide') {
       setSidebarMode(savedMode);
     }
@@ -193,7 +194,7 @@ async function init() {
       sidebarEl.style.width = '0';
       document.documentElement.style.setProperty('--sidebar-width', '0px');
     }
-    const savedFontSize = await api.windowState.getFontSize();
+    const savedFontSize = await api.windowState.get('fontSize');
     if (savedFontSize && savedFontSize >= 8 && savedFontSize <= 32) {
       setInitialFontSize(savedFontSize);
     }
@@ -216,9 +217,9 @@ async function init() {
     });
 
     // Restore debug pane state
-    const savedDebugHeight = await api.windowState.getDebugPaneHeight();
+    const savedDebugHeight = await api.windowState.get('debugPaneHeight');
     if (savedDebugHeight && savedDebugHeight > 0) setDebugPaneHeight(savedDebugHeight);
-    const savedDebugOpen = await api.windowState.getDebugPaneOpen();
+    const savedDebugOpen = await api.windowState.get('debugPaneOpen');
     if (savedDebugOpen) {
       setDebugPaneOpen(true);
       debugPaneEl.style.height = getDebugPaneHeight() + 'px';
@@ -297,6 +298,7 @@ async function init() {
   actions.set('openSettings', openSettings);
   actions.set('showShortcutHelp', showShortcutHelp);
   actions.set('toggleDebugPane', toggleDebugPane);
+  actions.set('toggleNotes', toggleNotes);
   for (let i = 1; i <= 8; i++) {
     actions.set(`goToTab${i}`, () => goToTab(i - 1));
   }
@@ -313,6 +315,7 @@ async function init() {
   // Sound theme — play sounds on hook events
   initSoundTheme();
 
+  initNotes();
   initSidebarResize();
   initDebugPaneResize();
   initSidebarAutoHide();

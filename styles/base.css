@@ -566,6 +566,99 @@ html, body {
   color: var(--text-primary);
 }
 
+/* Main content row — horizontal split for terminals + notes panel */
+.main-content-row {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Notes resize handle */
+.notes-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  display: none;
+}
+
+.notes-resize-handle.visible {
+  display: block;
+}
+
+.notes-resize-handle:hover,
+.notes-resize-handle.dragging {
+  background: var(--border-strong);
+}
+
+/* Notes panel — right side */
+.notes-panel {
+  width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+  border-left: none;
+  transition: width 0.2s ease, border-left-color 0.2s ease;
+}
+
+.notes-panel.open {
+  border-left: 1px solid var(--border);
+}
+
+.notes-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.notes-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notes-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.notes-close-btn:hover {
+  color: var(--danger);
+}
+
+.notes-textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Fira Code', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.notes-textarea::placeholder {
+  color: var(--text-muted);
+}
+
 /* Terminal panels */
 .terminals-container {
   position: relative;

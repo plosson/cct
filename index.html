@@ -31,6 +31,7 @@
       </div>
       <div class="sidebar-resize-handle" data-testid="sidebar-resize-handle"></div>
       <div class="main-area">
+        <div class="main-content-row">
         <div id="terminals" class="terminals-container">
           <div class="empty-state" data-testid="empty-state">
             <span class="empty-state-msg">Add a project to get started</span>
@@ -50,6 +51,15 @@
               </button>
             </div>
           </div>
+        </div>
+        <div class="notes-resize-handle" data-testid="notes-resize-handle"></div>
+        <div class="notes-panel" data-testid="notes-panel">
+          <div class="notes-panel-header">
+            <span class="notes-panel-title">Notes</span>
+            <button class="notes-close-btn" data-testid="notes-close-btn">&times;</button>
+          </div>
+          <textarea class="notes-textarea" data-testid="notes-textarea" placeholder="Write notes here..." spellcheck="false"></textarea>
+        </div>
         </div>
         <div class="debug-pane-resize-handle" data-testid="debug-pane-resize-handle"></div>
         <div class="debug-pane" data-testid="debug-pane">

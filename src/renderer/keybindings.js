@@ -36,6 +36,7 @@ const DEFAULT_KEYBINDINGS = {
   'Meta+8': 'goToTab8',
   'Meta+9': 'goToLastTab',
   'Meta+j': 'toggleDebugPane',
+  'Meta+l': 'toggleNotes',
 };
 
 let keybindings = { ...DEFAULT_KEYBINDINGS };
@@ -52,11 +53,28 @@ function normalizeKeyEvent(e) {
   return parts.join('+');
 }
 
+/** Keys that should use native behavior when a text input is focused */
+const TEXT_NATIVE_KEYS = new Set(['a', 'c', 'v', 'x', 'z', 'Shift+z']);
+
+function isTextInputFocused() {
+  const el = document.activeElement;
+  if (!el) return false;
+  return el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'range' && el.type !== 'checkbox');
+}
+
 function initKeyboardDispatch() {
   document.addEventListener('keydown', (e) => {
     const key = normalizeKeyEvent(e);
     const actionName = keybindings[key];
     if (!actionName) return;
+
+    // Let native text-editing shortcuts through when a text input has focus
+    if (isTextInputFocused()) {
+      const nonMeta = key.replace(/Meta\+/, '').replace(/Shift\+/, '');
+      const shiftPrefix = e.shiftKey ? 'Shift+' : '';
+      if (TEXT_NATIVE_KEYS.has(shiftPrefix + nonMeta) || TEXT_NATIVE_KEYS.has(nonMeta)) return;
+    }
+
     const handler = actions.get(actionName);
     if (!handler) return;
     e.preventDefault();

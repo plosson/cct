@@ -7,7 +7,7 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 let electronApp;
 let window;
@@ -31,7 +31,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (electronApp) {
     try { await clearAllProjects(); } catch { /* app may already be closed */ }
-    await electronApp.close();
+    await closeApp(electronApp);
   }
 });
 
@@ -209,7 +209,7 @@ test('11 - projects persist across app restart', async () => {
   expect(projectsBefore.length).toBe(1);
 
   // Restart the app
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = await electron.launch({
     args: [appPath],
     env: testEnv,
@@ -318,7 +318,7 @@ test('19 - projectId persists across app restart', async () => {
   const originalProjectId = before.projectId;
 
   // Restart the app
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = await electron.launch({
     args: [appPath],
     env: testEnv,
@@ -581,7 +581,7 @@ test('29 - sessions are restored on app restart', async () => {
   expect(config.sessions[1].type).toBe('terminal');
 
   // Restart the app
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = await electron.launch({
     args: [appPath],
     env: testEnv,

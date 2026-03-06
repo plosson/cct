@@ -430,7 +430,7 @@ function toggleDebugPane() {
     debugPaneResizeHandle.classList.remove('visible');
   }
   if (api.windowState) {
-    api.windowState.setDebugPaneOpen(debugPaneOpen);
+    api.windowState.set('debugPaneOpen', debugPaneOpen);
   }
   refitActiveTerminal();
 }
@@ -475,7 +475,7 @@ function initDebugPaneResize() {
     document.body.style.userSelect = '';
     debugPaneHeight = debugPaneEl.offsetHeight;
     if (api.windowState) {
-      api.windowState.setDebugPaneHeight(debugPaneHeight);
+      api.windowState.set('debugPaneHeight', debugPaneHeight);
     }
   });
 }

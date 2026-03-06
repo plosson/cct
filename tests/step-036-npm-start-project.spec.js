@@ -10,13 +10,13 @@
 
 const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 let electronApp;
 let window;
 
 test.afterAll(async () => {
-  if (electronApp) await electronApp.close();
+  if (electronApp) await closeApp(electronApp);
 });
 
 test('1 - launching without a project path arg does NOT auto-select any project', async () => {
@@ -31,7 +31,7 @@ test('1 - launching without a project path arg does NOT auto-select any project'
   // With no arg, nothing should be auto-selected
   expect(selected).toBeFalsy();
 
-  await electronApp.close();
+  await closeApp(electronApp);
   electronApp = null;
 });
 

@@ -114,6 +114,7 @@ if (!gotTheLock) {
   const { registerLogIPC } = require('./src/main/ipc/log.ipc');
   const { SoundThemeService } = require('./src/main/services/SoundThemeService');
   const { registerSoundThemeIPC } = require('./src/main/ipc/sound-theme.ipc');
+  const { registerNotesIPC } = require('./src/main/ipc/notes.ipc');
 
   let terminalService;
   let windowStateService;
@@ -193,20 +194,13 @@ if (!gotTheLock) {
     registerProjectIPC(projectStore, projectConfigService);
     registerConfigIPC(configService);
     registerSoundThemeIPC(soundThemeService, configService);
+    registerNotesIPC();
 
     // Window state IPC
     ipcMain.handle('get-version', () => app.getVersion());
-    ipcMain.handle('get-sidebar-width', () => windowStateService.sidebarWidth);
-    ipcMain.on('set-sidebar-width', (_event, width) => { windowStateService.sidebarWidth = width; });
-    ipcMain.handle('get-sidebar-mode', () => windowStateService.sidebarMode);
-    ipcMain.on('set-sidebar-mode', (_event, mode) => { windowStateService.sidebarMode = mode; });
+    ipcMain.handle('window-state-get', (_event, key) => windowStateService.get(key));
+    ipcMain.on('window-state-set', (_event, { key, value }) => windowStateService.set(key, value));
     ipcMain.handle('get-window-state-path', () => windowStateService.configPath);
-    ipcMain.handle('get-font-size', () => windowStateService.fontSize);
-    ipcMain.on('set-font-size', (_event, size) => { windowStateService.fontSize = size; });
-    ipcMain.handle('get-debug-pane-height', () => windowStateService.debugPaneHeight);
-    ipcMain.on('set-debug-pane-height', (_event, h) => { windowStateService.debugPaneHeight = h; });
-    ipcMain.handle('get-debug-pane-open', () => windowStateService.debugPaneOpen);
-    ipcMain.on('set-debug-pane-open', (_event, open) => { windowStateService.debugPaneOpen = open; });
 
     // Shell IPC
     ipcMain.handle('shell-show-item-in-folder', (_event, fullPath) => shell.showItemInFolder(fullPath));

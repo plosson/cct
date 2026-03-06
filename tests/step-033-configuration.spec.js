@@ -8,7 +8,7 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { appPath, launchEnv } = require('./helpers');
+const { appPath, launchEnv, closeApp } = require('./helpers');
 
 let electronApp;
 let window;
@@ -39,7 +39,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  if (electronApp) await electronApp.close();
+  if (electronApp) await closeApp(electronApp);
   // Clean up temp dirs
   try { fs.rmSync(projectDir, { recursive: true }); } catch {}
 });
