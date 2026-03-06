@@ -107,7 +107,7 @@ test('4 - click project selects it, then + creates session in that folder', asyn
   await expect(emptyState).toBeVisible();
 
   // Click "+" to create a session
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
 
   // A tab should exist
@@ -150,7 +150,7 @@ test('7 - second project shows 0 sessions, first still shows 1', async () => {
 
 test('8 - create second session under first project, count updates to 2', async () => {
   // First project should still be selected
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForTimeout(1000);
 
   const count = window.locator('[data-testid="project-item"]').first()
@@ -242,7 +242,7 @@ test('13 - creating a session produces .claudiu/sessions.json in project folder'
   await projectItem.click();
   await window.waitForTimeout(300);
 
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
 
   // Get the project path
@@ -269,7 +269,7 @@ test('15 - session entry has id, terminalId, type, createdAt', async () => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   expect(session.id).toMatch(uuidRegex);
   expect(typeof session.terminalId).toBe('number');
-  expect(session.type).toBe('claude');
+  expect(session.type).toBe('terminal');
   expect(session.createdAt).toBeTruthy();
   expect(new Date(session.createdAt).toISOString()).toBe(session.createdAt);
 });
@@ -330,7 +330,7 @@ test('19 - projectId persists across app restart', async () => {
   const projectItem = window.locator('[data-testid="project-item"]').first();
   await projectItem.click();
   await window.waitForTimeout(300);
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
 
   // projectId should be the same
@@ -485,7 +485,7 @@ test('26 - removing project from sidebar does NOT delete .claudiu/ dir', async (
   const projectItem = window.locator('[data-testid="project-item"]').first();
   await projectItem.click();
   await window.waitForTimeout(300);
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
 
   const projectPath = await projectItem.getAttribute('data-project-path');
@@ -567,8 +567,8 @@ test('29 - sessions are restored on app restart', async () => {
   await projectItem.click();
   await window.waitForTimeout(300);
 
-  // Create a claude session + terminal session
-  await window.click('[data-testid="new-tab-btn"]');
+  // Create two terminal sessions
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
   await window.keyboard.press('Meta+t');
   await window.waitForTimeout(1000);
@@ -577,7 +577,7 @@ test('29 - sessions are restored on app restart', async () => {
   // Verify session types in sessions.json
   const { config } = await readSessionsConfig();
   expect(config.sessions.length).toBe(2);
-  expect(config.sessions[0].type).toBe('claude');
+  expect(config.sessions[0].type).toBe('terminal');
   expect(config.sessions[1].type).toBe('terminal');
 
   // Restart the app

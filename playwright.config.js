@@ -17,7 +17,7 @@ if (process.platform === 'darwin') {
 
 module.exports = defineConfig({
   testDir: './tests',
-  timeout: 30000,
+  timeout: 10000,
   retries: 0,
   workers: 4,
   use: {

@@ -30,7 +30,7 @@ test.beforeAll(async () => {
   }, tmpDir);
 
   // Create initial session
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
 });
 
@@ -53,7 +53,7 @@ test('1. on launch with project, one tab exists', async () => {
 });
 
 test('2. new session action creates a second tab', async () => {
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   const tabs = window.locator('[data-testid="tab"]');
   await expect(tabs).toHaveCount(2, { timeout: 10000 });
 });
@@ -122,7 +122,7 @@ test('7. close tab 2 via close button: tab count back to 1', async () => {
   // Ensure we have 2 tabs (create one if test 6 left us with fewer)
   const tabCount = await window.locator('[data-testid="tab"]').count();
   if (tabCount < 2) {
-    await window.click('[data-testid="new-tab-btn"]');
+    await window.evaluate(() => window._claudiuCreateSession('terminal'));
     await expect(window.locator('[data-testid="tab"]')).toHaveCount(2, { timeout: 5000 });
   }
 

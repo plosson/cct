@@ -52,4 +52,13 @@ async function closeApp(electronApp, timeoutMs = 5000) {
   }
 }
 
-module.exports = { appPath, launchEnv, showWindow, closeApp };
+/**
+ * Create a session programmatically (bypasses the context menu on the + button).
+ * @param {import('@playwright/test').Page} window
+ * @param {'terminal'|'claude'} [type='terminal']
+ */
+async function createSession(window, type = 'terminal') {
+  await window.evaluate((t) => window._claudiuCreateSession(t), type);
+}
+
+module.exports = { appPath, launchEnv, showWindow, closeApp, createSession };

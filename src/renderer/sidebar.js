@@ -102,6 +102,7 @@ function renderSidebar() {
         </svg>
       </span>
       <span class="sidebar-project-name">${project.name}</span>
+      <span class="sidebar-project-count" data-testid="session-count">${sessionCount}</span>
       <button class="sidebar-project-remove" data-testid="remove-project-btn">&times;</button>
     `;
 

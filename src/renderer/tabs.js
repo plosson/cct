@@ -41,6 +41,7 @@ export function createTabElement(id, { projectName, projectColor, type, num }, {
   tabEl.className = 'tab-item';
   tabEl.dataset.testid = 'tab';
   tabEl.dataset.tabId = String(id);
+  tabEl.draggable = true;
   tabEl.innerHTML = `${icon}<span class="tab-label" data-testid="tab-label">${displayLabel}</span>${dot}<button class="tab-close" data-testid="tab-close">&times;</button>`;
 
   tabEl.addEventListener('click', (e) => {
@@ -53,6 +54,52 @@ export function createTabElement(id, { projectName, projectColor, type, num }, {
   });
 
   tabEl.querySelector('.tab-close').addEventListener('click', () => onClose());
+
+  // Drag-and-drop reordering
+  tabEl.addEventListener('dragstart', (e) => {
+    tabEl.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
+  });
+  tabEl.addEventListener('dragend', () => {
+    tabEl.classList.remove('dragging');
+    document.querySelectorAll('.tab-item').forEach(t => {
+      t.classList.remove('drop-before', 'drop-after');
+    });
+  });
+  tabEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = tabEl.getBoundingClientRect();
+    const midX = rect.x + rect.width / 2;
+    tabEl.classList.toggle('drop-before', e.clientX < midX);
+    tabEl.classList.toggle('drop-after', e.clientX >= midX);
+  });
+  tabEl.addEventListener('dragleave', () => {
+    tabEl.classList.remove('drop-before', 'drop-after');
+  });
+  tabEl.addEventListener('drop', (e) => {
+    e.preventDefault();
+    tabEl.classList.remove('drop-before', 'drop-after');
+    const draggedId = e.dataTransfer.getData('text/plain');
+    const draggedTab = document.querySelector(`[data-testid="tab"][data-tab-id="${draggedId}"]`);
+    if (!draggedTab || draggedTab === tabEl) return;
+    const rect = tabEl.getBoundingClientRect();
+    const midX = rect.x + rect.width / 2;
+    const parent = tabEl.parentNode;
+    if (e.clientX < midX) {
+      parent.insertBefore(draggedTab, tabEl);
+    } else {
+      parent.insertBefore(draggedTab, tabEl.nextSibling);
+    }
+  });
+
+  // Double-click to rename
+  const labelEl = tabEl.querySelector('.tab-label');
+  labelEl.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    startTabRename(tabEl, labelEl);
+  });
 
   return tabEl;
 }
@@ -170,6 +217,46 @@ function moveTab(direction) {
       tabBarTabs.insertBefore(currentTab, projectTabs[idx + 1].nextSibling);
     }
   }
+}
+
+// ── Tab rename ────────────────────────────────────────────────
+
+function startTabRename(tabEl, labelEl) {
+  const currentName = labelEl.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tab-rename-input';
+  input.dataset.testid = 'tab-rename-input';
+  input.value = currentName;
+
+  labelEl.style.display = 'none';
+  tabEl.insertBefore(input, labelEl.nextSibling);
+  input.focus();
+  input.select();
+
+  let done = false;
+
+  const commit = () => {
+    if (done) return;
+    done = true;
+    const newName = input.value.trim();
+    labelEl.textContent = newName || currentName;
+    labelEl.style.display = '';
+    input.remove();
+  };
+
+  const cancel = () => {
+    if (done) return;
+    done = true;
+    labelEl.style.display = '';
+    input.remove();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+  input.addEventListener('blur', commit);
 }
 
 // ── Exports ──────────────────────────────────────────────────

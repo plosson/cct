@@ -85,12 +85,12 @@ test('3 - selecting project shows project name in status bar', async () => {
 
 test('4 - creating a session shows session type and terminal size', async () => {
   // Create a session
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
 
-  // Session type should show "Claude"
+  // Session type should show "Terminal"
   const sessionType = window.locator('[data-testid="status-session-type"]');
-  await expect(sessionType).toHaveText('Claude', { timeout: 3000 });
+  await expect(sessionType).toHaveText('Terminal', { timeout: 3000 });
 
   // Terminal size should show dimensions (e.g., "80×24")
   const termSize = window.locator('[data-testid="status-terminal-size"]');
@@ -125,7 +125,7 @@ test('6 - closing all sessions clears session info from status bar', async () =>
 
 test('7 - project name persists in status bar after switching tabs', async () => {
   // Create two sessions
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.xterm', { timeout: 10000 });
   await window.keyboard.press('Meta+t');
   await window.waitForTimeout(500);

@@ -214,7 +214,8 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
 
   const onBellDisposable = terminal.onBell(() => {
     if (activeId !== id) {
-      // Bell flash disabled
+      tabEl.classList.add('tab-bell');
+      setTimeout(() => tabEl.classList.remove('tab-bell'), 1000);
     }
   });
 
@@ -564,6 +565,24 @@ export async function loadSoundTheme() {
   }
 }
 
+/** Sound queue — plays sounds FIFO, never overlapping */
+const soundQueue = [];
+let soundPlaying = false;
+
+function processNextSound() {
+  if (soundPlaying || soundQueue.length === 0) return;
+  soundPlaying = true;
+  const clone = soundQueue.shift();
+  const onDone = () => {
+    soundPlaying = false;
+    processNextSound();
+  };
+  clone.addEventListener('ended', onDone);
+  clone.addEventListener('pause', onDone);
+  clone.addEventListener('error', onDone);
+  clone.play().catch(onDone);
+}
+
 /** Play the sound for a hook event (if mapped) */
 function playEventSound(eventName) {
   if (audioMuted) return;
@@ -577,7 +596,8 @@ function playEventSound(eventName) {
       if (clone.currentTime >= entry.trimEnd) clone.pause();
     });
   }
-  clone.play().catch(() => { /* ignore autoplay blocks */ });
+  soundQueue.push(clone);
+  processNextSound();
 }
 
 /** Wire up hook events to sound playback */

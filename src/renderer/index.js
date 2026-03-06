@@ -79,6 +79,7 @@ window._claudiuGetBufferText = (targetId) => {
   return text;
 };
 
+window._claudiuCreateSession = (type) => createSession(type || 'terminal');
 window._claudiuActiveTabId = () => getActiveId();
 window._claudiuSelectedProject = () => getSelectedProjectPath();
 window._claudiuProjectMRU = () => [...projectMRU];

@@ -30,7 +30,7 @@ test.beforeAll(async () => {
   }, tmpDir);
 
   // Create a session in the project
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('terminal'));
   await window.waitForSelector('.terminal-panel.active .xterm', { timeout: 10000 });
 });
 

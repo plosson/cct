@@ -32,7 +32,7 @@ test.beforeAll(async () => {
   }, tmpDir);
 
   // Create a session (will spawn claude due to CLAUDIU_COMMAND)
-  await window.click('[data-testid="new-tab-btn"]');
+  await window.evaluate(() => window._claudiuCreateSession('claude'));
   // Claude may take longer to start than a shell
   await window.waitForSelector('.xterm', { timeout: 15000 });
   // Wait for Claude TUI to fully render
