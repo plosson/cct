@@ -102,14 +102,14 @@ test('5 - sidebar width persists via IPC', async () => {
   );
 
   // Set sidebar width
-  await window.evaluate(() => window.electron_api.windowState.setSidebarWidth(250));
+  await window.evaluate(() => window.electron_api.windowState.set('sidebarWidth', 250));
   await window.waitForTimeout(500);
 
   const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
   expect(state.sidebarWidth).toBe(250);
 
   // Read it back
-  const width = await window.evaluate(() => window.electron_api.windowState.getSidebarWidth());
+  const width = await window.evaluate(() => window.electron_api.windowState.get('sidebarWidth'));
   expect(width).toBe(250);
 });
 
@@ -160,7 +160,7 @@ test('6 - window state persists across app restart', async () => {
 
 test('7 - sidebar width is restored on app restart', async () => {
   // Set a specific sidebar width
-  await window.evaluate(() => window.electron_api.windowState.setSidebarWidth(280));
+  await window.evaluate(() => window.electron_api.windowState.set('sidebarWidth', 280));
   await window.waitForTimeout(500);
 
   // Restart the app

@@ -106,7 +106,7 @@ test('6 - sidebar width persists after resize', async () => {
 
   // Check that the width was persisted
   const savedWidth = await window.evaluate(() =>
-    window.electron_api.windowState.getSidebarWidth()
+    window.electron_api.windowState.get('sidebarWidth')
   );
   const currentWidth = await sidebar.evaluate(el => Math.round(el.getBoundingClientRect().width));
   expect(savedWidth).toBe(currentWidth);
@@ -117,7 +117,7 @@ test('7 - resized sidebar width survives app restart', async () => {
   const sidebar = window.locator('[data-testid="sidebar"]');
   await window.evaluate(() => {
     document.querySelector('[data-testid="sidebar"]').style.width = '260px';
-    window.electron_api.windowState.setSidebarWidth(260);
+    window.electron_api.windowState.set('sidebarWidth', 260);
   });
   await window.waitForTimeout(500);
 

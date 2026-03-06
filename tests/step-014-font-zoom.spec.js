@@ -147,7 +147,7 @@ test('7 - font size persists via IPC', async () => {
   await window.waitForTimeout(300);
 
   const savedSize = await window.evaluate(() => {
-    return window.electron_api.windowState.getFontSize();
+    return window.electron_api.windowState.get('fontSize');
   });
   expect(savedSize).toBe(18);
 

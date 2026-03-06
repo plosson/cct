@@ -45,8 +45,8 @@ test('2 - startup logs appear in history', async () => {
 });
 
 test('3 - debug pane state defaults are persisted', async () => {
-  const height = await window.evaluate(() => window.electron_api.windowState.getDebugPaneHeight());
-  const open = await window.evaluate(() => window.electron_api.windowState.getDebugPaneOpen());
+  const height = await window.evaluate(() => window.electron_api.windowState.get('debugPaneHeight'));
+  const open = await window.evaluate(() => window.electron_api.windowState.get('debugPaneOpen'));
   expect(height).toBe(200);
   expect(open).toBe(false);
 });
