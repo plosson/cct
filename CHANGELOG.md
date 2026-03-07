@@ -2,6 +2,12 @@
 
 All notable changes to Claudiu are documented in this file.
 
+## [0.11.0] - 2026-03-07
+
+### Added
+- Hook events now filtered to only Claudiu-owned Claude Code sessions
+- Hook log messages include project name and tab label for easier debugging
+
 ## [0.10.0] - 2026-03-07
 
 ### Fixed
