@@ -868,6 +868,18 @@ html, body {
   color: var(--text-primary);
 }
 
+.project-picker-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-picker-item-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .project-picker-item-name {
   font-weight: 500;
 }
@@ -878,6 +890,7 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 20px;
 }
 
 /* Search bar (Cmd+F) */

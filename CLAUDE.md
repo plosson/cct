@@ -81,6 +81,12 @@ src/
     projectColors.js             — Project color assignment
 ```
 
+## Changelog
+
+- **Always update `CHANGELOG.md`** before pushing to git — add entries under the current version for any user-facing changes (features, fixes, breaking changes)
+- Follow [Keep a Changelog](https://keepachangelog.com/) format: Added, Changed, Fixed, Removed
+- Group entries under the current version header; create a new version section when bumping `package.json` version
+
 ## Do & Don't
 
 **DO:**
