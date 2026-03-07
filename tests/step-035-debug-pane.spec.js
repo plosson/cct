@@ -96,14 +96,16 @@ test('6 - debug pane is resizable via drag handle', async () => {
   if (!isOpen) await window.keyboard.press('Meta+j');
   await window.waitForTimeout(100);
 
-  const handle = await window.$('[data-testid="debug-pane-resize-handle"]');
-  const box = await handle.boundingBox();
-
-  // Drag upward (increases pane height)
-  await window.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await window.mouse.down();
-  await window.mouse.move(box.x + box.width / 2, box.y - 50);
-  await window.mouse.up();
+  // Simulate drag via dispatching MouseEvents directly (Playwright mouse doesn't reliably trigger in Electron)
+  await window.evaluate(() => {
+    const handle = document.querySelector('[data-testid="debug-pane-resize-handle"]');
+    const rect = handle.getBoundingClientRect();
+    const startX = rect.x + rect.width / 2;
+    const startY = rect.y + rect.height / 2;
+    handle.dispatchEvent(new MouseEvent('mousedown', { clientX: startX, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: startX, clientY: startY - 50, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
 
   const newHeight = await window.evaluate(() => document.querySelector('[data-testid="debug-pane"]').offsetHeight);
   expect(newHeight).toBeGreaterThan(200);

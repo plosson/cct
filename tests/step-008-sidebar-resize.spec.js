@@ -40,16 +40,19 @@ test('2 - resize handle has col-resize cursor', async () => {
 
 test('3 - dragging the handle resizes the sidebar', async () => {
   const sidebar = window.locator('[data-testid="sidebar"]');
-  const handle = window.locator('[data-testid="sidebar-resize-handle"]');
 
   const initialWidth = await sidebar.evaluate(el => el.getBoundingClientRect().width);
-  const handleBox = await handle.boundingBox();
 
-  // Drag handle 80px to the right
-  await window.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-  await window.mouse.down();
-  await window.mouse.move(handleBox.x + 80, handleBox.y + handleBox.height / 2, { steps: 5 });
-  await window.mouse.up();
+  // Simulate drag via dispatching MouseEvents directly (Playwright mouse doesn't reliably trigger in Electron)
+  await window.evaluate((delta) => {
+    const handle = document.querySelector('[data-testid="sidebar-resize-handle"]');
+    const rect = handle.getBoundingClientRect();
+    const startX = rect.x + rect.width / 2;
+    const startY = rect.y + rect.height / 2;
+    handle.dispatchEvent(new MouseEvent('mousedown', { clientX: startX, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: startX + delta, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  }, 80);
 
   const newWidth = await sidebar.evaluate(el => el.getBoundingClientRect().width);
   expect(newWidth).toBeGreaterThan(initialWidth + 50);
@@ -57,14 +60,17 @@ test('3 - dragging the handle resizes the sidebar', async () => {
 
 test('4 - sidebar has minimum width constraint', async () => {
   const sidebar = window.locator('[data-testid="sidebar"]');
-  const handle = window.locator('[data-testid="sidebar-resize-handle"]');
-  const handleBox = await handle.boundingBox();
 
-  // Drag handle far to the left
-  await window.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-  await window.mouse.down();
-  await window.mouse.move(10, handleBox.y + handleBox.height / 2, { steps: 5 });
-  await window.mouse.up();
+  // Drag handle far to the left via dispatching MouseEvents directly
+  await window.evaluate(() => {
+    const handle = document.querySelector('[data-testid="sidebar-resize-handle"]');
+    const rect = handle.getBoundingClientRect();
+    const startX = rect.x + rect.width / 2;
+    const startY = rect.y + rect.height / 2;
+    handle.dispatchEvent(new MouseEvent('mousedown', { clientX: startX, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 10, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
 
   const width = await sidebar.evaluate(el => el.getBoundingClientRect().width);
   expect(width).toBeGreaterThanOrEqual(140);
@@ -72,14 +78,17 @@ test('4 - sidebar has minimum width constraint', async () => {
 
 test('5 - sidebar has maximum width constraint', async () => {
   const sidebar = window.locator('[data-testid="sidebar"]');
-  const handle = window.locator('[data-testid="sidebar-resize-handle"]');
-  const handleBox = await handle.boundingBox();
 
-  // Drag handle far to the right
-  await window.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-  await window.mouse.down();
-  await window.mouse.move(600, handleBox.y + handleBox.height / 2, { steps: 5 });
-  await window.mouse.up();
+  // Drag handle far to the right via dispatching MouseEvents directly
+  await window.evaluate(() => {
+    const handle = document.querySelector('[data-testid="sidebar-resize-handle"]');
+    const rect = handle.getBoundingClientRect();
+    const startX = rect.x + rect.width / 2;
+    const startY = rect.y + rect.height / 2;
+    handle.dispatchEvent(new MouseEvent('mousedown', { clientX: startX, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 600, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
 
   const width = await sidebar.evaluate(el => el.getBoundingClientRect().width);
   expect(width).toBeLessThanOrEqual(500);
@@ -87,20 +96,22 @@ test('5 - sidebar has maximum width constraint', async () => {
 
 test('6 - sidebar width persists after resize', async () => {
   const sidebar = window.locator('[data-testid="sidebar"]');
-  const handle = window.locator('[data-testid="sidebar-resize-handle"]');
 
   // Reset to known width
   await window.evaluate(() => {
     document.querySelector('[data-testid="sidebar"]').style.width = '220px';
   });
 
-  const handleBox = await handle.boundingBox();
-
-  // Drag to a specific width
-  await window.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-  await window.mouse.down();
-  await window.mouse.move(handleBox.x + 30, handleBox.y + handleBox.height / 2, { steps: 5 });
-  await window.mouse.up();
+  // Drag to a specific width via dispatching MouseEvents directly
+  await window.evaluate(() => {
+    const handle = document.querySelector('[data-testid="sidebar-resize-handle"]');
+    const rect = handle.getBoundingClientRect();
+    const startX = rect.x + rect.width / 2;
+    const startY = rect.y + rect.height / 2;
+    handle.dispatchEvent(new MouseEvent('mousedown', { clientX: startX, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: startX + 30, clientY: startY, bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
 
   await window.waitForTimeout(500);
 

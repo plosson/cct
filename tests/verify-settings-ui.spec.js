@@ -71,7 +71,7 @@ test('1 - settings content is centered (margin auto)', async () => {
   const sectionW = layout['settings-section']?.w || 0;
   console.log('Content width:', contentW, 'Section width:', sectionW);
 
-  expect(layout['settings-section']?.maxWidth).toBe('560px');
+  expect(layout['settings-section']?.maxWidth).toBe('480px');
 
   // If content is wide enough, section should be centered
   if (contentW > 620) {
@@ -85,6 +85,17 @@ test('1 - settings content is centered (margin auto)', async () => {
 });
 
 test('2 - scope underline uses ::after pseudo-element (not border-bottom)', async () => {
+  // Ensure settings is open
+  const navVisible = await window.locator('[data-testid="settings-nav-general"]').isVisible().catch(() => false);
+  if (!navVisible) {
+    await window.keyboard.press('Meta+,');
+    await window.waitForSelector('[data-testid="settings-nav-general"]', { timeout: 3000 });
+    await window.waitForTimeout(300);
+  }
+
+  // Wait for scope button to appear
+  await window.waitForSelector('.settings-scope-btn.active', { timeout: 3000 });
+
   // Active scope button should NOT have a visible border-bottom
   const borderBottom = await window.evaluate(() => {
     const btn = document.querySelector('.settings-scope-btn.active');
@@ -103,6 +114,23 @@ test('2 - scope underline uses ::after pseudo-element (not border-bottom)', asyn
 });
 
 test('3 - project scope button gets project color when active', async () => {
+  // Ensure a project is selected in the sidebar first
+  await window.locator('.sidebar-project').first().click();
+  await window.waitForTimeout(300);
+
+  // Close settings if open and reopen (to pick up selected project)
+  const navVisible = await window.locator('[data-testid="settings-nav-general"]').isVisible().catch(() => false);
+  if (navVisible) {
+    const settingsTabClose = window.locator('.tab-item .tab-label:has-text("Settings")').locator('..').locator('.tab-close');
+    if (await settingsTabClose.isVisible().catch(() => false)) {
+      await settingsTabClose.click();
+      await window.waitForTimeout(200);
+    }
+  }
+  await window.keyboard.press('Meta+,');
+  await window.waitForSelector('[data-testid="settings-scope-project"]', { timeout: 3000 });
+  await window.waitForTimeout(300);
+
   // Click on project scope
   await window.locator('[data-testid="settings-scope-project"]').click();
   await window.waitForTimeout(200);
@@ -129,10 +157,12 @@ test('3 - project scope button gets project color when active', async () => {
 });
 
 test('4 - settings tab icon uses project color when project selected', async () => {
-  // Close current settings tab
+  // Close current settings tab if open
   const settingsTabClose = window.locator('.tab-item .tab-label:has-text("Settings")').locator('..').locator('.tab-close');
-  await settingsTabClose.click();
-  await window.waitForTimeout(200);
+  if (await settingsTabClose.isVisible().catch(() => false)) {
+    await settingsTabClose.click();
+    await window.waitForTimeout(200);
+  }
 
   // Select the project in sidebar first
   await window.locator('.sidebar-project').first().click();

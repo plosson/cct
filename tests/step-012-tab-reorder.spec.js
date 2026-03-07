@@ -74,20 +74,27 @@ test('2 - three tabs exist in initial order', async () => {
 
 test('3 - dragging first tab to the right of second tab reorders', async () => {
   const idsBefore = await getTabIds();
-  const tabs = window.locator('[data-testid="tab"]');
 
-  const firstTab = tabs.nth(0);
-  const secondTab = tabs.nth(1);
+  // Simulate HTML5 drag-and-drop via dispatching DragEvents directly
+  // (Playwright mouse events don't trigger HTML5 DnD in Electron)
+  await window.evaluate((ids) => {
+    const tabs = [...document.querySelectorAll('[data-testid="tab"]')];
+    const draggedTab = tabs[0];
+    const targetTab = tabs[1];
+    const targetRect = targetTab.getBoundingClientRect();
 
-  const firstBox = await firstTab.boundingBox();
-  const secondBox = await secondTab.boundingBox();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', String(ids[0]));
 
-  // Drag first tab to the right side of second tab
-  await window.mouse.move(firstBox.x + firstBox.width / 2, firstBox.y + firstBox.height / 2);
-  await window.mouse.down();
-  // Move to the right side of the second tab
-  await window.mouse.move(secondBox.x + secondBox.width * 0.75, secondBox.y + secondBox.height / 2, { steps: 5 });
-  await window.mouse.up();
+    draggedTab.dispatchEvent(new DragEvent('dragstart', { dataTransfer, bubbles: true }));
+    targetTab.dispatchEvent(new DragEvent('dragover', {
+      dataTransfer, bubbles: true, clientX: targetRect.x + targetRect.width * 0.75
+    }));
+    targetTab.dispatchEvent(new DragEvent('drop', {
+      dataTransfer, bubbles: true, clientX: targetRect.x + targetRect.width * 0.75
+    }));
+    draggedTab.dispatchEvent(new DragEvent('dragend', { dataTransfer, bubbles: true }));
+  }, idsBefore);
   await window.waitForTimeout(200);
 
   const idsAfter = await getTabIds();
@@ -99,19 +106,26 @@ test('3 - dragging first tab to the right of second tab reorders', async () => {
 
 test('4 - dragging last tab to before the first tab reorders', async () => {
   const idsBefore = await getTabIds();
-  const tabs = window.locator('[data-testid="tab"]');
 
-  const lastTab = tabs.nth(2);
-  const firstTab = tabs.nth(0);
+  // Simulate HTML5 drag-and-drop via dispatching DragEvents directly
+  await window.evaluate((ids) => {
+    const tabs = [...document.querySelectorAll('[data-testid="tab"]')];
+    const draggedTab = tabs[2];
+    const targetTab = tabs[0];
+    const targetRect = targetTab.getBoundingClientRect();
 
-  const lastBox = await lastTab.boundingBox();
-  const firstBox = await firstTab.boundingBox();
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', String(ids[2]));
 
-  // Drag last tab to the left side of first tab
-  await window.mouse.move(lastBox.x + lastBox.width / 2, lastBox.y + lastBox.height / 2);
-  await window.mouse.down();
-  await window.mouse.move(firstBox.x + firstBox.width * 0.25, firstBox.y + firstBox.height / 2, { steps: 5 });
-  await window.mouse.up();
+    draggedTab.dispatchEvent(new DragEvent('dragstart', { dataTransfer, bubbles: true }));
+    targetTab.dispatchEvent(new DragEvent('dragover', {
+      dataTransfer, bubbles: true, clientX: targetRect.x + targetRect.width * 0.25
+    }));
+    targetTab.dispatchEvent(new DragEvent('drop', {
+      dataTransfer, bubbles: true, clientX: targetRect.x + targetRect.width * 0.25
+    }));
+    draggedTab.dispatchEvent(new DragEvent('dragend', { dataTransfer, bubbles: true }));
+  }, idsBefore);
   await window.waitForTimeout(200);
 
   const idsAfter = await getTabIds();

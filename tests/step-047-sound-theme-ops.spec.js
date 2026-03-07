@@ -417,15 +417,11 @@ test('15 - Save global soundTheme → config.json updated on disk', async () => 
   await window.waitForTimeout(300);
   await openSoundsTab();
 
-  // Select the custom theme in the dropdown
+  // Select the custom theme in the dropdown (auto-saves after 400ms debounce)
   const dropdown = window.locator('[data-testid="settings-sound-theme-select"]');
   await dropdown.selectOption(dirName);
-  await window.waitForTimeout(300);
-
-  // Click Save
-  const saveBtn = window.locator('[data-testid="settings-sound-save-btn"]');
-  await saveBtn.click();
-  await window.waitForTimeout(500);
+  // Wait for the 400ms auto-save debounce to complete
+  await window.waitForTimeout(1000);
 
   // Read config.json from disk
   const config = JSON.parse(
@@ -435,7 +431,12 @@ test('15 - Save global soundTheme → config.json updated on disk', async () => 
 });
 
 test('16 - Reload settings → saved theme still selected', async () => {
-  // config.json should still have the theme from test 15
+  // Ensure a custom theme is saved (in case test 15 state is clean)
+  const dirName = await ensureCustomTheme('Reload Theme');
+  await setTheme(dirName);
+  await window.waitForTimeout(500);
+
+  // config.json should have the custom theme
   const config = JSON.parse(
     fs.readFileSync(path.join(env.CLAUDIU_USER_DATA, 'config.json'), 'utf8')
   );
