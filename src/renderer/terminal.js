@@ -173,6 +173,97 @@ export async function createSession(type = 'claude', { claudeSessionId } = {}) {
   terminal.unicode.activeVersion = '11';
   terminal.open(termWrapper);
 
+  // ── Drop zone overlay ──
+  const dropZone = document.createElement('div');
+  dropZone.className = 'terminal-drop-zone';
+  dropZone.innerHTML = '<div class="terminal-drop-zone-content"><span class="terminal-drop-zone-icon">📎</span><span>Drop files to paste path</span></div>';
+  termWrapper.style.position = 'relative';
+  termWrapper.appendChild(dropZone);
+
+  // Drag-and-drop: paste file paths into terminal with visual feedback
+  let dragCounter = 0;
+  const xtermEl = termWrapper.querySelector('.xterm');
+
+  const dropZoneLabel = dropZone.querySelector('span:last-child');
+  const showDropZone = (isImage) => {
+    dropZone.classList.add('active');
+    if (dropZoneLabel) {
+      dropZoneLabel.textContent = isImage ? 'Drop image to attach' : 'Drop files to paste path';
+    }
+  };
+  const hideDropZone = () => { dragCounter = 0; dropZone.classList.remove('active'); };
+
+  const dragEnterHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      dragCounter++;
+      // Check if dragged files look like images (via items API)
+      const items = Array.from(e.dataTransfer.items || []);
+      const hasImage = items.some(item => item.type && item.type.startsWith('image/'));
+      showDropZone(hasImage);
+    }
+  };
+  const dragLeaveHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter <= 0) hideDropZone();
+  };
+  const dragOverHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+  const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  const isImageFile = (filePath) => {
+    const ext = filePath.toLowerCase().replace(/^.*(\.[^.]+)$/, '$1');
+    return IMAGE_EXTENSIONS.includes(ext);
+  };
+
+  const dropHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideDropZone();
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+
+    // Split into images and non-images
+    const images = files.filter(f => isImageFile(f.path));
+    const others = files.filter(f => !isImageFile(f.path));
+
+    // Paste non-image file paths as text
+    if (others.length > 0) {
+      const data = others.map(f => f.path.includes(' ') ? `"${f.path}"` : f.path).join(' ');
+      api.terminal.input({ id, data });
+    }
+
+    // For image files: copy to clipboard one at a time, send Ctrl+V for each
+    if (images.length > 0) {
+      (async () => {
+        for (const img of images) {
+          const ok = api.clipboard.copyImageFromPath(img.path);
+          if (ok) {
+            api.terminal.input({ id, data: '\x16' });
+            // Small delay between images so Claude Code can process each
+            if (images.length > 1) await new Promise(r => setTimeout(r, 500));
+          }
+        }
+      })();
+    }
+  };
+
+  if (xtermEl) {
+    xtermEl.addEventListener('dragenter', dragEnterHandler, true);
+    xtermEl.addEventListener('dragleave', dragLeaveHandler, true);
+    xtermEl.addEventListener('dragover', dragOverHandler, true);
+    xtermEl.addEventListener('drop', dropHandler, true);
+  }
+  termWrapper.addEventListener('dragenter', dragEnterHandler, true);
+  termWrapper.addEventListener('dragleave', dragLeaveHandler, true);
+  termWrapper.addEventListener('dragover', dragOverHandler, true);
+  termWrapper.addEventListener('drop', dropHandler, true);
+
   // Let app-level keybindings bypass xterm so they bubble to the document dispatcher
   terminal.attachCustomKeyEventHandler((e) => {
     const key = normalizeKeyEvent(e);
@@ -536,6 +627,11 @@ export function copySelection() {
 
 export function pasteClipboard() {
   if (!getActiveSession()) return;
+  // If clipboard contains an image, send raw Ctrl+V so Claude Code reads it natively
+  if (api.clipboard.hasImage()) {
+    api.terminal.input({ id: activeId, data: '\x16' });
+    return;
+  }
   const text = api.clipboard.readText();
   if (text) {
     api.terminal.input({ id: activeId, data: text });
