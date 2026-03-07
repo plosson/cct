@@ -15,6 +15,7 @@ const CONFIG_FILE = 'sessions.json';
 class ProjectConfigService {
   constructor() {
     this._cache = new Map(); // projectPath -> config
+    this._linkedClaudeSessions = new Set(); // Claude Code session IDs linked via hooks
   }
 
   /**
@@ -97,8 +98,21 @@ class ProjectConfigService {
    */
   removeSession(projectPath, terminalId) {
     const config = this.getConfig(projectPath);
+    const removed = config.sessions.find(s => s.terminalId === terminalId);
+    if (removed && removed.claudeSessionId) {
+      this._linkedClaudeSessions.delete(removed.claudeSessionId);
+    }
     config.sessions = config.sessions.filter(s => s.terminalId !== terminalId);
     this._save(projectPath, config);
+  }
+
+  /**
+   * Check if a Claude Code session ID is linked to a Claudiu session (O(1) via index)
+   * @param {string} claudeSessionId
+   * @returns {boolean}
+   */
+  hasClaudeSession(claudeSessionId) {
+    return this._linkedClaudeSessions.has(claudeSessionId);
   }
 
   /**
@@ -112,6 +126,7 @@ class ProjectConfigService {
       const entry = config.sessions.find(s => s.id === claudiuSessionId);
       if (entry) {
         entry.claudeSessionId = claudeSessionId;
+        this._linkedClaudeSessions.add(claudeSessionId);
         this._save(projectPath, config);
         return true;
       }
@@ -119,6 +134,26 @@ class ProjectConfigService {
     return false;
   }
 
+
+  /**
+   * Look up project name and tab label for a Claude Code session ID.
+   * @param {string} claudeSessionId
+   * @returns {{ projectName: string, tabLabel: string }|null}
+   */
+  getSessionContext(claudeSessionId) {
+    for (const [projectPath, config] of this._cache) {
+      const entry = config.sessions.find(s => s.claudeSessionId === claudeSessionId);
+      if (entry) {
+        const projectName = path.basename(projectPath);
+        const type = entry.type || 'claude';
+        const sameType = config.sessions.filter(s => (s.type || 'claude') === type);
+        const idx = sameType.indexOf(entry) + 1;
+        const tabLabel = type === 'claude' ? `Claude ${idx}` : `Terminal ${idx}`;
+        return { projectName, tabLabel };
+      }
+    }
+    return null;
+  }
 
   /**
    * Auto-migrate legacy .cct/ directory to .claudiu/ if needed.

@@ -105,18 +105,27 @@ class HookServerService {
 
     if (!claudeSessionId) return;
 
-    this._logService.info('hooks', `${hookEvent} — claude=${claudeSessionId.slice(0, 8)}`);
+    const shortId = claudeSessionId.slice(0, 8);
 
-    // On SessionStart, link Claude's session_id to Claudiu's session via the header
+    // Gate: only process hooks from Claude Code sessions started by Claudiu
     if (hookEvent === 'SessionStart') {
       const claudiuSessionId = headers['x-claudiu-session-id'];
-      if (claudiuSessionId) {
-        const updated = this._projectConfigService.updateClaudeSessionId(claudiuSessionId, claudeSessionId);
-        if (updated) {
-          this._logService.info('hooks', `Linked claude=${claudeSessionId.slice(0, 8)} → claudiu=${claudiuSessionId.slice(0, 8)}`);
-        }
+      const linked = claudiuSessionId && this._projectConfigService.updateClaudeSessionId(claudiuSessionId, claudeSessionId);
+      if (!linked) {
+        this._logService.info('hooks', `${hookEvent} — claude=${shortId} (ignored: not a Claudiu session)`);
+        return;
       }
+      const ctx = this._projectConfigService.getSessionContext(claudeSessionId);
+      const ctxLabel = ctx ? ` [${ctx.projectName} / ${ctx.tabLabel}]` : '';
+      this._logService.info('hooks', `Linked claude=${shortId} → claudiu=${claudiuSessionId.slice(0, 8)}${ctxLabel}`);
+    } else if (!this._projectConfigService.hasClaudeSession(claudeSessionId)) {
+      this._logService.info('hooks', `${hookEvent} — claude=${shortId} (ignored: not a Claudiu session)`);
+      return;
     }
+
+    const ctx = this._projectConfigService.getSessionContext(claudeSessionId);
+    const ctxLabel = ctx ? ` [${ctx.projectName} / ${ctx.tabLabel}]` : '';
+    this._logService.info('hooks', `${hookEvent} — claude=${shortId}${ctxLabel}`);
 
     // Broadcast to renderer
     if (this._mainWindow && !this._mainWindow.isDestroyed()) {
