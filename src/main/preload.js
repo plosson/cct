@@ -3,7 +3,7 @@
  * Exposes IPC API to renderer with context isolation
  */
 
-const { contextBridge, ipcRenderer, clipboard } = require('electron');
+const { contextBridge, ipcRenderer, clipboard, nativeImage } = require('electron');
 
 /** Create an IPC listener that returns an unsubscribe function */
 function createListener(channel) {
@@ -40,6 +40,18 @@ contextBridge.exposeInMainWorld('electron_api', {
   clipboard: {
     writeText: (text) => clipboard.writeText(text),
     readText: () => clipboard.readText(),
+    hasImage: () => {
+      const img = clipboard.readImage();
+      return img && !img.isEmpty();
+    },
+    copyImageFromPath: (filePath) => {
+      const img = nativeImage.createFromPath(filePath);
+      if (!img.isEmpty()) {
+        clipboard.writeImage(img);
+        return true;
+      }
+      return false;
+    },
   },
 
   shell: {
