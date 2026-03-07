@@ -1065,6 +1065,16 @@ html, body {
   background: var(--accent-hover);
 }
 
+.update-banner--info {
+  background: var(--bg-tertiary, var(--accent-bg));
+  color: var(--text-muted, var(--accent));
+  cursor: default;
+}
+
+.update-banner--info:hover {
+  background: var(--bg-tertiary, var(--accent-bg));
+}
+
 /* ── Settings Tab (full-tab, Warp-style) ────────────────────── */
 
 .settings-tab-panel {

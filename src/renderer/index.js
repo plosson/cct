@@ -163,6 +163,17 @@ async function init() {
 
   // Auto-updater notification
   if (api.updater) {
+    function insertBanner(banner) {
+      const mainArea = document.querySelector('.main-area');
+      if (!mainArea) return;
+      const tabBar = mainArea.querySelector('.tab-bar');
+      if (tabBar) {
+        mainArea.insertBefore(banner, tabBar.nextSibling);
+      } else {
+        mainArea.prepend(banner);
+      }
+    }
+
     api.updater.onUpdateDownloaded(({ version }) => {
       // Don't add duplicate banners
       if (document.querySelector('.update-banner')) return;
@@ -171,9 +182,18 @@ async function init() {
       banner.dataset.testid = 'update-banner';
       banner.textContent = `Update v${version} ready \u2014 click to restart`;
       banner.addEventListener('click', () => api.updater.installNow());
-      const mainArea = document.querySelector('.main-area');
-      const tabBar = mainArea.querySelector('.tab-bar');
-      mainArea.insertBefore(banner, tabBar.nextSibling);
+      insertBanner(banner);
+    });
+
+    api.updater.onUpdateNotAvailable(() => {
+      // Show a temporary "up to date" banner that auto-dismisses
+      if (document.querySelector('.update-banner')) return;
+      const banner = document.createElement('div');
+      banner.className = 'update-banner update-banner--info';
+      banner.dataset.testid = 'update-banner-info';
+      banner.textContent = 'You are running the latest version';
+      insertBanner(banner);
+      setTimeout(() => banner.remove(), 4000);
     });
   }
 

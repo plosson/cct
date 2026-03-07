@@ -50,7 +50,9 @@ contextBridge.exposeInMainWorld('electron_api', {
   updater: {
     onUpdateAvailable: createListener('update-available'),
     onUpdateDownloaded: createListener('update-downloaded'),
+    onUpdateNotAvailable: createListener('update-not-available'),
     onUpdateError: createListener('update-error'),
+    checkForUpdates: () => ipcRenderer.invoke('updater-check'),
     installNow: () => ipcRenderer.invoke('updater-install-now'),
   },
 

@@ -31,6 +31,11 @@ class UpdaterService {
       this._send('update-downloaded', { version: info.version });
     });
 
+    autoUpdater.on('update-not-available', (info) => {
+      if (this._logService) this._logService.info('updater', 'Already up to date: v' + info.version);
+      this._send('update-not-available', { version: info.version });
+    });
+
     autoUpdater.on('error', (err) => {
       if (this._logService) this._logService.error('updater', 'Update error: ' + (err?.message || String(err)));
       this._send('update-error', { message: err?.message || String(err) });
@@ -38,6 +43,10 @@ class UpdaterService {
 
     ipcMain.handle('updater-install-now', () => {
       autoUpdater.quitAndInstall();
+    });
+
+    ipcMain.handle('updater-check', () => {
+      return autoUpdater.checkForUpdates();
     });
 
     // Check for updates after a short delay so startup isn't blocked
