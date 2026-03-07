@@ -2,6 +2,11 @@
 
 All notable changes to Claudiu are documented in this file.
 
+## [0.9.0] - 2026-03-07
+
+### Changed
+- Added `.claude/` and `tests/screenshots/` to `.gitignore`
+
 ## [0.8.0] - 2026-03-07
 
 ### Added
