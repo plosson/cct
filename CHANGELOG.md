@@ -2,6 +2,19 @@
 
 All notable changes to Claudiu are documented in this file.
 
+## [0.8.0] - 2026-03-07
+
+### Added
+- Colored folder icons in project picker
+- Changelog documentation in CLAUDE.md
+
+### Changed
+- Reworked release workflow: proper code signing with import-codesign-certs action, dmg+zip builds
+- Optimized app icons (smaller file sizes)
+
+### Fixed
+- 10 flaky Playwright tests: drag simulation, sound theme persistence, settings UI assertions
+
 ## [0.7.0] - 2025-03-06
 
 ### Added
