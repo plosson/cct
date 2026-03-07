@@ -2,6 +2,15 @@
 
 All notable changes to Claudiu are documented in this file.
 
+## [0.10.0] - 2026-03-07
+
+### Fixed
+- Auto-updater "Check for Updates" now shows feedback when already up to date (temporary info banner)
+- Banner insertion no longer crashes when no tab bar is present
+
+### Added
+- Playwright tests for auto-updater UI (step-051)
+
 ## [0.9.0] - 2026-03-07
 
 ### Changed
